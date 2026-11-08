@@ -84,7 +84,7 @@ function render(){
   if(!S)return start();
   const u=U();
   $("hT").textContent=u.name;
-  $("hS").textContent=`${Game.COUNTRIES[u.country].name} · ${LGu().name}\nTemp. ${S.season} · ${money(S.cash)}`;
+  $("hS").textContent=`${Game.COUNTRIES[u.country].name} · ${(Object.values(S.comps).find(c=>c.key===u.lkey)||{name:""}).name||""}\n${Game.dateOf(S.T)} · ${money(S.cash)}`;
   const tabs=[["jogo","Jogo"],["elenco","Elenco"],["tabela","Tabela"],["mercado","Mercado"],["fin","Mais"]];
   $("nav").innerHTML=tabs.map(([k,n])=>`<button class="${tab===k?"on":""}" onclick="setTab('${k}')">${n}</button>`).join("");
   $("app").innerHTML=({jogo:vJogo,elenco:vElenco,tabela:vTabela,mercado:vMercado,fin:vMais})[tab]();
@@ -98,63 +98,28 @@ function vJogo(){
     S.offers.map(o=>`<div class="pl"><span>${o.name}<br><span class="mut">${o.league} · ${o.country} · OVR ${o.ovr}${o.why?"<br>"+o.why:""}</span></span><button class="s p" onclick="accept(${o.tid})">Aceitar</button></div>`).join("")+
     `<p><button class="s" onclick="S.offers=[];save();render()">Recusar todos</button></p></div>`;
   }
-  h+=`<div class="card"><h2>${S.phase==="state"?"Campeonato Estadual":S.phase==="league"?"Próxima partida":S.phase==="cups"?"Copas continentais":"Fim de temporada"}</h2>`;
-  if(S.phase==="state"){
-    const st=S.states[S.userState],f=st&&st.cup===null?(st.fixtures[st.round]||[]).find(([a,b])=>a===S.user||b===S.user):null;
-    h+=st?(st.cup===null&&f?`<div class="big">${S.teams[f[0]].name} x ${S.teams[f[1]].name}</div><p class="mut" style="text-align:center">${st.name} · rodada ${st.round+1}/${st.fixtures.length}</p>`:`<p>${st.name}: fase de mata-mata.</p>`):`<p class="mut">Seu time não disputa estadual.</p>`;
-    h+=`<div class="row"><select onchange="setF(this.value)">${Object.keys(Game.FORMATIONS).map(f=>`<option ${u.formation===f?"selected":""}>${f}</option>`).join("")}</select>
-    <select onchange="U().tactic=this.value;save()">${Game.TACTICS.map(t=>`<option ${u.tactic===t?"selected":""}>${t}</option>`).join("")}</select></div>
-    <p><button class="p" onclick="play()">Jogar rodada</button></p>`;
-  }else if(S.phase==="league"){
-    const m=Game.userMatchAt(S,S.round);
-    if(m){const H=S.teams[m[0]],A=S.teams[m[1]];
-      h+=`<div class="big">${H.name} x ${A.name}</div><p class="mut" style="text-align:center">Rodada ${S.round+1} · Seu OVR: ${Game.ratings(u).ovr.toFixed(1)} · Adversário: ${Game.ratings(H===u?A:H).ovr.toFixed(1)}</p>`;
-    }else h+=`<p>Sem jogo nesta rodada.</p>`;
-    h+=`<div class="row"><select onchange="setF(this.value)">${Object.keys(Game.FORMATIONS).map(f=>`<option ${u.formation===f?"selected":""}>${f}</option>`).join("")}</select>
-    <select onchange="U().tactic=this.value;save()">${Game.TACTICS.map(t=>`<option ${u.tactic===t?"selected":""}>${t}</option>`).join("")}</select></div>
-    <p><button class="p" onclick="play()">Jogar rodada</button></p>`;
-  }else if(S.phase==="cups"){
-    const mine=Object.values(S.cups).filter(c=>c.champion===null&&c.alive.includes(S.user));
-    h+=mine.length?`<p>Você está na: <b>${mine.map(c=>c.name).join(", ")}</b></p>`:`<p class="mut">Seu time não está mais em copas. As copas serão simuladas até o fim.</p>`;
-    h+=`<p><button class="p" onclick="play()">Jogar rodada de copa</button></p>`;
-  }else{
-    h+=`<p>Tudo concluído.</p><button class="p" onclick="finish()">Encerrar temporada</button>`;
-  }
-  h+=`</div>`+(msg?`<div class="card">${msg}</div>`:"");
+  const n=Game.nextUserRound(S);
+  h+=`<div class="card"><h2>Próxima partida</h2>`;
+  if(n){
+    h+=`<div class="big">${n.home.name} x ${n.away.name}</div><p class="mut" style="text-align:center">${n.date} · ${n.comp}<br>Seu OVR: ${Game.ratings(u).ovr.toFixed(1)} · Adversário: ${Game.ratings(n.home===u?n.away:n.home).ovr.toFixed(1)}</p>`;
+  }else h+=`<p>Sem jogos agendados. Clique para avançar o calendário.</p>`;
+  h+=`<div class="row"><select onchange="setF(this.value)">${Object.keys(Game.FORMATIONS).map(f=>`<option ${u.formation===f?"selected":""}>${f}</option>`).join("")}</select>
+  <select onchange="U().tactic=this.value;save()">${Game.TACTICS.map(t=>`<option ${u.tactic===t?"selected":""}>${t}</option>`).join("")}</select></div>
+  <p><button class="p" onclick="play()">Jogar</button></p></div>`+(msg?`<div class="card">${msg}</div>`:"");
   return h;
 }
 function accept(tid){const e=Game.acceptOffer(S,tid);if(e){alert(e);return}viewKey=null;msg=`<p class="good">Você agora comanda o ${U().name}. Save criado com o nome do novo time.</p>`;save();render()}
 function setF(f){const u=U();u.formation=f;u.lineup=Game.autoLineup(u,f);save();render()}
 const sc=a=>a.length?a.join(", "):"–";
 function play(){
-  const r=Game.playRound(S);if(!r)return;
-  let t="";
-  if(r.statePhase){
-    const m=r.report;
-    t=`<h2>Estadual</h2>`+(m?`<div class="big">${m.home} ${m.gh} x ${m.ga} ${m.away}</div><p class="mut">${m.home}: ${sc(m.sh)}<br>${m.away}: ${sc(m.sa)}</p><p>Salários: <span class="bad">-${money(r.wages)}</span>${r.gate?` · Bilheteria: <span class="good">+${money(r.gate)}</span>`:""}</p>`:"")+
-      r.cupReports.map(c=>`<p><b>${c.cup}</b><br>${c.home} ${c.gh} x ${c.ga} ${c.away}${c.pens?" (pênaltis)":""}<br>Avança: <b>${c.winner}</b></p>`).join("")+
-      (r.prize?`<p class="good">Premiação: +${money(r.prize)}</p>`:"")+(r.champions.length?`<p>Campeões:<br>${r.champions.join("<br>")}</p>`:"")+
-      (r.skipped?`<p class="mut">${r.skipped} rodada(s) sem jogo seu foram simuladas.</p>`:"")+(r.stateEnd?`<p class="warn">Estaduais encerrados. Agora começam os campeonatos nacionais.</p>`:"");
-  }else if(r.cupPhase){
-    t=`<h2>Copas</h2>`+(r.cupReports.length?r.cupReports.map(c=>`<p><b>${c.cup}</b><br>${c.home} ${c.gh} x ${c.ga} ${c.away}${c.pens?" (pênaltis)":""}<br>Avança: <b>${c.winner}</b></p>`).join(""):"")+
-      (r.prize?`<p class="good">Premiação: +${money(r.prize)}</p>`:"")+(r.champions.length?`<p>Campeões:<br>${r.champions.join("<br>")}</p>`:"");
-    if(r.cupsEnd)t+=`<p class="warn">Copas encerradas. Pode encerrar a temporada.</p>`;
-  }else{
-    const m=r.report;
-    if(m)t=`<h2>Resultado</h2><div class="big">${m.home} ${m.gh} x ${m.ga} ${m.away}</div><p class="mut">${m.home}: ${sc(m.sh)}<br>${m.away}: ${sc(m.sa)}</p>
-      <p>Salários: <span class="bad">-${money(r.wages)}</span>${r.gate?` · Bilheteria: <span class="good">+${money(r.gate)}</span>`:""}</p>`;
-    if(r.fixed)t+=`<p class="mut">Escalação inválida: o auxiliar escalou o time automaticamente.</p>`;
-    if(r.skipped)t+=`<p class="mut">${r.skipped} rodada(s) sem jogo seu foram simuladas.</p>`;
-    if(r.newOffers)t+=`<p class="warn">Você recebeu ${r.newOffers} convite(s) de clube. Veja no topo.</p>`;
-    if(r.leagueEnd)t+=`<p class="warn">Campeonato encerrado! Agora vêm as copas continentais.</p>`;
-  }
+  const r=Game.playRound(S);
+  let t=`<h2>${r.date}</h2>`;
+  r.reports.forEach(m=>{t+=`<p class="mut">${m.comp}</p><div class="big">${m.home} ${m.gh} x ${m.ga} ${m.away}</div><p class="mut">${m.home}: ${sc(m.sh)}<br>${m.away}: ${sc(m.sa)}</p>`});
+  if(r.wages)t+=`<p>Salários: <span class="bad">-${money(r.wages)}</span>${r.gate?` · Bilheteria: <span class="good">+${money(r.gate)}</span>`:""}</p>`;
+  r.notes.forEach(x=>t+=`<p>${x}</p>`);
+  if(r.fixed)t+=`<p class="mut">Escalação inválida: o auxiliar escalou o time automaticamente.</p>`;
+  if(r.skipped)t+=`<p class="mut">${r.skipped} rodada(s) sem jogo seu foram simuladas.</p>`;
   msg=t;save();render();
-}
-function finish(){
-  const i=Game.endSeason(S);
-  viewKey=null;
-  msg=`<h2>Fim da temporada</h2><p>Campeão da sua liga: <b>${i.champion}</b><br>Você terminou em ${i.userPos}º · Prêmio: <span class="good">${money(i.prize)}</span><br>Sua reputação: ${S.rep}/100${i.up.length?`<br>Subiram: ${i.up.join(", ")}<br>Caíram: ${i.down.join(", ")}`:""}</p>`+(i.honors.length?`<p>Copas:<br>${i.honors.map(h=>h.cup+": "+h.club).join("<br>")}</p>`:"")+(i.offers.length?`<p class="warn">Você recebeu ${i.offers.length} convite(s) de clube, veja no topo.</p>`:"");
-  save();render();
 }
 
 function vElenco(){
@@ -168,33 +133,34 @@ function vElenco(){
 function tog(id){const u=U(),i=u.lineup.indexOf(id);if(i>=0)u.lineup.splice(i,1);else if(u.lineup.length<11)u.lineup.push(id);save();render()}
 function sell(id){if(!confirm("Vender jogador?"))return;const e=Game.sell(S,id);if(e)alert(e);save();render()}
 
+function compOpts(cur){
+  const cs=Object.values(S.comps).filter(c=>!c.id.endsWith("_K")||true);
+  const mine=cs.filter(c=>c.ids.includes(S.user)),rest=cs.filter(c=>!c.ids.includes(S.user));
+  const o=c=>`<option value="${c.id}" ${c.id===cur?"selected":""}>${c.name}${c.done?" ✓":""}</option>`;
+  return `<optgroup label="Seu clube">${mine.map(o).join("")}</optgroup><optgroup label="Outras">${rest.map(o).join("")}</optgroup>`;
+}
+function tbl(c,ids,hl){
+  const t=Game.sortTab(ids,c.tab);
+  return `<table><tr><th class="l">Time</th><th>P</th><th>J</th><th>V</th><th>E</th><th>D</th><th>SG</th></tr>`+
+  t.map((id,i)=>{const r=c.tab[id];return `<tr class="${id===S.user?"me":""}"><td class="l">${i+1}. ${S.teams[id].name}</td><td>${r.pts}</td><td>${r.p}</td><td>${r.w}</td><td>${r.d}</td><td>${r.l}</td><td>${r.gf-r.ga}</td></tr>`}).join("")+`</table>`;
+}
 function vTabela(){
-  if(viewKey&&viewKey.startsWith("st:")&&S.states[viewKey.slice(3)])return vEstadual(viewKey.slice(3));
-  if(!viewKey&&S.phase==="state"&&S.userState)return vEstadual(S.userState);
-  const key=viewKey&&S.lg[viewKey]?viewKey:U().lkey,l=Game.LG[key],k=Game.COUNTRIES[l.country].promo;
-  const t=Game.sortedTable(S,key),n=t.length;
-  const tiers=Game.LEAGUES.filter(x=>x.country===l.country);
-  const z=i=>(l.tier>1&&i<k)||(l.tier===1&&i<4&&false)?"z1":(l.tier<tiers.length&&i>=n-k)?"z2":(l.tier===1&&i===0?"z1":"");
-  return `<div class="card"><div class="row"><select onchange="viewKey=this.value;render()" style="flex:1;min-width:0">${selOpts(key)}</select></div></div>
-  <div class="card"><h2>${l.name}</h2><table><tr><th class="l">Time</th><th>P</th><th>J</th><th>V</th><th>E</th><th>D</th><th>SG</th></tr>
-  ${t.map((id,i)=>{const r=S.table[id],tm=S.teams[id];return `<tr class="${id===S.user?"me":""} ${z(i)}"><td class="l">${i+1}. ${tm.name}</td><td>${r.pts}</td><td>${r.p}</td><td>${r.w}</td><td>${r.d}</td><td>${r.l}</td><td>${r.gf-r.ga}</td></tr>`}).join("")}</table>
-  <p class="mut">Verde: título/acesso · Vermelho: rebaixamento (${k} por divisão).</p></div>`+vCups();
-}
-function selOpts(cur){
-  return Game.LEAGUES.map(x=>`<option value="${x.key}" ${x.key===cur?"selected":""}>${Game.COUNTRIES[x.country].name} — ${x.name}</option>`).join("")+
-    Game.STATES.map(x=>`<option value="st:${x.key}" ${"st:"+x.key===cur?"selected":""}>Estadual — ${x.name}</option>`).join("");
-}
-function vEstadual(k){
-  const st=S.states[k],t=Game.sortIds(st.ids,S.stTable);
-  let h=`<div class="card"><div class="row"><select onchange="viewKey=this.value;render()" style="flex:1;min-width:0">${selOpts("st:"+k)}</select></div></div>
-  <div class="card"><h2>${st.name}</h2><table><tr><th class="l">Time</th><th>P</th><th>J</th><th>V</th><th>E</th><th>D</th><th>SG</th></tr>
-  ${t.map((id,i)=>{const r=S.stTable[id];return `<tr class="${id===S.user?"me":""} ${i<st.ko?"z1":""}"><td class="l">${i+1}. ${S.teams[id].name}</td><td>${r.pts}</td><td>${r.p}</td><td>${r.w}</td><td>${r.d}</td><td>${r.l}</td><td>${r.gf-r.ga}</td></tr>`}).join("")}</table>
-  <p class="mut">Verde: classificados ao mata-mata (jogo único).${st.cup?` Mata-mata: ${st.cup.champion!==null?"campeão "+S.teams[st.cup.champion].name:"restam "+st.cup.alive.map(i=>S.teams[i].name).join(", ")}`:""}</p></div>`;
+  let id=viewKey&&S.comps[viewKey]?viewKey:null;
+  if(!id){const mine=Object.values(S.comps).filter(c=>!c.done&&c.ids.includes(S.user));id=(mine.find(c=>c.after==="lg")||mine[0]||Object.values(S.comps)[0]).id}
+  const c=S.comps[id];
+  let h=`<div class="card"><select onchange="viewKey=this.value;render()" style="width:100%">${compOpts(id)}</select></div>`;
+  if(c.groups){
+    h+=c.groups.map((g,i)=>`<div class="card"><h2>${c.name} — Grupo ${String.fromCharCode(65+i)}</h2>${tbl(c,g)}</div>`).join("");
+  }else if(c.R&&!(c.after==="cup")){
+    h+=`<div class="card"><h2>${c.name}</h2>${tbl(c,c.ids)}${c.after==="euS"&&c.final?'<p class="mut">Top 8 direto nas oitavas; 9º a 24º no playoff.</p>':""}</div>`;
+  }
+  if(c.ties){
+    h+=`<div class="card"><h2>${c.name} — ${c.stage}</h2>`+c.ties.map(t=>{
+      const a=S.teams[t.a].name,b=S.teams[t.b].name,res=t.res.map(r=>r.join("x")).join(" / ");
+      return `<div class="pl"><span class="${t.a===S.user||t.b===S.user?"good":""}">${a} × ${b}</span><span class="mut">${res||"a jogar"}${t.w!==null?` → <b>${S.teams[t.w].name}</b>${t.pens?" (pên.)":""}`:""}</span></div>`}).join("")+`</div>`;
+    if(c.champion)h+=`<div class="card">Campeão: <b>${S.teams[c.champion].name}</b></div>`;
+  }
   return h;
-}
-function vCups(){
-  if(!S.cups)return"";
-  return Object.values(S.cups).map(c=>`<div class="card"><h2>${c.name}</h2><p class="mut">${c.champion?`Campeão: <b>${S.teams[c.champion].name}</b>`:`Restam ${c.alive.length}: `+c.alive.map(id=>S.teams[id].name).join(", ")}</p></div>`).join("");
 }
 
 function vMercado(){

@@ -1,6 +1,6 @@
 (function (root) {
   const CD = typeof require !== "undefined" ? require("./clubs.js") : root.ClubData;
-  const { COUNTRIES, LEAGUES, CUPS, STATES } = CD;
+  const { COUNTRIES, LEAGUES, STATES, CONT } = CD;
   const FORMATIONS = { "4-4-2": [4,4,2], "4-3-3": [4,3,3], "3-5-2": [3,5,2], "4-5-1": [4,5,1], "5-3-2": [5,3,2] };
   const TACTICS = ["Defensiva", "Equilibrada", "Ofensiva"];
   const FIRST = ["João","Pedro","Lucas","Gabriel","Matheus","Rafael","Bruno","Diego","Felipe","Thiago","Carlos","André","Vitor","Marcos","Leandro","Rodrigo","Gustavo","Everton","Wesley","Caio","Renan","Igor","Danilo","Paulo","Fábio","Mateo","Hugo","Luca","Jonas","Declan","Marco","Jules"];
@@ -8,12 +8,21 @@
   const CASH = [8000000, 3500000, 1500000];
   const FANS = [1500, 700, 300];
   const LG = {}; LEAGUES.forEach((l) => (LG[l.key] = l));
+  const EU = ["ENG", "ESP", "GER", "ITA", "FRA", "POR"];
+  const START_YEAR = 2027;
 
   const rnd = (a, b) => a + Math.random() * (b - a);
   const ri = (a, b) => Math.floor(rnd(a, b + 1));
   const pick = (arr) => arr[ri(0, arr.length - 1)];
   const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+  const shuffle = (a) => a.slice().sort(() => Math.random() - 0.5);
   let PID = 1;
+
+  function dateOf(T) {
+    const d = new Date(Date.UTC(START_YEAR, 0, 1) + Math.round(T * 7) * 864e5);
+    return String(d.getUTCDate()).padStart(2, "0") + "/" + String(d.getUTCMonth() + 1).padStart(2, "0") + "/" + d.getUTCFullYear();
+  }
+  const yearOf = (T) => START_YEAR + Math.floor(T / 52);
 
   function valueOf(ov, age) {
     let v = 20000 * Math.pow(10, (ov - 40) / 15);
@@ -26,8 +35,8 @@
     const value = valueOf(ov, age);
     return { id: PID++, name: pick(FIRST) + " " + pick(LAST), pos, ov, age, value, wage: Math.round(value / 900) };
   }
-  function genSquad(base) {
-    const plan = { GK: 3, DEF: 8, MID: 7, ATT: 5 };
+  function genSquad(base, small) {
+    const plan = small ? { GK: 2, DEF: 6, MID: 6, ATT: 4 } : { GK: 3, DEF: 8, MID: 7, ATT: 5 };
     const ps = [];
     for (const pos in plan) for (let i = 0; i < plan[pos]; i++) ps.push(mkPlayer(pos, base + rnd(-9, 8) - i * 0.8));
     return ps;
@@ -98,342 +107,521 @@
     return rounds.concat(rounds.map((m) => m.map(([a, b]) => [b, a])));
   }
   const emptyRow = () => ({ p: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, pts: 0 });
+  function sortTab(ids, tab) {
+    return ids.slice().sort((a, b) => {
+      const x = tab[a], y = tab[b];
+      return y.pts - x.pts || (y.gf - y.ga) - (x.gf - x.ga) || y.gf - x.gf;
+    });
+  }
+  const ovrOf = (s, id) => ratings(s.teams[id]).ovr;
+  const byStrength = (s, ids) => ids.slice().sort((a, b) => ovrOf(s, b) - ovrOf(s, a));
 
-  function setupSeason(s) {
-    s.fixtures = {}; s.table = {}; s.round = 0; s.phase = "league"; s.cups = null; s.maxRound = 0;
+  // ---------- criação de competições ----------
+  function newComp(s, id, name, ids, after, extra) {
+    const c = Object.assign({ id, name, ids, after, tab: {}, rDone: 0, R: 0, ties: null, plan: null, si: 0, done: false, groups: null, order: ids }, extra || {});
+    if (!extra || !extra.tab) ids.forEach((i) => (c.tab[i] = emptyRow()));
+    s.comps[id] = c;
+    return c;
+  }
+  function addRounds(s, c, fxRounds, Ts) {
+    fxRounds.forEach((fx, i) => s.q.push({ T: Ts[i], c: c.id, k: "tab", fx: fx.map((m) => [m[0], m[1]]) }));
+    c.R += fxRounds.length;
+    s.q.sort((a, b) => a.T - b.T);
+  }
+  function pairBW(alive) {
+    const p = [], n = alive.length;
+    for (let i = 0; i < n / 2; i++) p.push([alive[i], alive[n - 1 - i]]);
+    return p;
+  }
+  function startStage(s, c, pairs) {
+    const st = c.plan[c.si];
+    c.stage = st.name; c.closed = false;
+    c.ties = pairs.map(([a, b]) => ({ a, b, res: [], w: null, pens: false, legs: st.legs }));
+    for (let leg = 0; leg < st.legs; leg++) {
+      const fx = c.ties.map((t, k) => (leg % 2 === 0 ? [t.a, t.b, k] : [t.b, t.a, k]));
+      s.q.push({ T: st.T[leg], c: c.id, k: "ko", n: st.name + (st.legs === 2 ? (leg ? " (volta)" : " (ida)") : ""), fx });
+    }
+    s.q.sort((a, b) => a.T - b.T);
+  }
+  function drawGroups(s, ids, ng) {
+    const sorted = byStrength(s, ids), size = ids.length / ng, groups = Array.from({ length: ng }, () => []);
+    for (let p = 0; p < size; p++) shuffle(sorted.slice(p * ng, (p + 1) * ng)).forEach((id, g) => groups[g].push(id));
+    return groups;
+  }
+  function groupRounds(groups) {
+    const per = groups.map((g) => roundRobin(g));
+    return per[0].map((_, r) => per.flatMap((p) => p[r]));
+  }
+  function plan(names, base) {
+    // names: [[nome, pernas, [T...]]]
+    return names.map(([name, legs, T]) => ({ name, legs, T: T.map((x) => base + x) }));
+  }
+  function qualifiers(s, def) {
+    let ids = [];
+    for (const [k, a, b] of def.slots) ids = ids.concat((s.rank[k] || []).slice(a - 1, b));
+    return ids;
+  }
+  function teamByName(s, name) { return Object.values(s.teams).find((t) => t.name === name).id; }
+
+  function createEuroLeagues(s, country, y0) {
+    const base = 33 + 52 * (y0 - START_YEAR);
+    s.season[country] = y0;
+    for (const l of LEAGUES.filter((x) => x.country === country)) {
+      const ids = shuffle(s.lg[l.key]);
+      const n = ids.length, step = 19.5 / (n - 1);
+      const c = newComp(s, l.key, l.name + " " + y0 + "/" + String(y0 + 1).slice(2), ids, "lg", { key: l.key, country });
+      const fx = roundRobin(ids), Ts = fx.map((_, r) => (r < n - 1 ? base + r * step : base + 20 + (r - (n - 1)) * step));
+      addRounds(s, c, fx, Ts);
+    }
+  }
+  function createEuroCups(s, y0) {
+    const B = 33 + 52 * (y0 - START_YEAR);
+    s.season.EUCUPS = y0;
+    ["UCL", "UEL", "UECL"].forEach((k, ci) => {
+      const def = CONT[k], off = ci * 0.25;
+      let ids = qualifiers(s, def).concat(def.extras.map((n) => teamByName(s, n)));
+      ids = byStrength(s, ids);
+      const c = newComp(s, k, def.name + " " + y0 + "/" + String(y0 + 1).slice(2), ids, "euS", { order: ids, prize: def.prize, cont: true });
+      const fx = roundRobin(shuffle(ids)).slice(0, 8);
+      addRounds(s, c, fx, [4, 6, 9, 11, 14, 16, 23, 24].map((x) => B + x + off));
+      c.plan = plan([["Playoff", 2, [26, 27]], ["Oitavas", 2, [31, 32]], ["Quartas", 2, [35, 36]], ["Semifinal", 2, [39, 40]], ["Final", 1, [44]]].map(([n, l, T]) => [n, l, T.map((x) => x + off)]), B);
+    });
+  }
+  function createSouthCups(s, Y) {
+    const B = 52 * (Y - START_YEAR);
+    s.season.SACUPS = Y;
+    ["LIB", "SUL"].forEach((k, ci) => {
+      const def = CONT[k], off = ci * 0.25;
+      let ids = qualifiers(s, def).concat(def.extras.map((n) => teamByName(s, n)));
+      ids = byStrength(s, ids);
+      const groups = drawGroups(s, ids, 8);
+      const c = newComp(s, k, def.name + " " + Y, ids, "gr", { order: ids, prize: def.prize, cont: true, groups });
+      addRounds(s, c, groupRounds(groups), [15.5, 16.5, 17.5, 18.5, 19.5, 20.5].map((x) => B + x + off));
+      c.plan = plan([["Oitavas", 2, [33.5, 35.5]], ["Quartas", 2, [37.5, 39.5]], ["Semifinal", 2, [41.5, 43.5]], ["Final", 1, [47.5]]].map(([n, l, T]) => [n, l, T.map((x) => x + off)]), B);
+    });
+  }
+  function createBrazil(s, Y) {
+    const B = 52 * (Y - START_YEAR);
+    s.season.BRA = Y;
     // estaduais
-    s.states = {}; s.stTable = {};
     const byName = {};
     Object.values(s.teams).forEach((t) => (byName[t.name] = t.id));
     for (const st of STATES) {
-      const ids = st.clubs.map((n) => byName[n]).filter(Boolean).sort(() => Math.random() - 0.5);
-      s.states[st.key] = { name: st.name, ko: st.ko, ids, fixtures: roundRobin(ids).slice(0, ids.length - 1), round: 0, cup: null };
-      ids.forEach((id) => (s.stTable[id] = emptyRow()));
+      const ids = shuffle(st.clubs.map((n) => byName[n]).filter(Boolean));
+      const id = "EST_" + st.key, n = ids.length;
+      if (st.key === "SP") {
+        const groups = drawGroups(s, ids, 4), gof = {};
+        groups.forEach((g, gi) => g.forEach((i) => (gof[i] = gi)));
+        const c = newComp(s, id, st.name + " " + Y, ids, "stRR", { groups, stKey: st.key, order: ids });
+        const fx = roundRobin(ids).slice(0, n - 1).map((r) => r.filter(([a, b]) => gof[a] !== gof[b])).filter((r) => r.length);
+        addRounds(s, c, fx, fx.map((_, r) => B + 2 + r * (11.5 / fx.length)));
+      } else {
+        const c = newComp(s, id, st.name + " " + Y, ids, "stRR", { stKey: st.key, order: ids });
+        const fx = roundRobin(ids).slice(0, n - 1);
+        addRounds(s, c, fx, fx.map((_, r) => B + 2 + r * (10.5 / fx.length)));
+      }
+      s.comps[id].B = B;
     }
-    s.userState = Object.keys(s.states).find((k) => s.states[k].ids.includes(s.user)) || null;
-    if (s.userState) s.phase = "state";
-    for (const key in s.lg) {
-      const ids = s.lg[key].slice().sort(() => Math.random() - 0.5);
-      s.lg[key] = ids;
-      s.fixtures[key] = roundRobin(ids);
-      s.maxRound = Math.max(s.maxRound, s.fixtures[key].length);
-      ids.forEach((id) => { s.table[id] = emptyRow(); s.teams[id].lkey = key; });
+    // Brasileirões
+    ["BRA1", "BRA2"].forEach((key) => {
+      const ids = shuffle(s.lg[key]);
+      const c = newComp(s, key, LG[key].name + " " + Y, ids, "lg", { key, country: "BRA" });
+      const fx = roundRobin(ids);
+      addRounds(s, c, fx, fx.map((_, r) => B + 17 + r * 0.78));
+    });
+    {
+      const ids = shuffle(s.lg.BRA3);
+      const c = newComp(s, "BRA3", "Série C " + Y + " (1ª fase)", ids, "b3", { key: "BRA3", country: "BRA", B });
+      const fx = roundRobin(ids).slice(0, 19);
+      addRounds(s, c, fx, fx.map((_, r) => B + 17 + r));
     }
+    // Copa do Brasil (64 clubes, simplificada)
+    const bra = Object.values(s.teams).filter((t) => t.country === "BRA");
+    const main = bra.filter((t) => !t.local).map((t) => t.id);
+    const locals = byStrength(s, bra.filter((t) => t.local).map((t) => t.id)).slice(0, 4);
+    const ids = byStrength(s, main.concat(locals));
+    const c = newComp(s, "CDB", "Copa do Brasil " + Y, ids, "cup", { order: ids, prize: 500000, cont: true });
+    c.plan = plan([["1ª fase", 1, [5]], ["2ª fase", 1, [9]], ["Oitavas", 2, [22, 24]], ["Quartas", 2, [29.5, 31.5]], ["Semifinal", 2, [36, 38]], ["Final", 2, [44, 45]]], B);
+    startStage(s, c, pairBW(ids));
+    createSouthCups(s, Y);
+  }
+  function createArgentina(s, Y) {
+    const B = 52 * (Y - START_YEAR);
+    s.season.ARG = Y;
+    // Liga Profesional: 2 torneios por ano (Apertura e Clausura), 30 clubes em 2 zonas de 15.
+    // Cada clube joga 14 jogos na zona + 1 interzonal; os 8 primeiros de cada zona vão ao mata-mata.
+    s.annual = {};
+    s.lg.ARG1.forEach((i) => (s.annual[i] = { pts: 0, g: 0 }));
+    [[1, "Apertura", 3, [20, 21.5, 23, 24.5]], [2, "Clausura", 29, [45, 46.5, 48, 49.5]]].forEach(([t, nm, off, kt]) => {
+      const ids = shuffle(s.lg.ARG1), zones = drawGroups(s, ids, 2);
+      const c = newComp(s, "ARG1_" + t, "Liga Profesional " + nm + " " + Y, ids, "arG", { groups: zones, t, B, key: "ARG1", country: "ARG", kt, nm });
+      const fx = zoneRounds(zones);
+      addRounds(s, c, fx, fx.map((_, r) => B + off + r * 1.05));
+    });
+    // Primera Nacional: 36 clubes em 2 zonas de 18 (ida e volta); campeões das zonas fazem a final; os 2 finalistas sobem.
+    const ids2 = shuffle(s.lg.ARG2), z2 = drawGroups(s, ids2, 2);
+    const c2 = newComp(s, "ARG2", "Primera Nacional " + Y, ids2, "arN", { groups: z2, B, key: "ARG2", country: "ARG" });
+    const fx2 = groupRounds(z2);
+    addRounds(s, c2, fx2, fx2.map((_, r) => B + 3 + r * 1.2));
+  }
+  function zoneRounds(zones) {
+    const per = zones.map((z) => roundRobin(z.concat([null])).slice(0, z.length));
+    return per[0].map((_, r) => {
+      const fx = [], idle = [];
+      per.forEach((p) => p[r].forEach(([a, b]) => { if (a === null) idle.push(b); else if (b === null) idle.push(a); else fx.push([a, b]); }));
+      if (idle.length === 2) fx.push(r % 2 ? [idle[0], idle[1]] : [idle[1], idle[0]]);
+      return fx;
+    });
   }
 
-  function clubCash(t) { return CASH[LG[t.lkey].tier - 1]; }
+  function mkTeam(s, id, name, country, lkey, base, extra) {
+    const t = Object.assign({ id, name, country, lkey, base, fans: 150, players: genSquad(base, !!extra.local), formation: "4-4-2", tactic: "Equilibrada", lineup: [] }, extra);
+    t.lineup = autoLineup(t);
+    s.teams[id] = t;
+    return t;
+  }
+  function clubCash(t) { return t.local ? 1000000 : CASH[LG[t.lkey].tier - 1]; }
   function repFor(ovr) { return clamp(Math.round((ovr - 48) * 3.5), 5, 95); }
 
   function newGame(clubName) {
-    const s = { season: 2026, round: 0, lg: {}, teams: {}, user: null, cash: 0, rep: 0, offers: [], honors: [] };
+    const s = { T: 0, user: null, cash: 0, rep: 0, offers: [], honors: [], teams: {}, lg: {}, comps: {}, q: [], final: {}, rank: {}, season: {}, aged: 0, euDone: 0, prom: {} };
     let id = 1;
     for (const l of LEAGUES) {
       s.lg[l.key] = [];
-      const c = COUNTRIES[l.country], n = l.clubs.length;
-      const base = c.base - 7 * (l.tier - 1);
+      const c = COUNTRIES[l.country], n = l.clubs.length, base = c.base - 7 * (l.tier - 1);
       l.clubs.forEach((name, i) => {
         const b = base + ((n - 1) / 2 - i) * 0.35;
-        const t = { id, name, country: l.country, lkey: l.key, fans: Math.round(FANS[l.tier - 1] * c.fans * rnd(0.7, 1.4)), players: genSquad(b), formation: "4-4-2", tactic: "Equilibrada", lineup: [] };
-        t.lineup = autoLineup(t);
-        s.teams[id] = t; s.lg[l.key].push(id); id++;
+        mkTeam(s, id, name, l.country, l.key, b, { fans: Math.round(FANS[l.tier - 1] * c.fans * rnd(0.7, 1.4)) });
+        s.lg[l.key].push(id); id++;
       });
     }
-    // times que só disputam estaduais (fora das divisões modeladas)
     const have = new Set(Object.values(s.teams).map((t) => t.name));
     for (const st of STATES) for (const name of st.clubs) {
       if (have.has(name)) continue;
       have.add(name);
-      const t = { id, name, country: "BRA", lkey: null, local: true, fans: ri(60, 200), players: genSquad(44 + rnd(-3, 3)), formation: "4-4-2", tactic: "Equilibrada", lineup: [] };
-      t.lineup = autoLineup(t);
-      s.teams[id] = t; id++;
+      mkTeam(s, id, name, "BRA", null, 44, { local: true, fans: ri(60, 200) }); // base ajustada abaixo
+      s.teams[id].players = genSquad(44 + rnd(-3, 3), true); s.teams[id].lineup = autoLineup(s.teams[id]); id++;
     }
+    for (const k in CONT) CONT[k].extras.forEach((name) => {
+      if (have.has(name)) return;
+      have.add(name);
+      const b = CONT[k].ovr + rnd(-3, 3);
+      mkTeam(s, id, name, "EXT", null, b, { local: true, extra: true, fans: ri(200, 800) }); id++;
+    });
     const u = Object.values(s.teams).find((t) => t.name === clubName && !t.local);
     s.user = u.id;
     s.cash = clubCash(u);
     s.rep = repFor(ratings(u).ovr);
-    setupSeason(s);
+    for (const k in s.lg) s.rank[k] = byStrength(s, s.lg[k]);
+    // Europa: temporada 2026/27 já em andamento; 1ª metade é simulada automaticamente
+    EU.forEach((c) => createEuroLeagues(s, c, 2026));
+    createEuroCups(s, 2026);
+    createBrazil(s, START_YEAR);
+    createArgentina(s, START_YEAR);
+    const res = { reports: [], notes: [], wages: 0, gate: 0 };
+    while (s.q.length && s.q[0].T <= 0) { const rd = s.q.shift(); processRound(s, rd, res, true); }
+    s.T = 0;
     return s;
   }
 
+  // ---------- processamento de rodadas ----------
+  function userComps(s) { return Object.values(s.comps).filter((c) => !c.done && c.ids.includes(s.user)); }
   function fixLineup(t) {
     const ok = t.lineup.length === 11 && t.lineup.every((i) => t.players.some((p) => p.id === i)) &&
       lineupPlayers(t).filter((p) => p.pos === "GK").length === 1;
     if (!ok) { t.lineup = autoLineup(t); return true; }
     return false;
   }
-
-  function simRound(s, round, res) {
-    for (const key in s.fixtures) {
-      const fx = s.fixtures[key][round];
-      if (!fx) continue;
-      for (const [h, a] of fx) {
-        const H = s.teams[h], A = s.teams[a];
-        if (h !== s.user) H.lineup = autoLineup(H);
-        if (a !== s.user) A.lineup = autoLineup(A);
-        const r = simMatch(H, A);
-        const th = s.table[h], ta = s.table[a];
+  function ageCheck(s) {
+    while (s.T >= (s.aged + 1) * 52) {
+      s.aged++;
+      for (const t of Object.values(s.teams)) {
+        t.players.forEach((p) => {
+          p.age++;
+          const d = p.age <= 23 ? ri(0, 3) : p.age <= 29 ? ri(-2, 1) : ri(-4, 0);
+          p.ov = clamp(p.ov + d, 35, 95);
+          p.value = valueOf(p.ov, p.age); p.wage = Math.round(p.value / 900);
+        });
+        if (t.id !== s.user) {
+          const keep = t.players.filter((p) => p.age < 37), lost = t.players.length - keep.length;
+          t.players = keep;
+          for (let i = 0; i < lost; i++) t.players.push(mkPlayer(pick(["DEF","MID","ATT"]), t.base - 3, ri(18, 22)));
+        }
+        t.lineup = autoLineup(t);
+      }
+    }
+  }
+  function processRound(s, rd, res, silent) {
+    const c = s.comps[rd.c];
+    if (!c) return;
+    for (const [h, a, k] of rd.fx) {
+      const H = s.teams[h], A = s.teams[a];
+      if (silent || h !== s.user) H.lineup = autoLineup(H);
+      if (silent || a !== s.user) A.lineup = autoLineup(A);
+      const r = simMatch(H, A);
+      if (rd.k === "tab") {
+        const th = c.tab[h], ta = c.tab[a];
         th.p++; ta.p++; th.gf += r.gh; th.ga += r.ga; ta.gf += r.ga; ta.ga += r.gh;
         if (r.gh > r.ga) { th.w++; th.pts += 3; ta.l++; } else if (r.gh < r.ga) { ta.w++; ta.pts += 3; th.l++; } else { th.d++; ta.d++; th.pts++; ta.pts++; }
-        if (h === s.user || a === s.user) res.report = { home: H.name, away: A.name, ...r };
+      } else c.ties[k].res.push([r.gh, r.ga]);
+      if (!silent && (h === s.user || a === s.user)) res.reports.push({ comp: c.name + (rd.n ? " · " + rd.n : ""), date: dateOf(rd.T), home: H.name, away: A.name, ...r });
+    }
+    if (rd.k === "tab") {
+      c.rDone++;
+      if (!silent && (c.after === "lg" || c.after === "arG") && c.ids.includes(s.user) && c.rDone === Math.round(c.R / 2)) midSeasonOffers(s, c, res);
+      if (c.rDone >= c.R) finishComp(s, c, res, silent);
+    } else koCheck(s, c, res, silent);
+  }
+  function koCheck(s, c, res, silent) {
+    for (const t of c.ties) {
+      if (t.w !== null || t.res.length < t.legs) continue;
+      let ga = 0, gb = 0;
+      t.res.forEach((r, i) => { if (i % 2 === 0) { ga += r[0]; gb += r[1]; } else { ga += r[1]; gb += r[0]; } });
+      t.agg = [ga, gb];
+      if (ga !== gb) t.w = ga > gb ? t.a : t.b;
+      else { t.pens = true; const oa = ovrOf(s, t.a), ob = ovrOf(s, t.b); t.w = Math.random() < 0.5 + (oa - ob) * 0.01 ? t.a : t.b; }
+      if (!silent && (t.a === s.user || t.b === s.user)) {
+        const won = t.w === s.user;
+        res.notes.push(`<b>${c.name} · ${c.stage}</b>: ${s.teams[t.a].name} ${ga} x ${gb} ${s.teams[t.b].name}${t.pens ? " (pênaltis)" : ""} — ${won ? "você avança!" : "você foi eliminado."}`);
+        if (won && c.prize) { s.cash += c.prize; res.notes.push(`Premiação: +R$ ${(c.prize / 1e6).toFixed(2)} mi`); }
       }
     }
-  }
-  function userMatchAt(s, round) {
-    const fx = s.fixtures[s.teams[s.user].lkey][round];
-    return fx ? fx.find(([h, a]) => h === s.user || a === s.user) : null;
+    if (!c.closed && c.ties.every((t) => t.w !== null)) {
+      c.closed = true;
+      let alive = c.ties.map((t) => t.w).sort((x, y) => c.order.indexOf(x) - c.order.indexOf(y));
+      if (c.fixedTop && c.si === 0) { alive = c.fixedTop.concat(alive); c.fixedTop = null; }
+      c.si++;
+      if (c.si >= c.plan.length) {
+        c.champion = alive[0];
+        s.honors.push({ year: yearOf(s.T), cup: c.name, club: s.teams[alive[0]].name });
+        if (!silent) res.notes.push(`<b>${c.name}</b>: campeão ${s.teams[alive[0]].name}`);
+        finishComp(s, c, res, silent, true);
+      } else startStage(s, c, c.pairs ? c.pairs(alive) : pairBW(alive));
+    }
   }
 
-  function sortIds(ids, table) {
-    return ids.slice().sort((a, b) => {
-      const x = table[a], y = table[b];
-      return y.pts - x.pts || (y.gf - y.ga) - (x.gf - x.ga) || y.gf - x.gf;
-    });
-  }
-  function playState(s) {
-    const u = s.teams[s.user];
-    const res = { report: null, wages: 0, gate: 0, skipped: 0, fixed: fixLineup(u), statePhase: true, cupReports: [], champions: [], prize: 0 };
-    const open = () => Object.values(s.states).filter((st) => st.cup === null || st.cup.champion === null);
-    while (true) {
-      const us = s.userState ? s.states[s.userState] : null;
-      let userPlays = false, userHome = false;
-      if (us && us.cup === null) {
-        const m = (us.fixtures[us.round] || []).find(([h, a]) => h === s.user || a === s.user);
-        if (m) { userPlays = true; userHome = m[0] === s.user; }
-      } else if (us && us.cup && us.cup.champion === null && us.cup.alive.includes(s.user)) userPlays = true;
-      for (const st of open()) {
-        if (st.cup === null) {
-          for (const [h, a] of st.fixtures[st.round] || []) {
-            const H = s.teams[h], A = s.teams[a];
-            if (h !== s.user) H.lineup = autoLineup(H);
-            if (a !== s.user) A.lineup = autoLineup(A);
-            const r = simMatch(H, A);
-            const th = s.stTable[h], ta = s.stTable[a];
-            th.p++; ta.p++; th.gf += r.gh; th.ga += r.ga; ta.gf += r.ga; ta.ga += r.gh;
-            if (r.gh > r.ga) { th.w++; th.pts += 3; ta.l++; } else if (r.gh < r.ga) { ta.w++; ta.pts += 3; th.l++; } else { th.d++; ta.d++; th.pts++; ta.pts++; }
-            if (h === s.user || a === s.user) res.report = { home: H.name, away: A.name, ...r };
-          }
-          st.round++;
-          if (st.round >= st.fixtures.length) {
-            const top = sortIds(st.ids, s.stTable).slice(0, st.ko);
-            st.cup = { name: st.name + " (mata-mata)", prize: 150000, alive: top, round: 0, champion: null };
-          }
-        } else cupRound(s, st.cup, res);
+  function finishComp(s, c, res, silent, koEnd) {
+    switch (c.after) {
+      case "lg": {
+        c.done = true;
+        const final = sortTab(c.ids, c.tab);
+        s.final[c.key] = final; s.rank[c.key] = final;
+        if (!silent && c.ids.includes(s.user)) endOfSeasonUser(s, c, final, res);
+        checkRollover(s, c.country, res, silent);
+        break;
       }
-      if (userPlays && us.cup === null === false) { /* jogo de mata-mata já relatado */ }
-      if (res.report && userPlays) {
-        res.wages += u.players.reduce((x, p) => x + p.wage, 0);
-        if (userHome) res.gate += Math.round(u.fans * 180 * rnd(0.85, 1.15));
+      case "stRR": {
+        c.done = true;
+        const ranked = sortTab(c.ids, c.tab);
+        let qual;
+        const sp = c.stKey === "SP";
+        if (sp) {
+          qual = [];
+          c.groups.forEach((g) => qual.push(...sortTab(g, c.tab).slice(0, 2)));
+          qual = sortTab(qual, c.tab);
+        } else qual = ranked.slice(0, 4);
+        const k = newComp(s, c.id + "_K", c.name + " (mata-mata)", qual, "cup", { order: qual, prize: 150000, cont: true });
+        const B = c.B;
+        k.plan = plan(sp ? [["Quartas", 1, [14.2]], ["Semifinal", 1, [15]], ["Final", 2, [16.2, 16.9]]] : [["Semifinal", 1, [13.5]], ["Final", 2, [15.2, 16]]], B);
+        startStage(s, k, pairBW(qual));
+        break;
       }
-      if (!open().length) { s.phase = "league"; res.stateEnd = true; break; }
-      if (userPlays) break;
-      res.skipped++;
+      case "b3": {
+        c.done = true;
+        const ranked = sortTab(c.ids, c.tab);
+        s.final.BRA3_P1 = ranked;
+        const top8 = ranked.slice(0, 8);
+        const groups = [[top8[0], top8[3], top8[4], top8[7]], [top8[1], top8[2], top8[5], top8[6]]];
+        const g = newComp(s, "BRA3G", "Série C " + (s.season.BRA) + " (grupos)", top8, "b3g", { groups, B: c.B });
+        addRounds(s, g, groupRounds(groups), [38, 39, 41, 42, 44, 45].map((x) => c.B + x));
+        break;
+      }
+      case "b3g": {
+        c.done = true;
+        const gs = c.groups.map((g) => sortTab(g, c.tab));
+        const ids = [gs[0][0], gs[1][0]];
+        const f = newComp(s, "BRA3F", "Série C " + s.season.BRA + " (final)", ids, "b3f", { order: ids, prize: 100000, cont: true });
+        f.plan = plan([["Final", 2, [47, 48]]], c.B);
+        f.gs = gs;
+        startStage(s, f, [ids]);
+        break;
+      }
+      case "b3f": {
+        c.done = true;
+        const gs = c.gs, champ = c.champion, other = champ === gs[0][0] ? gs[1][0] : gs[0][0];
+        const promoted = [champ, other, champ === gs[0][0] ? gs[0][1] : gs[1][1], other === gs[0][0] ? gs[0][1] : gs[1][1]];
+        const p1 = s.final.BRA3_P1.filter((i) => !promoted.includes(i));
+        const final = promoted.concat(p1);
+        s.final.BRA3 = final;
+        delete s.final.BRA3_P1;
+        if (c.ids.includes(s.user) || final.includes(s.user)) { /* usuário em C: tratado no mid/fim via rollover */ }
+        checkRollover(s, "BRA", res, silent);
+        break;
+      }
+      case "cup": case "stK": c.done = true; break;
+      case "arG": {
+        c.done = true;
+        c.ids.forEach((id) => { s.annual[id].pts += c.tab[id].pts; s.annual[id].g += c.tab[id].p; });
+        const A = sortTab(c.groups[0], c.tab).slice(0, 8), Z = sortTab(c.groups[1], c.tab).slice(0, 8);
+        const order = []; for (let i = 0; i < 8; i++) { order.push(A[i]); order.push(Z[i]); }
+        const k = newComp(s, c.id + "_K", c.name + " (fase final)", order, "cup", { order, prize: 300000, cont: true });
+        k.plan = plan([["Oitavas", 1, [c.kt[0]]], ["Quartas", 1, [c.kt[1]]], ["Semifinal", 1, [c.kt[2]]], ["Final", 1, [c.kt[3]]]], c.B);
+        startStage(s, k, A.map((a, i) => [a, Z[7 - i]]));
+        if (c.t === 2) {
+          const ids = s.lg.ARG1, order2 = ids.slice().sort((a, b) => s.annual[b].pts - s.annual[a].pts);
+          ids.forEach((id) => { const a = s.prom[id] || (s.prom[id] = [1.2, 1.2]); a.push(s.annual[id].pts / Math.max(1, s.annual[id].g)); if (a.length > 3) a.shift(); });
+          const avgP = (id) => s.prom[id].reduce((x, y) => x + y, 0) / s.prom[id].length;
+          const rel = ids.slice().sort((a, b) => avgP(a) - avgP(b)).slice(0, 2);
+          const final = order2.filter((i) => !rel.includes(i)).concat(rel);
+          s.final.ARG1 = final; s.rank.ARG1 = order2;
+          if (!silent && ids.includes(s.user)) endOfSeasonUser(s, { name: "Liga Profesional (tabela anual)", key: "ARG1", ids }, final, res);
+          checkRollover(s, "ARG", res, silent);
+        }
+        break;
+      }
+      case "arN": {
+        c.done = true;
+        const gs = c.groups.map((g) => sortTab(g, c.tab));
+        const ids = [gs[0][0], gs[1][0]];
+        const f = newComp(s, "ARG2F", "Primera Nacional " + s.season.ARG + " (final)", ids, "arNF", { order: ids, prize: 100000, cont: true, gs, B: c.B });
+        f.plan = plan([["Final", 1, [48]]], c.B);
+        startStage(s, f, [ids]);
+        break;
+      }
+      case "arNF": {
+        c.done = true;
+        const champ = c.champion, other = c.ids.find((i) => i !== champ);
+        const base = s.comps.ARG2, rest = sortTab(base.ids.filter((i) => i !== champ && i !== other), base.tab);
+        s.final.ARG2 = [champ, other].concat(rest);
+        checkRollover(s, "ARG", res, silent);
+        break;
+      }
+      case "gr": {
+        c.done = true;
+        const W = [], R = [];
+        c.groups.forEach((g) => { const o = sortTab(g, c.tab); W.push(o[0]); R.push(o[1]); });
+        const ws = sortTab(W, c.tab), rs = sortTab(R, c.tab);
+        const order = ws.concat(rs);
+        const k = newComp(s, c.id + "_K", c.name + " (mata-mata)", order, "cup", { order, prize: c.prize, cont: true, tab: c.tab, groups: c.groups });
+        k.plan = c.plan;
+        startStage(s, k, ws.map((w, i) => [w, rs[i ^ 1]]));
+        break;
+      }
+      case "euS": {
+        c.done = true;
+        const ranked = sortTab(c.ids, c.tab);
+        c.final = ranked;
+        const k = newComp(s, c.id + "_K", c.name + " (mata-mata)", ranked, "cup", { order: ranked, prize: c.prize, cont: true, tab: c.tab, fixedTop: ranked.slice(0, 8) });
+        k.plan = c.plan;
+        startStage(s, k, pairBW(ranked.slice(8, 24)));
+        break;
+      }
     }
-    s.cash += res.gate - res.wages;
-    return res;
+  }
+
+  // ---------- fim de temporada, promoção, convites ----------
+  function endOfSeasonUser(s, c, final, res) {
+    const ul = LG[c.key], pos = final.indexOf(s.user) + 1;
+    const expPos = byStrength(s, c.ids).indexOf(s.user) + 1;
+    const prize = (final.length + 1 - pos) * [400000, 150000, 60000][ul.tier - 1];
+    s.cash += prize;
+    let rep = s.rep + (expPos - pos) * 0.9 + (pos === 1 ? 4 : 0);
+    s.honors.filter((h) => h.year === yearOf(s.T) && h.club === s.teams[s.user].name).forEach(() => (rep += 3));
+    s.rep = clamp(Math.round(rep), 0, 100);
+    res.notes.push(`<h2>Fim de campeonato: ${c.name}</h2>Você terminou em ${pos}º (esperado: ${expPos}º). Prêmio: +R$ ${(prize / 1e6).toFixed(2)} mi. Reputação: ${s.rep}/100.`);
+    const target = 48 + s.rep * 0.30;
+    offersAround(s, target, 3, null, res);
+  }
+  function offersAround(s, target, n, why, res) {
+    const have = new Set((s.offers || []).map((o) => o.tid));
+    const cands = shuffle(Object.values(s.teams).filter((t) => t.id !== s.user && !t.local && !have.has(t.id) && Math.abs(ratings(t).ovr - target) <= 2.5)).slice(0, n);
+    const add = cands.map((t) => ({ tid: t.id, name: t.name, league: LG[t.lkey].name, country: COUNTRIES[t.country].name, ovr: Math.round(ratings(t).ovr * 10) / 10, cash: CASH[LG[t.lkey].tier - 1], why }));
+    s.offers = (s.offers || []).concat(add);
+    if (add.length) res.notes.push(`<span class="warn">Você recebeu ${add.length} convite(s) de clube. Veja no topo.</span>`);
+  }
+  // fim do 1º turno / início do 2º (metade do campeonato)
+  function midSeasonOffers(s, c, res) {
+    const tab = sortTab(c.ids, c.tab), pos = tab.indexOf(s.user) + 1;
+    const exp = byStrength(s, c.ids).indexOf(s.user) + 1, diff = exp - pos, u = s.teams[s.user];
+    let target;
+    if (diff >= 3) target = ratings(u).ovr + 1.5 + Math.min(diff, 8) * 0.5;
+    else if (diff <= -4) target = ratings(u).ovr - 2.5;
+    else return;
+    offersAround(s, target, 2, diff >= 3 ? `Fim do 1º turno: você está em ${pos}º, acima do esperado (${exp}º).` : `Fim do 1º turno: você está em ${pos}º, abaixo do esperado (${exp}º).`, res);
+  }
+  function checkRollover(s, country, res, silent) {
+    const tiers = LEAGUES.filter((l) => l.country === country).sort((a, b) => a.tier - b.tier);
+    if (!tiers.every((l) => s.final[l.key])) return;
+    const k = COUNTRIES[country].promo, tabs = tiers.map((l) => s.final[l.key]);
+    const before = s.user;
+    tiers.forEach((l, i) => {
+      const mid = tabs[i].slice(i > 0 ? k : 0, tabs[i].length - (i < tiers.length - 1 ? k : 0));
+      const dropped = i > 0 ? tabs[i - 1].slice(tabs[i - 1].length - k) : [];
+      const up = i < tiers.length - 1 ? tabs[i + 1].slice(0, k) : [];
+      s.lg[l.key] = mid.concat(dropped, up);
+    });
+    tiers.forEach((l) => s.lg[l.key].forEach((id) => (s.teams[id].lkey = l.key)));
+    tiers.forEach((l) => delete s.final[l.key]);
+    if (!silent && s.teams[before] && tiers.some((l) => tabs[l.tier - 1].includes(before))) {
+      const nk = tiers.find((l) => s.lg[l.key].includes(before));
+      if (nk) res.notes.push(`Na próxima temporada seu clube joga a ${nk.name}.`);
+    }
+    if (country === "BRA") createBrazil(s, s.season.BRA + 1);
+    else if (country === "ARG") createArgentina(s, s.season.ARG + 1);
+    else {
+      createEuroLeagues(s, country, s.season[country] + 1);
+      s.euDone++;
+      if (s.euDone >= EU.length) { s.euDone = 0; createEuroCups(s, s.season.EUCUPS + 1); }
+    }
+  }
+
+  function userMatches(s) {
+    const out = [];
+    for (const rd of s.q) { if (rd.fx.some((m) => m[0] === s.user || m[1] === s.user)) out.push(rd); }
+    return out;
+  }
+  function nextUserRound(s) {
+    for (const rd of s.q) {
+      const m = rd.fx.find((m) => m[0] === s.user || m[1] === s.user);
+      if (m) { const c = s.comps[rd.c]; return { T: rd.T, date: dateOf(rd.T), comp: c ? c.name + (rd.n ? " · " + rd.n : "") : "", home: s.teams[m[0]], away: s.teams[m[1]] }; }
+    }
+    return null;
   }
 
   function playRound(s) {
-    if (s.phase === "state") return playState(s);
-    if (s.phase === "league") return playLeague(s);
-    if (s.phase === "cups") return playCups(s);
-    return null;
-  }
-  function playLeague(s) {
     const u = s.teams[s.user];
-    const res = { report: null, wages: 0, gate: 0, skipped: 0, fixed: fixLineup(u) };
-    while (true) {
-      const m = userMatchAt(s, s.round);
-      simRound(s, s.round, res);
-      if (m) {
+    const res = { reports: [], notes: [], wages: 0, gate: 0, skipped: 0, fixed: fixLineup(u) };
+    const nOffers = s.offers.length;
+    let guard = 0;
+    while (s.q.length && guard++ < 5000) {
+      const rd = s.q.shift();
+      s.T = rd.T; ageCheck(s);
+      const mine = rd.fx.find((m) => m[0] === s.user || m[1] === s.user);
+      processRound(s, rd, res, false);
+      if (mine) {
         res.wages += u.players.reduce((x, p) => x + p.wage, 0);
-        if (m[0] === s.user) res.gate += Math.round(u.fans * 180 * rnd(0.85, 1.15));
+        if (mine[0] === s.user) res.gate += Math.round(u.fans * 180 * rnd(0.85, 1.15));
+        break;
       }
-      s.round++;
-      if (m) res.newOffers = (res.newOffers || 0) + midSeasonOffers(s);
-      if (s.round >= s.maxRound) { startCups(s); res.leagueEnd = true; break; }
-      if (m) break;
       res.skipped++;
+      if (s.offers.length > nOffers) break;
     }
     s.cash += res.gate - res.wages;
+    res.date = dateOf(s.T);
     return res;
-  }
-
-  // Convites durante a temporada: a cada 6 rodadas, conforme o desempenho vs. o esperado pela força do elenco.
-  function midSeasonOffers(s) {
-    const u = s.teams[s.user], key = u.lkey, n = s.lg[key].length;
-    const played = s.table[s.user].p;
-    // fim do 1º turno / início do 2º turno (metade do campeonato)
-    if (played !== s.fixtures[key].length / 2) return 0;
-    const tab = sortedTable(s, key);
-    const pos = tab.indexOf(s.user) + 1;
-    const exp = s.lg[key].slice().sort((a, b) => ratings(s.teams[b]).ovr - ratings(s.teams[a]).ovr).indexOf(s.user) + 1;
-    const diff = exp - pos;
-    let target;
-    if (diff >= 3) target = ratings(u).ovr + 1.5 + Math.min(diff, 8) * 0.5;      // surpreendendo: clubes maiores chamam
-    else if (diff <= -4) target = ratings(u).ovr - 2.5;                           // fracassando: só clubes menores chamam
-    else return 0;
-    const have = new Set((s.offers || []).map((o) => o.tid));
-    const cands = Object.values(s.teams).filter((t) => t.id !== s.user && !t.local && !have.has(t.id) && Math.abs(ratings(t).ovr - target) <= 2.5)
-      .sort(() => Math.random() - 0.5).slice(0, 2);
-    s.offers = (s.offers || []).concat(cands.map((t) => {
-      const lk = Object.keys(s.lg).find((k) => s.lg[k].includes(t.id));
-      return { tid: t.id, name: t.name, league: LG[lk].name, country: COUNTRIES[t.country].name, ovr: Math.round(ratings(t).ovr * 10) / 10, cash: CASH[LG[lk].tier - 1], why: diff >= 3 ? `Você está em ${pos}º, acima do esperado (${exp}º).` : `Você está em ${pos}º, abaixo do esperado (${exp}º).` };
-    }));
-    return cands.length;
-  }
-
-  function sortedTable(s, key) {
-    return s.lg[key].slice().sort((a, b) => {
-      const x = s.table[a], y = s.table[b];
-      return y.pts - x.pts || (y.gf - y.ga) - (x.gf - x.ga) || y.gf - x.gf;
-    });
-  }
-
-  // ---- Copas continentais ----
-  function startCups(s) {
-    const tables = {};
-    for (const k in s.lg) tables[k] = sortedTable(s, k);
-    const ovr = (id) => ratings(s.teams[id]).ovr;
-    s.cups = {};
-    for (const ck in CUPS) {
-      const c = CUPS[ck];
-      let ids = [];
-      for (const [lk, a, b] of c.slots) ids = ids.concat((tables[lk] || []).slice(a - 1, b));
-      ids.sort((x, y) => ovr(y) - ovr(x));
-      if (ids.length >= 2) s.cups[ck] = { name: c.name, prize: c.prize, alive: ids, round: 0, champion: null };
-    }
-    s.phase = Object.keys(s.cups).length ? "cups" : "end";
-  }
-  function cupRound(s, cup, res) {
-    const alive = cup.alive, n = alive.length;
-    let size = 1; while (size < n) size *= 2;
-    const byes = size - n;
-    const next = alive.slice(0, byes);
-    const rest = alive.slice(byes);
-    const names = (id) => s.teams[id].name;
-    for (let i = 0; i < rest.length / 2; i++) {
-      const h = rest[i], a = rest[rest.length - 1 - i];
-      const H = s.teams[h], A = s.teams[a];
-      if (h !== s.user) H.lineup = autoLineup(H);
-      if (a !== s.user) A.lineup = autoLineup(A);
-      const r = simMatch(H, A);
-      let w = r.gh > r.ga ? h : r.gh < r.ga ? a : null, pens = false;
-      if (w === null) { pens = true; const ph = ratings(H).ovr, pa = ratings(A).ovr; w = Math.random() < 0.5 + (ph - pa) * 0.01 ? h : a; }
-      next.push(w);
-      if (h === s.user || a === s.user) {
-        res.cupReports.push({ cup: cup.name, home: H.name, away: A.name, gh: r.gh, ga: r.ga, pens, winner: names(w) });
-        if (w === s.user) { s.cash += cup.prize; res.prize += cup.prize; }
-      }
-    }
-    cup.alive = next.sort((x, y) => alive.indexOf(x) - alive.indexOf(y));
-    cup.round++;
-    if (cup.alive.length === 1) {
-      cup.champion = cup.alive[0];
-      s.honors.push({ season: s.season, cup: cup.name, club: names(cup.champion) });
-      res.champions.push(`${cup.name}: ${names(cup.champion)}`);
-    }
-  }
-  function playCups(s) {
-    const res = { cupReports: [], champions: [], prize: 0, cupPhase: true };
-    const userIn = () => Object.values(s.cups).some((c) => c.champion === null && c.alive.includes(s.user));
-    const open = () => Object.values(s.cups).filter((c) => c.champion === null);
-    const wasIn = userIn();
-    do { open().forEach((c) => cupRound(s, c, res)); } while (!wasIn && open().length);
-    if (wasIn && !open().length === false) { /* user ainda joga nas próximas rodadas */ }
-    if (!open().length) { s.phase = "end"; res.cupsEnd = true; }
-    return res;
-  }
-
-  function endSeason(s) {
-    const u = s.teams[s.user], ukey = u.lkey, ul = LG[ukey];
-    const info = { champion: s.teams[sortedTable(s, ul.key)[0]].name, up: [], down: [], userPos: 0, prize: 0, offers: [], honors: s.honors.filter((h) => h.season === s.season) };
-    // expectativa vs. resultado
-    const tab = sortedTable(s, ukey);
-    info.userPos = tab.indexOf(s.user) + 1;
-    const byOvr = s.lg[ukey].slice().sort((a, b) => ratings(s.teams[b]).ovr - ratings(s.teams[a]).ovr);
-    const expPos = byOvr.indexOf(s.user) + 1;
-    info.prize = (tab.length + 1 - info.userPos) * [400000, 150000, 60000][ul.tier - 1];
-    s.cash += info.prize;
-    // promoção e rebaixamento por país
-    const n = COUNTRIES[ul.country] ? 0 : 0;
-    let moved = null;
-    for (const c in COUNTRIES) {
-      const tiers = LEAGUES.filter((l) => l.country === c).sort((a, b) => a.tier - b.tier);
-      const k = COUNTRIES[c].promo;
-      const tabs = tiers.map((l) => sortedTable(s, l.key));
-      const newLg = tiers.map((l, i) => {
-        let ids = tabs[i].slice();
-        if (i > 0) ids = ids.slice(k);                 // sobem os k melhores da divisão de baixo
-        if (i < tiers.length - 1) ids = ids.slice(0, ids.length - k); // caem os k piores
-        if (i > 0) ids = ids.concat(tabs[i - 1].slice(tabs[i - 1].length - k)); // vindos de cima
-        if (i < tiers.length - 1) ids = ids.concat(tabs[i + 1].slice(0, k));    // vindos de baixo
-        return ids;
-      });
-      // monta de forma consistente: cada divisão = meio + caídos de cima + subidos de baixo
-      tiers.forEach((l, i) => {
-        let mid = tabs[i].slice(i > 0 ? k : 0, tabs[i].length - (i < tiers.length - 1 ? k : 0));
-        const dropped = i > 0 ? tabs[i - 1].slice(tabs[i - 1].length - k) : [];
-        const up = i < tiers.length - 1 ? tabs[i + 1].slice(0, k) : [];
-        s.lg[l.key] = mid.concat(dropped, up);
-      });
-      if (c === ul.country) {
-        tiers.forEach((l, i) => {
-          if (i < tiers.length - 1 && l.tier === 1) { info.down = tabs[i].slice(tabs[i].length - k).map((x) => s.teams[x].name); info.up = tabs[i + 1].slice(0, k).map((x) => s.teams[x].name); }
-        });
-      }
-    }
-    const newKey = Object.keys(s.lg).find((k) => s.lg[k].includes(s.user));
-    const movedUp = LG[newKey].tier < ul.tier, movedDown = LG[newKey].tier > ul.tier;
-    // reputação
-    let rep = s.rep + (expPos - info.userPos) * 0.9 + (info.userPos === 1 ? 4 : 0) + (movedUp ? 4 : 0) + (movedDown ? -6 : 0);
-    info.honors.forEach((h) => { if (h.club === u.name) rep += 3; });
-    s.rep = clamp(Math.round(rep), 0, 100);
-    // envelhecimento
-    for (const t of Object.values(s.teams)) {
-      t.players.forEach((p) => {
-        p.age++;
-        const d = p.age <= 23 ? ri(0, 4) : p.age <= 29 ? ri(-1, 2) : ri(-4, 0);
-        p.ov = clamp(p.ov + d, 35, 95);
-        p.value = valueOf(p.ov, p.age); p.wage = Math.round(p.value / 900);
-      });
-      if (t.id !== s.user) {
-        const keep = t.players.filter((p) => p.age < 37);
-        const lost = t.players.length - keep.length;
-        t.players = keep;
-        const lk = Object.keys(s.lg).find((k) => s.lg[k].includes(t.id));
-        const b = lk ? COUNTRIES[t.country].base - 7 * (LG[lk].tier - 1) - 3 : 44;
-        for (let i = 0; i < lost; i++) t.players.push(mkPlayer(pick(["DEF","MID","ATT"]), b, ri(18, 22)));
-      }
-      t.lineup = autoLineup(t);
-    }
-    // convites de outros clubes (mecanismo próprio: reputação define o nível dos clubes que te chamam)
-    const target = 48 + s.rep * 0.30;
-    const cands = Object.values(s.teams).filter((t) => t.id !== s.user && !t.local && Math.abs(ratings(t).ovr - target) <= 2.5);
-    cands.sort(() => Math.random() - 0.5);
-    s.offers = cands.slice(0, 3).map((t) => {
-      const lk = Object.keys(s.lg).find((k) => s.lg[k].includes(t.id));
-      return { tid: t.id, name: t.name, league: LG[lk].name, country: COUNTRIES[t.country].name, ovr: Math.round(ratings(t).ovr * 10) / 10, cash: CASH[LG[lk].tier - 1] };
-    });
-    info.offers = s.offers;
-    s.season++;
-    setupSeason(s);
-    return info;
   }
 
   function acceptOffer(s, tid) {
     const o = s.offers.find((x) => x.tid === tid);
     if (!o) return "Convite inválido.";
-    s.user = tid;
-    s.cash = o.cash;
-    s.offers = [];
-    s.userState = Object.keys(s.states || {}).find((k) => s.states[k].ids.includes(tid)) || null;
+    s.user = tid; s.cash = o.cash; s.offers = [];
     s.teams[tid].lineup = autoLineup(s.teams[tid]);
     return null;
   }
 
   function market(s) {
     const out = [];
-    for (const t of Object.values(s.teams)) if (t.id !== s.user && !t.local) for (const p of t.players) out.push({ ...p, team: t.name, tid: t.id });
+    for (const t of Object.values(s.teams)) if (t.id !== s.user) for (const p of t.players) out.push({ ...p, team: t.name, tid: t.id });
     return out;
   }
   function findPlayer(s, pid) {
@@ -488,17 +676,15 @@
         const age = q.age || 25, ov = q.ov || 55, value = q.value || valueOf(ov, age);
         ps.push({ id: PID++, name: q.name, pos: q.pos, ov, age, value, wage: Math.round(value / 900) });
       }
-      const lk = Object.keys(s.lg).find((k) => s.lg[k].includes(t.id));
-      const b = lk ? COUNTRIES[t.country].base - 7 * (LG[lk].tier - 1) : 44;
       for (const pos of ["GK", "DEF", "MID", "ATT"]) {
         const min = { GK: 2, DEF: 6, MID: 6, ATT: 4 }[pos];
-        while (ps.filter((p) => p.pos === pos).length < min) ps.push(mkPlayer(pos, b - 5, ri(18, 30)));
+        while (ps.filter((p) => p.pos === pos).length < min) ps.push(mkPlayer(pos, t.base - 5, ri(18, 30)));
       }
       t.players = ps; t.lineup = autoLineup(t); n++;
     }
     return { teams: n, removed };
   }
 
-  const api = { STATES, sortIds, COUNTRIES, LEAGUES, LG, CUPS, FORMATIONS, TACTICS, newGame, autoLineup, ratings, playRound, sortedTable, endSeason, acceptOffer, market, buy, sell, applyUpdate, resetPid, lineupPlayers, fixLineup, userMatchAt };
+  const api = { STATES, CONT, COUNTRIES, LEAGUES, LG, FORMATIONS, TACTICS, newGame, autoLineup, ratings, playRound, acceptOffer, market, buy, sell, applyUpdate, resetPid, lineupPlayers, fixLineup, nextUserRound, sortTab, dateOf, userComps, userMatches };
   if (typeof module !== "undefined") module.exports = api; else root.Game = api;
 })(typeof window !== "undefined" ? window : globalThis);
