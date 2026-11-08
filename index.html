@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b3d1e">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg">
+<title>Meu Elifoot</title>
+<style>
+:root{--bg:#0e1a12;--card:#16281c;--line:#26402d;--tx:#e9f3ea;--mut:#8fae95;--ac:#3ddc84;--bad:#ff6b6b;--warn:#ffd166}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.4 system-ui,sans-serif;padding-bottom:70px}
+header{position:sticky;top:0;background:#0b3d1e;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;z-index:5;gap:8px}
+header b{font-size:16px}header span{font-size:12px;color:#bfe3c7;text-align:right}
+main{padding:12px;max-width:640px;margin:auto}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:12px}
+h2{margin:0 0 8px;font-size:16px}
+button,select,input{font:inherit;color:var(--tx);background:#1d3626;border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+button.p{background:var(--ac);color:#062;font-weight:700;border:0}
+button.s{padding:6px 10px;font-size:13px}
+button.d{background:#4a1f1f}
+nav{position:fixed;bottom:0;left:0;right:0;display:flex;background:#0b3d1e;padding-bottom:env(safe-area-inset-bottom)}
+nav button{flex:1;border:0;border-radius:0;background:none;padding:14px 2px;font-size:12px;color:#bfe3c7}
+nav button.on{color:#fff;font-weight:700;border-top:3px solid var(--ac)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:5px 4px;text-align:right;border-bottom:1px solid var(--line)}
+th:first-child,td:first-child,td.l,th.l{text-align:left}
+tr.me{background:#1f4a2b;font-weight:700}
+.z1{border-left:3px solid var(--ac)}.z2{border-left:3px solid var(--bad)}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.pos{display:inline-block;width:34px;font-size:11px;color:var(--mut)}
+.pl{display:flex;justify-content:space-between;align-items:center;padding:7px 4px;border-bottom:1px solid var(--line)}
+.pl.in{background:#1f4a2b}
+.mut{color:var(--mut);font-size:12px}
+.big{font-size:20px;text-align:center;padding:8px}
+.good{color:var(--ac)}.bad{color:var(--bad)}.warn{color:var(--warn)}
+</style>
+</head>
+<body>
+<header><b id="hT">Meu Elifoot</b><span id="hS"></span></header>
+<main id="app"></main>
+<nav id="nav"></nav>
+<script src="clubs.js"></script>
+<script src="game.js"></script>
+<script>
+const PREFIX="elifoot:save:";
+let S=null,tab="jogo",msg="",mf={pos:"",q:"",min:0},viewKey=null;
+const $=id=>document.getElementById(id);
+const money=n=>(n<0?"-":"")+"R$ "+(Math.abs(n)>=1e6?(Math.abs(n)/1e6).toFixed(2)+" mi":Math.round(Math.abs(n)/1e3)+" mil");
+const U=()=>S.teams[S.user];
+const LGu=()=>Game.LG[U().lkey];
+
+// ---- salvamento automático com o nome do time (mesmo nome = sobrescreve) ----
+function save(){
+  try{localStorage.setItem(PREFIX+U().name,JSON.stringify(S));localStorage.setItem("elifoot:last",U().name)}
+  catch(e){alert("Sem espaço no aparelho para salvar. Apague saves antigos na tela inicial.")}
+}
+function listSaves(){const r=[];for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k.startsWith(PREFIX))r.push(k.slice(PREFIX.length))}return r.sort()}
+function loadSave(name){try{S=JSON.parse(localStorage.getItem(PREFIX+name));Game.resetPid(S);viewKey=null;tab="jogo";msg="";localStorage.setItem("elifoot:last",name);render()}catch(e){alert("Save corrompido.")}}
+function delSave(name){if(confirm("Apagar o save de "+name+"?")){localStorage.removeItem(PREFIX+name);start()}}
+
+function start(){
+  S=null;
+  const saves=listSaves();
+  const opts=Game.COUNTRIES;
+  let sel="";
+  for(const c in opts){
+    const ls=Game.LEAGUES.filter(l=>l.country===c);
+    sel+=`<optgroup label="${opts[c].name}">`+ls.map(l=>l.clubs.map(n=>`<option value="${n}">${n} (${l.name})</option>`).join("")).join("")+`</optgroup>`;
+  }
+  $("app").innerHTML=`<div class="card"><h2>Continuar</h2>${saves.length?saves.map(n=>`<div class="pl"><span>${n}</span><span><button class="s p" onclick="loadSave('${n.replace(/'/g,"\\'")}')">Abrir</button> <button class="s d" onclick="delSave('${n.replace(/'/g,"\\'")}')">X</button></span></div>`).join(""):'<p class="mut">Nenhum save ainda.</p>'}</div>
+  <div class="card"><h2>Novo jogo</h2><p class="mut">8 países, 2 a 3 divisões cada, copas continentais. Elencos do protótipo são <b>estimados</b>, não reais. Se já existir save com o nome do time escolhido, ele é sobrescrito.</p>
+  <div class="row"><select id="clubSel" style="flex:1;min-width:0">${sel}</select><button class="p" onclick="go()">Começar</button></div></div>
+  <div class="card"><label class="mut">Importar save (.json)</label><br><input type="file" accept=".json" onchange="importSave(event)"></div>`;
+  $("nav").innerHTML="";$("hT").textContent="Meu Elifoot";$("hS").textContent="";
+}
+function go(){S=Game.newGame($("clubSel").value);viewKey=null;tab="jogo";msg="";save();render()}
+function importSave(e){const f=e.target.files[0];if(!f)return;f.text().then(t=>{S=JSON.parse(t);Game.resetPid(S);save();render()})}
+function exportSave(){const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify(S)],{type:"application/json"}));a.download="elifoot-"+U().name+".json";a.click()}
+
+function setTab(t){tab=t;msg="";render()}
+function render(){
+  if(!S)return start();
+  const u=U();
+  $("hT").textContent=u.name;
+  $("hS").textContent=`${Game.COUNTRIES[u.country].name} · ${LGu().name}\nTemp. ${S.season} · ${money(S.cash)}`;
+  const tabs=[["jogo","Jogo"],["elenco","Elenco"],["tabela","Tabela"],["mercado","Mercado"],["fin","Mais"]];
+  $("nav").innerHTML=tabs.map(([k,n])=>`<button class="${tab===k?"on":""}" onclick="setTab('${k}')">${n}</button>`).join("");
+  $("app").innerHTML=({jogo:vJogo,elenco:vElenco,tabela:vTabela,mercado:vMercado,fin:vMais})[tab]();
+  window.scrollTo(0,0);
+}
+
+function vJogo(){
+  const u=U();let h="";
+  if(S.offers&&S.offers.length){
+    h+=`<div class="card"><h2>Convites de outros clubes</h2><p class="mut">Sua reputação: ${S.rep}/100. Se aceitar, você assume o novo clube (com o caixa dele) e o time atual segue com a IA.</p>`+
+    S.offers.map(o=>`<div class="pl"><span>${o.name}<br><span class="mut">${o.league} · ${o.country} · OVR ${o.ovr}${o.why?"<br>"+o.why:""}</span></span><button class="s p" onclick="accept(${o.tid})">Aceitar</button></div>`).join("")+
+    `<p><button class="s" onclick="S.offers=[];save();render()">Recusar todos</button></p></div>`;
+  }
+  h+=`<div class="card"><h2>${S.phase==="state"?"Campeonato Estadual":S.phase==="league"?"Próxima partida":S.phase==="cups"?"Copas continentais":"Fim de temporada"}</h2>`;
+  if(S.phase==="state"){
+    const st=S.states[S.userState],f=st&&st.cup===null?(st.fixtures[st.round]||[]).find(([a,b])=>a===S.user||b===S.user):null;
+    h+=st?(st.cup===null&&f?`<div class="big">${S.teams[f[0]].name} x ${S.teams[f[1]].name}</div><p class="mut" style="text-align:center">${st.name} · rodada ${st.round+1}/${st.fixtures.length}</p>`:`<p>${st.name}: fase de mata-mata.</p>`):`<p class="mut">Seu time não disputa estadual.</p>`;
+    h+=`<div class="row"><select onchange="setF(this.value)">${Object.keys(Game.FORMATIONS).map(f=>`<option ${u.formation===f?"selected":""}>${f}</option>`).join("")}</select>
+    <select onchange="U().tactic=this.value;save()">${Game.TACTICS.map(t=>`<option ${u.tactic===t?"selected":""}>${t}</option>`).join("")}</select></div>
+    <p><button class="p" onclick="play()">Jogar rodada</button></p>`;
+  }else if(S.phase==="league"){
+    const m=Game.userMatchAt(S,S.round);
+    if(m){const H=S.teams[m[0]],A=S.teams[m[1]];
+      h+=`<div class="big">${H.name} x ${A.name}</div><p class="mut" style="text-align:center">Rodada ${S.round+1} · Seu OVR: ${Game.ratings(u).ovr.toFixed(1)} · Adversário: ${Game.ratings(H===u?A:H).ovr.toFixed(1)}</p>`;
+    }else h+=`<p>Sem jogo nesta rodada.</p>`;
+    h+=`<div class="row"><select onchange="setF(this.value)">${Object.keys(Game.FORMATIONS).map(f=>`<option ${u.formation===f?"selected":""}>${f}</option>`).join("")}</select>
+    <select onchange="U().tactic=this.value;save()">${Game.TACTICS.map(t=>`<option ${u.tactic===t?"selected":""}>${t}</option>`).join("")}</select></div>
+    <p><button class="p" onclick="play()">Jogar rodada</button></p>`;
+  }else if(S.phase==="cups"){
+    const mine=Object.values(S.cups).filter(c=>c.champion===null&&c.alive.includes(S.user));
+    h+=mine.length?`<p>Você está na: <b>${mine.map(c=>c.name).join(", ")}</b></p>`:`<p class="mut">Seu time não está mais em copas. As copas serão simuladas até o fim.</p>`;
+    h+=`<p><button class="p" onclick="play()">Jogar rodada de copa</button></p>`;
+  }else{
+    h+=`<p>Tudo concluído.</p><button class="p" onclick="finish()">Encerrar temporada</button>`;
+  }
+  h+=`</div>`+(msg?`<div class="card">${msg}</div>`:"");
+  return h;
+}
+function accept(tid){const e=Game.acceptOffer(S,tid);if(e){alert(e);return}viewKey=null;msg=`<p class="good">Você agora comanda o ${U().name}. Save criado com o nome do novo time.</p>`;save();render()}
+function setF(f){const u=U();u.formation=f;u.lineup=Game.autoLineup(u,f);save();render()}
+const sc=a=>a.length?a.join(", "):"–";
+function play(){
+  const r=Game.playRound(S);if(!r)return;
+  let t="";
+  if(r.statePhase){
+    const m=r.report;
+    t=`<h2>Estadual</h2>`+(m?`<div class="big">${m.home} ${m.gh} x ${m.ga} ${m.away}</div><p class="mut">${m.home}: ${sc(m.sh)}<br>${m.away}: ${sc(m.sa)}</p><p>Salários: <span class="bad">-${money(r.wages)}</span>${r.gate?` · Bilheteria: <span class="good">+${money(r.gate)}</span>`:""}</p>`:"")+
+      r.cupReports.map(c=>`<p><b>${c.cup}</b><br>${c.home} ${c.gh} x ${c.ga} ${c.away}${c.pens?" (pênaltis)":""}<br>Avança: <b>${c.winner}</b></p>`).join("")+
+      (r.prize?`<p class="good">Premiação: +${money(r.prize)}</p>`:"")+(r.champions.length?`<p>Campeões:<br>${r.champions.join("<br>")}</p>`:"")+
+      (r.skipped?`<p class="mut">${r.skipped} rodada(s) sem jogo seu foram simuladas.</p>`:"")+(r.stateEnd?`<p class="warn">Estaduais encerrados. Agora começam os campeonatos nacionais.</p>`:"");
+  }else if(r.cupPhase){
+    t=`<h2>Copas</h2>`+(r.cupReports.length?r.cupReports.map(c=>`<p><b>${c.cup}</b><br>${c.home} ${c.gh} x ${c.ga} ${c.away}${c.pens?" (pênaltis)":""}<br>Avança: <b>${c.winner}</b></p>`).join(""):"")+
+      (r.prize?`<p class="good">Premiação: +${money(r.prize)}</p>`:"")+(r.champions.length?`<p>Campeões:<br>${r.champions.join("<br>")}</p>`:"");
+    if(r.cupsEnd)t+=`<p class="warn">Copas encerradas. Pode encerrar a temporada.</p>`;
+  }else{
+    const m=r.report;
+    if(m)t=`<h2>Resultado</h2><div class="big">${m.home} ${m.gh} x ${m.ga} ${m.away}</div><p class="mut">${m.home}: ${sc(m.sh)}<br>${m.away}: ${sc(m.sa)}</p>
+      <p>Salários: <span class="bad">-${money(r.wages)}</span>${r.gate?` · Bilheteria: <span class="good">+${money(r.gate)}</span>`:""}</p>`;
+    if(r.fixed)t+=`<p class="mut">Escalação inválida: o auxiliar escalou o time automaticamente.</p>`;
+    if(r.skipped)t+=`<p class="mut">${r.skipped} rodada(s) sem jogo seu foram simuladas.</p>`;
+    if(r.newOffers)t+=`<p class="warn">Você recebeu ${r.newOffers} convite(s) de clube. Veja no topo.</p>`;
+    if(r.leagueEnd)t+=`<p class="warn">Campeonato encerrado! Agora vêm as copas continentais.</p>`;
+  }
+  msg=t;save();render();
+}
+function finish(){
+  const i=Game.endSeason(S);
+  viewKey=null;
+  msg=`<h2>Fim da temporada</h2><p>Campeão da sua liga: <b>${i.champion}</b><br>Você terminou em ${i.userPos}º · Prêmio: <span class="good">${money(i.prize)}</span><br>Sua reputação: ${S.rep}/100${i.up.length?`<br>Subiram: ${i.up.join(", ")}<br>Caíram: ${i.down.join(", ")}`:""}</p>`+(i.honors.length?`<p>Copas:<br>${i.honors.map(h=>h.cup+": "+h.club).join("<br>")}</p>`:"")+(i.offers.length?`<p class="warn">Você recebeu ${i.offers.length} convite(s) de clube, veja no topo.</p>`:"");
+  save();render();
+}
+
+function vElenco(){
+  const u=U(),set=new Set(u.lineup);
+  const order={GK:0,DEF:1,MID:2,ATT:3};
+  const ps=u.players.slice().sort((a,b)=>order[a.pos]-order[b.pos]||b.ov-a.ov);
+  return `<div class="card"><h2>Escalação (${u.lineup.length}/11)</h2>
+  <div class="row"><button class="s" onclick="U().lineup=Game.autoLineup(U());save();render()">Auto</button><span class="mut">Toque para titular/reserva</span></div></div>
+  <div class="card">${ps.map(p=>`<div class="pl ${set.has(p.id)?"in":""}" onclick="tog(${p.id})"><span><span class="pos">${p.pos}</span>${p.name} <span class="mut">${p.age}a</span></span><span><b>${p.ov}</b> <button class="s d" onclick="event.stopPropagation();sell(${p.id})">Vender ${money(Math.round(p.value*.85))}</button></span></div>`).join("")}</div>`;
+}
+function tog(id){const u=U(),i=u.lineup.indexOf(id);if(i>=0)u.lineup.splice(i,1);else if(u.lineup.length<11)u.lineup.push(id);save();render()}
+function sell(id){if(!confirm("Vender jogador?"))return;const e=Game.sell(S,id);if(e)alert(e);save();render()}
+
+function vTabela(){
+  if(viewKey&&viewKey.startsWith("st:")&&S.states[viewKey.slice(3)])return vEstadual(viewKey.slice(3));
+  if(!viewKey&&S.phase==="state"&&S.userState)return vEstadual(S.userState);
+  const key=viewKey&&S.lg[viewKey]?viewKey:U().lkey,l=Game.LG[key],k=Game.COUNTRIES[l.country].promo;
+  const t=Game.sortedTable(S,key),n=t.length;
+  const tiers=Game.LEAGUES.filter(x=>x.country===l.country);
+  const z=i=>(l.tier>1&&i<k)||(l.tier===1&&i<4&&false)?"z1":(l.tier<tiers.length&&i>=n-k)?"z2":(l.tier===1&&i===0?"z1":"");
+  return `<div class="card"><div class="row"><select onchange="viewKey=this.value;render()" style="flex:1;min-width:0">${selOpts(key)}</select></div></div>
+  <div class="card"><h2>${l.name}</h2><table><tr><th class="l">Time</th><th>P</th><th>J</th><th>V</th><th>E</th><th>D</th><th>SG</th></tr>
+  ${t.map((id,i)=>{const r=S.table[id],tm=S.teams[id];return `<tr class="${id===S.user?"me":""} ${z(i)}"><td class="l">${i+1}. ${tm.name}</td><td>${r.pts}</td><td>${r.p}</td><td>${r.w}</td><td>${r.d}</td><td>${r.l}</td><td>${r.gf-r.ga}</td></tr>`}).join("")}</table>
+  <p class="mut">Verde: título/acesso · Vermelho: rebaixamento (${k} por divisão).</p></div>`+vCups();
+}
+function selOpts(cur){
+  return Game.LEAGUES.map(x=>`<option value="${x.key}" ${x.key===cur?"selected":""}>${Game.COUNTRIES[x.country].name} — ${x.name}</option>`).join("")+
+    Game.STATES.map(x=>`<option value="st:${x.key}" ${"st:"+x.key===cur?"selected":""}>Estadual — ${x.name}</option>`).join("");
+}
+function vEstadual(k){
+  const st=S.states[k],t=Game.sortIds(st.ids,S.stTable);
+  let h=`<div class="card"><div class="row"><select onchange="viewKey=this.value;render()" style="flex:1;min-width:0">${selOpts("st:"+k)}</select></div></div>
+  <div class="card"><h2>${st.name}</h2><table><tr><th class="l">Time</th><th>P</th><th>J</th><th>V</th><th>E</th><th>D</th><th>SG</th></tr>
+  ${t.map((id,i)=>{const r=S.stTable[id];return `<tr class="${id===S.user?"me":""} ${i<st.ko?"z1":""}"><td class="l">${i+1}. ${S.teams[id].name}</td><td>${r.pts}</td><td>${r.p}</td><td>${r.w}</td><td>${r.d}</td><td>${r.l}</td><td>${r.gf-r.ga}</td></tr>`}).join("")}</table>
+  <p class="mut">Verde: classificados ao mata-mata (jogo único).${st.cup?` Mata-mata: ${st.cup.champion!==null?"campeão "+S.teams[st.cup.champion].name:"restam "+st.cup.alive.map(i=>S.teams[i].name).join(", ")}`:""}</p></div>`;
+  return h;
+}
+function vCups(){
+  if(!S.cups)return"";
+  return Object.values(S.cups).map(c=>`<div class="card"><h2>${c.name}</h2><p class="mut">${c.champion?`Campeão: <b>${S.teams[c.champion].name}</b>`:`Restam ${c.alive.length}: `+c.alive.map(id=>S.teams[id].name).join(", ")}</p></div>`).join("");
+}
+
+function vMercado(){
+  let l=Game.market(S).filter(p=>(!mf.pos||p.pos===mf.pos)&&p.ov>=mf.min&&(!mf.q||(p.name+p.team).toLowerCase().includes(mf.q.toLowerCase())));
+  l.sort((a,b)=>b.ov-a.ov);const n=l.length;l=l.slice(0,40);
+  return `<div class="card"><h2>Mercado</h2><div class="row">
+  <select onchange="mf.pos=this.value;render()"><option value="">Todas</option>${["GK","DEF","MID","ATT"].map(p=>`<option ${mf.pos===p?"selected":""}>${p}</option>`).join("")}</select>
+  <select onchange="mf.min=+this.value;render()">${[0,60,65,70,75].map(v=>`<option value="${v}" ${mf.min===v?"selected":""}>OVR ≥ ${v}</option>`).join("")}</select>
+  <input placeholder="nome/time" value="${mf.q}" onchange="mf.q=this.value;render()" style="flex:1;min-width:100px"></div>
+  <p class="mut">${n} jogadores · preço = valor +15% · mostrando os 40 melhores</p></div>
+  <div class="card">${l.map(p=>`<div class="pl"><span><span class="pos">${p.pos}</span>${p.name} <span class="mut">${p.age}a · ${p.team}</span></span><span><b>${p.ov}</b> <button class="s p" onclick="buy(${p.id})">${money(Math.round(p.value*1.15))}</button></span></div>`).join("")}</div>`;
+}
+function buy(id){const e=Game.buy(S,id);if(e)alert(e);save();render()}
+
+function vMais(){
+  const u=U(),w=u.players.reduce((s,p)=>s+p.wage,0);
+  return `<div class="card"><h2>Finanças</h2><p>Caixa: <b>${money(S.cash)}</b><br>Folha por rodada: ${money(w)}<br>Torcida (estimada): ${u.fans} mil<br>Reputação: ${S.rep}/100</p></div>
+  <div class="card"><h2>Save e elencos</h2><p class="mut">Salvamento automático com o nome do time (${u.name}).</p>
+  <div class="row"><button onclick="exportSave()">Exportar save</button><button onclick="start()">Trocar de save / novo jogo</button></div>
+  <p><button class="p" onclick="update()">Atualizar elencos (elencos.json)</button></p>
+  <p class="mut">Atualiza todos os times, exceto o seu. Jogadores seus são removidos dos outros times.</p>${msg?`<p>${msg}</p>`:""}</div>`;
+}
+async function update(){
+  try{const r=await fetch("elencos.json?"+Date.now());if(!r.ok)throw 0;const d=await r.json();
+    const x=Game.applyUpdate(S,d);msg=`Atualizado: ${x.teams} times, ${x.removed} duplicados removidos.`;save()}
+  catch(e){msg="Ainda não há elencos.json publicado."}
+  render();
+}
+try{const last=localStorage.getItem("elifoot:last");if(last&&localStorage.getItem(PREFIX+last))loadSave(last);else render()}catch(e){render()}
+if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});
+</script>
+</body>
+</html>
