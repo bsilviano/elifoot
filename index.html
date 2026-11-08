@@ -180,16 +180,18 @@ function vMais(){
   return `<div class="card"><h2>Finanças</h2><p>Caixa: <b>${money(S.cash)}</b><br>Folha por rodada: ${money(w)}<br>Torcida (estimada): ${u.fans} mil<br>Reputação: ${S.rep}/100</p></div>
   <div class="card"><h2>Save e elencos</h2><p class="mut">Salvamento automático com o nome do time (${u.name}).</p>
   <div class="row"><button onclick="exportSave()">Exportar save</button><button onclick="start()">Trocar de save / novo jogo</button></div>
-  <p><button class="p" onclick="update()">Atualizar elencos (elencos.json)</button></p>
+  <p><button class="p" onclick="update(false)">Atualizar elencos (elencos.json)</button></p>
   <p class="mut">Atualiza todos os times, exceto o seu. Jogadores seus são removidos dos outros times.</p>${msg?`<p>${msg}</p>`:""}</div>`;
 }
-async function update(){
+async function update(auto){
   try{const r=await fetch("elencos.json?"+Date.now());if(!r.ok)throw 0;const d=await r.json();
-    const x=Game.applyUpdate(S,d);msg=`Atualizado: ${x.teams} times, ${x.removed} duplicados removidos.`;save()}
-  catch(e){msg="Ainda não há elencos.json publicado."}
-  render();
+    if(auto&&d.updated&&S.lastUpd===d.updated)return;
+    const x=Game.applyUpdate(S,d);S.lastUpd=d.updated||"";msg=`Elencos atualizados (${d.updated||"?"}): ${x.teams} times, ${x.removed} duplicados removidos.`;save()}
+  catch(e){if(!auto)msg="Ainda não há elencos.json publicado."}
+  if(S)render();
 }
 try{const last=localStorage.getItem("elifoot:last");if(last&&localStorage.getItem(PREFIX+last))loadSave(last);else render()}catch(e){render()}
+if(S)update(true); // atualiza sozinho ao abrir, se houver elencos.json novo
 if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});
 </script>
 </body>

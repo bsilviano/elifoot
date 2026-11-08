@@ -673,7 +673,10 @@
       const ps = [];
       for (const q of dt.players || []) {
         if (mine.has(String(q.name).toLowerCase())) { removed++; continue; }
-        const age = q.age || 25, ov = q.ov || 55, value = q.value || valueOf(ov, age);
+        const age = q.age || 25;
+        const af = age <= 22 ? 1.4 : age >= 32 ? 0.5 : age >= 29 ? 0.8 : 1;
+        const ov = q.ov || (q.value ? clamp(Math.round(40 + 15 * Math.log10(q.value / af / 20000)), 40, 92) : 55);
+        const value = q.value || valueOf(ov, age);
         ps.push({ id: PID++, name: q.name, pos: q.pos, ov, age, value, wage: Math.round(value / 900) });
       }
       for (const pos of ["GK", "DEF", "MID", "ATT"]) {
