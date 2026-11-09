@@ -50,21 +50,23 @@ tr.me{background:var(--hl);font-weight:700}
 <header><div class="hl"><span id="crest"></span><b id="hT">Meu Elifoot</b></div><div class="hr"><span id="flag"></span><span id="hS"></span></div></header>
 <main id="app"></main>
 <nav id="nav"></nav>
-<script src="clubs.js?v=18"></script>
-<script src="game.js?v=18"></script>
+<script src="clubs.js?v=20"></script>
+<script src="game.js?v=20"></script>
 <script>
 const PREFIX="elifoot:save:";
 let S=null,tab="jogo",msg="",mf={pos:"",q:"",min:1,max:null,afford:true,ord:"ovr",dir:-1},viewKey=null;
 const $=id=>document.getElementById(id);
-const VERSAO=18;
+const VERSAO=20;
 const moneyFull=n=>(n<0?"-":"")+"R$ "+Math.round(Math.abs(n)).toLocaleString("pt-BR");
 const money=moneyFull;
 const U=()=>S.teams[S.user];
 const LGu=()=>Game.LG[U().lkey];
 
 // ---- salvamento automático com o nome do time (mesmo nome = sobrescreve) ----
+let _tt=null;
+function toast(t){let e=document.getElementById("toast");if(!e){e=document.createElement("div");e.id="toast";e.style.cssText="position:fixed;top:74px;right:12px;z-index:50;background:#000c;color:#fff;font-size:12px;padding:6px 10px;border-radius:14px;transition:opacity .4s;pointer-events:none";document.body.appendChild(e)}e.textContent=t;e.style.opacity=1;clearTimeout(_tt);_tt=setTimeout(()=>e.style.opacity=0,1400)}
 function save(){
-  try{if(!S.saveName)S.saveName=U().name;localStorage.setItem(PREFIX+S.saveName,JSON.stringify(S));localStorage.setItem("elifoot:last",S.saveName)}
+  try{if(!S.saveName)S.saveName=U().name;localStorage.setItem(PREFIX+S.saveName,JSON.stringify(S));localStorage.setItem("elifoot:last",S.saveName);toast("💾 Jogo salvo")}
   catch(e){alert("Sem espaço no aparelho para salvar. Apague saves antigos na tela inicial.")}
 }
 function listSaves(){const r=[];for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k.startsWith(PREFIX))r.push(k.slice(PREFIX.length))}return r.sort()}
@@ -192,7 +194,7 @@ function lineupCard(u){
   if(res.length)h+=`<p class="mut" style="margin:8px 0 0">Banco: ${res.map(p=>`${p.name} (${SPN(p)} ${p.ov})`).join(", ")}</p>`;
   return h+`<p><button class="s" onclick="setTab('elenco')">Mudar escalação</button></p></div>`;
 }
-function accept(tid){const e=Game.acceptOffer(S,tid);if(e){alert(e);return}viewKey=null;msg=`<p class="good">Você agora comanda o ${U().name}. Save criado com o nome do novo time.</p>`;save();render()}
+function accept(tid){const e=Game.acceptOffer(S,tid);if(e){alert(e);return}viewKey=null;msg=`<p class="good">Você agora comanda o ${U().name}. O jogo continua no mesmo save.</p>`;save();render()}
 function playBest(){const u=U();u.fAuto=true;autoBest(u);save();play()}
 function bestF(){const u=U(),b=Game.bestFormation(u);u.formation=b.f;u.lineup=b.ids;msg=`Melhor formação: <b>${b.f}</b> (OVR ${b.ovr.toFixed(1)}${b.miss?`, ${b.miss} jogador(es) fora da posição exata`:""}). Lesionados e suspensos não entram.`;save();render()}
 function setF(f){const u=U();u.fAuto=false;u.formation=f;u.lineup=Game.autoLineup(u,f);save();render()}
@@ -273,8 +275,8 @@ function vArt(){
   const l=Game.topScorers(S,artTab,30);
   const tb=(k,t)=>`<button class="${artTab===k?"p":"s"}" onclick="artTab='${k}';render()">${t}</button>`;
   return `<div class="card"><h2>Artilheiros</h2><div class="row">${tb("season","Temporada "+Game.yearOf(S.T))}${tb("all","De sempre")}</div>
-  <p class="mut">Gols de todas as competições do jogo. ${artTab==="season"?"Zera a cada ano.":"Acumulado desde o início do save."}</p>
-  ${l.length?l.map((e,i)=>`<div class="pl ${e.mine?"in":""}"><span><b>${i+1}º</b> ${e.n}<br><span class="mut">${e.c}</span></span><span><b>${e.g}</b> gol${e.g>1?"s":""}</span></div>`).join(""):'<p class="mut">Ainda não houve gols. Jogue a primeira rodada.</p>'}</div>`;
+  <p class="mut">Gols de todas as competições do jogo. ${artTab==="season"?"Zera a cada ano.":"Gols da carreira real (Transfermarkt) somados aos que o jogador faz no jogo."}</p>
+  ${l.length?l.map((e,i)=>`<div class="pl ${e.mine?"in":""}"><span><b>${i+1}º</b> ${e.n}<br><span class="mut">${e.c}</span></span><span style="text-align:right"><b>${e.g}</b> gol${e.g>1?"s":""}${artTab==="all"&&e.real?`<br><span class="mut">${e.real} real + ${e.jogo} no jogo</span>`:""}</span></div>`).join(""):'<p class="mut">Ainda não houve gols. Jogue a primeira rodada.</p>'}</div>`;
 }
 function vMercado(){
   const all=Game.market(S),maxOvr=all.reduce((m,p)=>Math.max(m,p.ov),1),mx=mf.max==null?maxOvr:mf.max;

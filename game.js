@@ -427,10 +427,21 @@
       e.g++; e.sg++;
     }
   }
+  // "De sempre" = gols da carreira real (cg, vindos do elencos.json) + gols feitos no jogo.
   function topScorers(s, kind, n) {
-    const y = yearOf(s.T), all = Object.values(s.scorers || {});
-    const list = kind === "season" ? all.filter((e) => e.sy === y && e.sg > 0).sort((a, b) => b.sg - a.sg || b.g - a.g) : all.sort((a, b) => b.g - a.g || b.sg - a.sg);
-    return list.slice(0, n || 30).map((e) => ({ n: e.n, c: e.c, g: kind === "season" ? e.sg : e.g, mine: (s.clubs || [s.user]).concat(s.user).some((id) => s.teams[id] && s.teams[id].name === e.c) }));
+    const y = yearOf(s.T), mine = (id) => (s.clubs || [s.user]).concat(s.user).some((m) => s.teams[m] && s.teams[m].id === id);
+    if (kind === "season") {
+      return Object.values(s.scorers || {}).filter((e) => e.sy === y && e.sg > 0).sort((a, b) => b.sg - a.sg || b.g - a.g).slice(0, n || 30)
+        .map((e) => ({ n: e.n, c: e.c, g: e.sg, real: 0, jogo: e.sg, mine: Object.values(s.teams).some((t) => t.name === e.c && mine(t.id)) }));
+    }
+    const out = [], seen = new Set();
+    for (const t of Object.values(s.teams)) for (const p of t.players) {
+      if (!(p.cg > 0)) continue;
+      const k = p.name + "|" + t.name, jg = (s.scorers && s.scorers[k] && s.scorers[k].g) || 0;
+      seen.add(k); out.push({ n: p.name, c: t.name, g: p.cg + jg, real: p.cg, jogo: jg, mine: mine(t.id) });
+    }
+    for (const [k, e] of Object.entries(s.scorers || {})) if (!seen.has(k)) out.push({ n: e.n, c: e.c, g: e.g, real: 0, jogo: e.g, mine: Object.values(s.teams).some((t) => t.name === e.c && mine(t.id)) });
+    return out.sort((a, b) => b.g - a.g).slice(0, n || 30);
   }
   function processRound(s, rd, res, silent) {
     const c = s.comps[rd.c];
@@ -829,6 +840,13 @@
       if (!t || isMine(s, t.id)) continue;
       for (const q of dt.players || []) realTeam[key(q.name)] = t.id;
     }
+    // meu elenco não muda, mas ganha os gols de carreira real (cg) quando existirem
+    for (const dt of data.teams || []) {
+      const t = Object.values(s.teams).find((x) => x.name === dt.name);
+      if (!t || !isMine(s, t.id)) continue;
+      const cgs = {}; for (const q of dt.players || []) if (q.cg) cgs[key(q.name)] = q.cg;
+      for (const p of t.players) if (cgs[key(p.name)]) p.cg = cgs[key(p.name)];
+    }
     let n = 0, removed = 0, left = [], kept = 0;
     for (const dt of data.teams || []) {
       const t = Object.values(s.teams).find((x) => x.name === dt.name);
@@ -841,7 +859,7 @@
         const af = age <= 22 ? 1.4 : age >= 32 ? 0.5 : age >= 29 ? 0.8 : 1;
         const ov = q.ov || (q.value ? clamp(Math.round(40 + 15 * Math.log10(q.value / af / 20000)), 40, 92) : 55);
         const value = q.value || valueOf(ov, age);
-        ps.push({ id: PID++, name: q.name, pos: q.pos, sp: q.sp, ov, age, value, wage: Math.round(value / 900) });
+        ps.push({ id: PID++, name: q.name, pos: q.pos, sp: q.sp, cg: q.cg || 0, ov, age, value, wage: Math.round(value / 900) });
       }
       t.players = ps; t.lineup = autoLineup(t); n++;
     }
