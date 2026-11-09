@@ -651,6 +651,10 @@
     s.cash -= price;
     f.t.players.splice(f.i, 1);
     u.players.push(f.p);
+    s.bought = s.bought || []; s.sold = s.sold || [];
+    const bn = f.p.name.toLowerCase();
+    if (!s.bought.includes(bn)) s.bought.push(bn);
+    s.sold = s.sold.filter((x) => x.p.name.toLowerCase() !== bn);
     f.t.players.push(mkPlayer(f.p.pos, f.p.ov - 4 + rnd(-2, 2), ri(18, 30)));
     f.t.lineup = autoLineup(f.t);
     return null;
@@ -665,6 +669,8 @@
     u.players.splice(i, 1);
     const ids = Object.keys(s.teams).filter((k) => +k !== s.user && !s.teams[k].local);
     const buyer = s.teams[pick(ids)];
+    s.sold = s.sold || [];
+    s.sold.push({ p: { ...p }, tid: buyer.id });
     buyer.players.push(p);
     const spare = buyer.players.filter((q) => q.pos === p.pos && q.id !== p.id).sort((a, b) => a.ov - b.ov)[0];
     if (spare && buyer.players.length > 24) buyer.players.splice(buyer.players.indexOf(spare), 1);
@@ -702,6 +708,10 @@
     const p = u.players[i];
     s.cash += price;
     u.players.splice(i, 1);
+    s.sold = s.sold || []; s.bought = s.bought || [];
+    s.sold = s.sold.filter((x) => x.p.name.toLowerCase() !== p.name.toLowerCase());
+    s.sold.push({ p: { ...p }, tid: +tid });
+    s.bought = s.bought.filter((x) => x !== p.name.toLowerCase());
     const li = u.lineup.indexOf(pid); if (li >= 0) u.lineup.splice(li, 1);
     buyer.players.push(p);
     const spare = buyer.players.filter((q) => q.pos === p.pos && q.id !== p.id).sort((a, b) => a.ov - b.ov)[0];
@@ -713,27 +723,59 @@
   // Atualização: sobrescreve elencos de TODOS os times, menos o do usuário;
   // remove dos outros qualquer jogador (mesmo nome) que esteja no time do usuário.
   function applyUpdate(s, data) {
-    const mine = new Set(s.teams[s.user].players.map((p) => p.name.toLowerCase()));
-    let n = 0, removed = 0;
+    const u = s.teams[s.user];
+    const key = (x) => String(x).toLowerCase();
+    // Saves antigos: sem registro de compras, ninguém sai do elenco nesta atualização
+    s.sold = s.sold || [];
+    const mine = new Set(u.players.map((p) => key(p.name)));
+    const bought = mine; // meu elenco nunca é atualizado
+    const realTeam = {}; // nome do jogador -> time real (no elencos.json), exceto o time do usuário
+    for (const dt of data.teams || []) {
+      const t = Object.values(s.teams).find((x) => x.name === dt.name);
+      if (!t || t.id === s.user) continue;
+      for (const q of dt.players || []) realTeam[key(q.name)] = t.id;
+    }
+    let n = 0, removed = 0, left = [], kept = 0;
     for (const dt of data.teams || []) {
       const t = Object.values(s.teams).find((x) => x.name === dt.name);
       if (!t || t.id === s.user) continue;
       const ps = [];
       for (const q of dt.players || []) {
-        if (mine.has(String(q.name).toLowerCase())) { removed++; continue; }
+        // jogador comprado por mim continua comigo; os que saíram de verdade vão para o novo clube
+        if (mine.has(key(q.name)) && bought.has(key(q.name))) { removed++; continue; }
         const age = q.age || 25;
         const af = age <= 22 ? 1.4 : age >= 32 ? 0.5 : age >= 29 ? 0.8 : 1;
         const ov = q.ov || (q.value ? clamp(Math.round(40 + 15 * Math.log10(q.value / af / 20000)), 40, 92) : 55);
         const value = q.value || valueOf(ov, age);
         ps.push({ id: PID++, name: q.name, pos: q.pos, sp: q.sp, ov, age, value, wage: Math.round(value / 900) });
       }
-      for (const pos of ["GK", "DEF", "MID", "ATT"]) {
-        const min = { GK: 2, DEF: 6, MID: 6, ATT: 4 }[pos];
-        while (ps.filter((p) => p.pos === pos).length < min) ps.push(mkPlayer(pos, t.base - 5, ri(18, 30)));
-      }
       t.players = ps; t.lineup = autoLineup(t); n++;
     }
-    return { teams: n, removed };
+    // jogadores que eu vendi continuam no clube comprador, a menos que o elenco real já os traga em algum clube
+    for (const x of s.sold) {
+      const nm = key(x.p.name);
+      if (realTeam[nm] !== undefined) continue;
+      const b = s.teams[x.tid];
+      if (!b || b.id === s.user || b.players.some((p) => key(p.name) === nm)) continue;
+      b.players.push({ ...x.p, id: PID++ }); kept++;
+    }
+    // jogadores originais do meu time que, no mundo real, foram para outro clube: transfere também aqui
+    for (const p of u.players.slice()) {
+      const nm = key(p.name);
+      if (bought.has(nm) || realTeam[nm] === undefined) continue;
+      u.players.splice(u.players.indexOf(p), 1);
+      const li = u.lineup.indexOf(p.id); if (li >= 0) u.lineup.splice(li, 1);
+      left.push(p.name + " → " + s.teams[realTeam[nm]].name);
+    }
+    for (const t of Object.values(s.teams)) {
+      if (t.id === s.user) continue;
+      for (const pos of ["GK", "DEF", "MID", "ATT"]) {
+        const min = { GK: 2, DEF: 6, MID: 6, ATT: 4 }[pos];
+        while (t.players.filter((p) => p.pos === pos).length < min) t.players.push(mkPlayer(pos, t.base - 5, ri(18, 30)));
+      }
+      t.lineup = autoLineup(t);
+    }
+    return { teams: n, removed, kept, left };
   }
 
   const api = { STATES, CONT, COUNTRIES, LEAGUES, LG, FORMATIONS, TACTICS, newGame, autoLineup, ratings, playRound, acceptOffer, market, buy, sell, auction, sellTo, applyUpdate, resetPid, lineupPlayers, fixLineup, nextUserRound, sortTab, dateOf, userComps, userMatches };

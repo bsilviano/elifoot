@@ -80,7 +80,7 @@ function start(){applyTheme(null);
   $("app").innerHTML=`<div class="card"><h2>Continuar</h2>${saves.length?saves.map(n=>`<div class="pl"><span>${n}</span><span><button class="s p" onclick="loadSave('${n.replace(/'/g,"\\'")}')">Abrir</button> <button class="s d" onclick="delSave('${n.replace(/'/g,"\\'")}')">X</button></span></div>`).join(""):'<p class="mut">Nenhum save ainda.</p>'}</div>
   <div class="card"><h2>Novo jogo</h2><p class="mut">8 países, 2 a 3 divisões cada, copas continentais. Elencos do protótipo são <b>estimados</b>, não reais. Se já existir save com o nome do time escolhido, ele é sobrescrito.</p>
   <div class="row"><select id="clubSel" style="flex:1;min-width:0">${sel}</select><button class="p" onclick="go()">Começar</button></div>
-  <div class="row" style="margin-top:8px"><button onclick="goRandom()" style="flex:1">🎲 Começar com um time aleatório</button></div></div>
+  <div class="row" style="margin-top:8px"><select id="rndSel" style="flex:1;min-width:0"><option value="">Qualquer país</option>${Object.values(opts).map(c=>`<option>${c.name}</option>`).join("")}</select><button onclick="goRandom()">🎲 Time aleatório</button></div></div>
   <div class="card"><label class="mut">Importar save (.json)</label><br><input type="file" accept=".json" onchange="importSave(event)"></div>`;
   $("nav").innerHTML="";$("hT").textContent="Meu Elifoot";$("hS").textContent="";$("crest").innerHTML="";$("flag").innerHTML="";
 }
@@ -108,7 +108,7 @@ function crestSvg(name){if(TMID[name])return `<img src="escudos/${TMID[name]}.pn
 function crestSvg0(name){const t=themeFor(name),h=TEAM_COLORS[name]||t.ac;const w=name.replace(/[^A-Za-zÀ-ÿ ]/g,"").split(" ").filter(x=>x.length>1);const ini=((w[0]||name)[0]+((w[1]||"")[0]||(w[0]||name)[1]||"")).toUpperCase();
  const l=[1,3,5].map(i=>parseInt(h.substr(i,2),16)),lum=(0.3*l[0]+0.59*l[1]+0.11*l[2]),tx=lum>150?"#111":"#fff";
  return `<svg width="34" height="40" viewBox="0 0 34 40"><path d="M2 3h30v18c0 10-8 15-15 17C10 36 2 31 2 21z" fill="${h}" stroke="#fff" stroke-width="2"/><text x="17" y="24" text-anchor="middle" font-family="system-ui,sans-serif" font-weight="800" font-size="13" fill="${tx}">${ini}</text></svg>`}
-function goRandom(){const o=$("clubSel").options;$("clubSel").selectedIndex=Math.floor(Math.random()*o.length);go()}
+function goRandom(){const c=$("rndSel").value,sel=$("clubSel");let o=[...sel.options];if(c)o=o.filter(x=>x.parentNode.label===c);const x=o[Math.floor(Math.random()*o.length)];sel.value=x.value;go()}
 function go(){S=Game.newGame($("clubSel").value);viewKey=null;tab="jogo";msg="";save();render()}
 function importSave(e){const f=e.target.files[0];if(!f)return;f.text().then(t=>{S=JSON.parse(t);Game.resetPid(S);save();render()})}
 function exportSave(){const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify(S)],{type:"application/json"}));a.download="elifoot-"+U().name+".json";a.click()}
@@ -255,12 +255,12 @@ function vMais(){
   <div class="card"><h2>Save e elencos</h2><p class="mut">Salvamento automático com o nome do time (${u.name}).</p>
   <div class="row"><button onclick="exportSave()">Exportar save</button><button onclick="start()">Trocar de save / novo jogo</button></div>
   <p><button class="p" onclick="update(false)">Atualizar elencos (elencos.json)</button></p>
-  <p class="mut">Atualiza todos os times, exceto o seu. Jogadores seus são removidos dos outros times.</p>${msg?`<p>${msg}</p>`:""}</div>`;
+  <p class="mut">Atualiza todos os times, exceto o seu. O seu elenco nunca é alterado enquanto você for o técnico; jogadores que você vendeu ficam no clube comprador.</p>${msg?`<p>${msg}</p>`:""}</div>`;
 }
 async function update(auto){
   try{const r=await fetch("elencos.json?"+Date.now());if(!r.ok)throw 0;const d=await r.json();
     if(auto&&d.updated&&S.lastUpd===d.updated)return;
-    const x=Game.applyUpdate(S,d);S.lastUpd=d.updated||"";msg=`Elencos atualizados (${d.updated||"?"}): ${x.teams} times, ${x.removed} duplicados removidos.`;save()}
+    const x=Game.applyUpdate(S,d);S.lastUpd=d.updated||"";msg=`Elencos atualizados (${d.updated||"?"}): ${x.teams} times, ${x.kept} jogadores vendidos mantidos nos compradores.`+(x.left.length?`<br>Saíram do seu time (transferência real): ${x.left.join("; ")}`:"");save()}
   catch(e){if(!auto)msg="Ainda não há elencos.json publicado."}
   if(S)render();
 }
