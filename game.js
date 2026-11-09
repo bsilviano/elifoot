@@ -33,7 +33,8 @@
     ov = clamp(Math.round(ov), 35, 95);
     age = age || ri(18, 36);
     const value = valueOf(ov, age);
-    return { id: PID++, name: pick(FIRST) + " " + pick(LAST), pos, ov, age, value, wage: Math.round(value / 900) };
+    const sp = pick({ GK: ["GOL"], DEF: ["ZAG", "ZAG", "LD", "LE"], MID: ["VOL", "MC", "MC", "ME", "MD"], ATT: ["CA", "CA", "PD", "PE"] }[pos]);
+    return { id: PID++, name: pick(FIRST) + " " + pick(LAST), pos, sp, ov, age, value, wage: Math.round(value / 900) };
   }
   function genSquad(base, small) {
     const plan = small ? { GK: 2, DEF: 6, MID: 6, ATT: 4 } : { GK: 3, DEF: 8, MID: 7, ATT: 5 };
@@ -51,8 +52,17 @@
     const f = FORMATIONS[formation || team.formation];
     const need = { GK: 1, DEF: f[0], MID: f[1], ATT: f[2] };
     const ids = [];
-    for (const pos in need)
-      team.players.filter((p) => p.pos === pos).sort((a, b) => b.ov - a.ov).slice(0, need[pos]).forEach((p) => ids.push(p.id));
+    for (const pos in need) {
+      const pool = team.players.filter((p) => p.pos === pos).sort((a, b) => b.ov - a.ov);
+      let slots = null;
+      if (pos === "DEF") slots = need.DEF === 3 ? ["ZAG", "ZAG", "ZAG"] : need.DEF === 4 ? ["LE", "ZAG", "ZAG", "LD"] : ["LE", "ZAG", "ZAG", "ZAG", "LD"];
+      if (pos === "ATT" && need.ATT === 3) slots = ["PE", "CA", "PD"];
+      if (slots) {
+        const used = new Set();
+        for (const sp of slots) { const c = pool.find((p) => !used.has(p.id) && p.sp === sp); if (c) { used.add(c.id); ids.push(c.id); } }
+        pool.filter((p) => !used.has(p.id)).slice(0, need[pos] - used.size).forEach((p) => ids.push(p.id));
+      } else pool.slice(0, need[pos]).forEach((p) => ids.push(p.id));
+    }
     return ids;
   }
   function lineupPlayers(team) {
@@ -662,6 +672,44 @@
     return null;
   }
 
+  // Leilão: outros clubes dão lances pelo jogador; o usuário escolhe quem leva.
+  function auction(s, pid) {
+    const u = s.teams[s.user];
+    const p = u.players.find((q) => q.id === pid);
+    if (!p) return { err: "Jogador não encontrado." };
+    if (u.players.length <= 18) return { err: "Elenco mínimo de 18 jogadores." };
+    const ids = Object.keys(s.teams).filter((k) => +k !== s.user && !s.teams[k].local);
+    for (let i = ids.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [ids[i], ids[j]] = [ids[j], ids[i]]; }
+    const bids = [];
+    for (const k of ids.slice(0, 40)) {
+      const t = s.teams[k];
+      const best = Math.max(0, ...t.players.filter((q) => q.pos === p.pos).map((q) => q.ov));
+      if (p.ov < best - 8) continue;
+      const f = p.ov > best + 2 ? 1.1 + Math.random() * 0.2 : p.ov >= best - 2 ? 0.92 + Math.random() * 0.16 : 0.65 + Math.random() * 0.2;
+      const cap = CASH[LG[t.lkey].tier - 1] * 0.7;
+      const bid = Math.round(Math.min(p.value * f, cap, p.value * 1.4) / 10000) * 10000;
+      if (bid < 10000) continue;
+      bids.push({ tid: t.id, name: t.name, league: LG[t.lkey].name, country: COUNTRIES[t.country].name, bid });
+    }
+    bids.sort((a, b) => b.bid - a.bid);
+    return { pid, name: p.name, pos: p.pos, sp: p.sp, ov: p.ov, value: p.value, bids: bids.slice(0, 8) };
+  }
+  function sellTo(s, pid, tid, price) {
+    const u = s.teams[s.user], buyer = s.teams[tid];
+    const i = u.players.findIndex((q) => q.id === pid);
+    if (i < 0 || !buyer) return "Negócio inválido.";
+    if (u.players.length <= 18) return "Elenco mínimo de 18 jogadores.";
+    const p = u.players[i];
+    s.cash += price;
+    u.players.splice(i, 1);
+    const li = u.lineup.indexOf(pid); if (li >= 0) u.lineup.splice(li, 1);
+    buyer.players.push(p);
+    const spare = buyer.players.filter((q) => q.pos === p.pos && q.id !== p.id).sort((a, b) => a.ov - b.ov)[0];
+    if (spare && buyer.players.length > 24) buyer.players.splice(buyer.players.indexOf(spare), 1);
+    buyer.lineup = autoLineup(buyer);
+    return null;
+  }
+
   // Atualização: sobrescreve elencos de TODOS os times, menos o do usuário;
   // remove dos outros qualquer jogador (mesmo nome) que esteja no time do usuário.
   function applyUpdate(s, data) {
@@ -677,7 +725,7 @@
         const af = age <= 22 ? 1.4 : age >= 32 ? 0.5 : age >= 29 ? 0.8 : 1;
         const ov = q.ov || (q.value ? clamp(Math.round(40 + 15 * Math.log10(q.value / af / 20000)), 40, 92) : 55);
         const value = q.value || valueOf(ov, age);
-        ps.push({ id: PID++, name: q.name, pos: q.pos, ov, age, value, wage: Math.round(value / 900) });
+        ps.push({ id: PID++, name: q.name, pos: q.pos, sp: q.sp, ov, age, value, wage: Math.round(value / 900) });
       }
       for (const pos of ["GK", "DEF", "MID", "ATT"]) {
         const min = { GK: 2, DEF: 6, MID: 6, ATT: 4 }[pos];
@@ -688,6 +736,6 @@
     return { teams: n, removed };
   }
 
-  const api = { STATES, CONT, COUNTRIES, LEAGUES, LG, FORMATIONS, TACTICS, newGame, autoLineup, ratings, playRound, acceptOffer, market, buy, sell, applyUpdate, resetPid, lineupPlayers, fixLineup, nextUserRound, sortTab, dateOf, userComps, userMatches };
+  const api = { STATES, CONT, COUNTRIES, LEAGUES, LG, FORMATIONS, TACTICS, newGame, autoLineup, ratings, playRound, acceptOffer, market, buy, sell, auction, sellTo, applyUpdate, resetPid, lineupPlayers, fixLineup, nextUserRound, sortTab, dateOf, userComps, userMatches };
   if (typeof module !== "undefined") module.exports = api; else root.Game = api;
 })(typeof window !== "undefined" ? window : globalThis);
