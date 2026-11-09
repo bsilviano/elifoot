@@ -132,8 +132,8 @@
     const tf = (t) => (t.tactic === "Ofensiva" ? [1.06, 0.94] : t.tactic === "Defensiva" ? [0.94, 1.06] : [1, 1]);
     const [ah, dh] = tf(h), [aa, da] = tf(a);
     const redH = evh.some((e) => e.type === "red") ? 1 : 0, redA = eva.some((e) => e.type === "red") ? 1 : 0;
-    const xh = 1.3 * Math.exp((rh.A * ah - ra.D * da + 3) / 22) * (redH ? 0.82 : 1) * (redA ? 1.12 : 1);
-    const xa = 1.1 * Math.exp((ra.A * aa - rh.D * dh - 3) / 22) * (redA ? 0.82 : 1) * (redH ? 1.12 : 1);
+    const xh = 1.3 * Math.exp((rh.A * ah - ra.D * da + 3) / 15) * (redH ? 0.82 : 1) * (redA ? 1.12 : 1);
+    const xa = 1.1 * Math.exp((ra.A * aa - rh.D * dh - 3) / 15) * (redA ? 0.82 : 1) * (redH ? 1.12 : 1);
     const gh = poisson(clamp(xh, 0.15, 5)), ga = poisson(clamp(xa, 0.15, 5));
     const sh = [], sa = [];
     for (let i = 0; i < gh; i++) sh.push(scorer(h));
@@ -867,8 +867,8 @@
     const nh = m.on.h.length, na = m.on.a.length;
     const tf = (t) => (t.tactic === "Ofensiva" ? [1.06, 0.94] : t.tactic === "Defensiva" ? [0.94, 1.06] : [1, 1]);
     const [ah, dh] = tf(m.H), [aa, da] = tf(m.A);
-    let xh = clamp(1.3 * Math.exp((rh.A * ah - ra.D * da + 3) / 22), 0.15, 5);
-    let xa = clamp(1.1 * Math.exp((ra.A * aa - rh.D * dh - 3) / 22), 0.15, 5);
+    let xh = clamp(1.3 * Math.exp((rh.A * ah - ra.D * da + 3) / 15), 0.15, 5);
+    let xa = clamp(1.1 * Math.exp((ra.A * aa - rh.D * dh - 3) / 15), 0.15, 5);
     xh *= Math.pow(nh / 11, 1.3) * Math.pow(11 / Math.max(na, 1), 0.5);
     xa *= Math.pow(na / 11, 1.3) * Math.pow(11 / Math.max(nh, 1), 0.5);
     m.px = { h: xh / 90, a: xa / 90 };

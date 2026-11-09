@@ -50,13 +50,13 @@ tr.me{background:color-mix(in srgb,var(--ac) 30%,transparent);font-weight:800}tr
 <header><div class="hl"><span id="crest"></span><b id="hT">Meu Elifoot</b></div><div class="hr"><span id="flag"></span><span id="hS"></span></div></header>
 <main id="app"></main>
 <nav id="nav"></nav>
-<script src="clubs.js?v=63"></script>
-<script src="game.js?v=63"></script>
+<script src="clubs.js?v=64"></script>
+<script src="game.js?v=64"></script>
 <script>
 const PREFIX="elifoot:save:",SAVE1="Elifoot"; // um único save para todos os times
 let S=null,tab="jogo",msg="",mf={pos:"",q:"",min:1,max:null,afford:true,ord:"ovr",dir:-1},viewKey=null;
 const $=id=>document.getElementById(id);
-const VERSAO=63;
+const VERSAO=64;
 const moneyFull=n=>(n<0?"-":"")+"R$ "+Math.round(Math.abs(n)).toLocaleString("pt-BR");
 const money=moneyFull;
 const U=()=>S.teams[S.user];
@@ -219,6 +219,7 @@ function freeScreen(){
 function render(){
   if(S&&S.free)return freeScreen();
   fixSP();
+  if(S&&S.notices&&S.notices.length&&!LIVE&&!SUMM&&!window._alN){const t=S.notices.join("\n");S.notices=[];save();window._alN=1;setTimeout(()=>{alert("Fim de temporada — aposentadorias:\n\n"+t);window._alN=0},300)}
   if(!S)return start();
   if(!LIVE&&!SUMM)$("nav").style.display="";
   if(SUMM)return summRender();
@@ -240,7 +241,6 @@ function vJogo(){
     S.offers.map(o=>`<div class="pl"><span>${o.name}${o.forName&&Game.myClubs(S).length>1?` <span class="mut">(no lugar do ${o.forName})</span>`:""}<br><span class="mut">${o.league} · ${o.country} · OVR ${o.ovr}${o.why?"<br>"+o.why:""}</span></span><button class="s p" onclick="accept(${o.tid})">Aceitar</button></div>`).join("")+
     `<div class="row"><select id="offCty" style="flex:1;min-width:0"><option value="">Qualquer país</option>${[...new Set(S.offers.map(o=>o.country))].sort((a,b)=>a.localeCompare(b,"pt-BR")).map(c=>`<option>${c}</option>`).join("")}</select><button class="p" onclick="acceptRandom()">🎲 Escolher aleatório</button></div><p>${S.fired?"":` <button class="s" onclick="S.offers=[];save();render()">Recusar todos</button>`}</p></div>`;
   }
-  if(S.notices&&S.notices.length)h+=`<div class="card"><h2>Aposentadorias</h2>${S.notices.map(x=>`<p style="margin:4px 0">${x}</p>`).join("")}<button class="s" onclick="S.notices=[];save();render()">OK</button></div>`;
   const n=Game.nextUserRound(S);
   h+=`<div class="card" style="padding:8px 12px;margin-bottom:8px">`;
   if(n){
