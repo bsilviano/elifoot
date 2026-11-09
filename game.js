@@ -1105,6 +1105,13 @@
     for (const t of Object.values(s.teams)) if (!isMine(s, t.id)) for (const p of t.players) out.push({ ...p, team: t.name, tid: t.id });
     return out;
   }
+  // procura jogador (de outro clube) pelo nome e clube, para o clique "contratar" em qualquer tela
+  function lookup(s, name, club) {
+    const t = Object.values(s.teams).find((x) => x.name === club);
+    if (!t || isMine(s, t.id)) return null;
+    const p = t.players.find((x) => x.name === name);
+    return p ? { id: p.id, name: p.name, pos: p.pos, sp: p.sp, ov: p.ov, age: p.age, team: t.name, price: Math.round(p.value * 1.15) } : null;
+  }
   function findPlayer(s, pid) {
     for (const t of Object.values(s.teams)) {
       const i = t.players.findIndex((p) => p.id === pid);
@@ -1310,6 +1317,6 @@
     if (s.cashes) delete s.cashes[id];
     return null;
   }
-  const api = { clubCash, yearOf, startRound, liveStep, liveSub, liveResolve, liveFinish, autoReorg, getStad, stadCost, upgradeStadium, topScorers, yearOf, bestFormation, avail, nextRoundClubs, myClubs, addClub, switchClub, dropClub, STATES, CONT, COUNTRIES, LEAGUES, LG, FORMATIONS, TACTICS, newGame, autoLineup, ratings, playRound, acceptOffer, market, buy, sell, auction, sellTo, applyUpdate, resetPid, lineupPlayers, fixLineup, nextUserRound, sortTab, dateOf, userComps, userMatches };
+  const api = { clubCash, yearOf, startRound, liveStep, liveSub, liveResolve, liveFinish, autoReorg, getStad, stadCost, upgradeStadium, topScorers, lookup, yearOf, bestFormation, avail, nextRoundClubs, myClubs, addClub, switchClub, dropClub, STATES, CONT, COUNTRIES, LEAGUES, LG, FORMATIONS, TACTICS, newGame, autoLineup, ratings, playRound, acceptOffer, market, buy, sell, auction, sellTo, applyUpdate, resetPid, lineupPlayers, fixLineup, nextUserRound, sortTab, dateOf, userComps, userMatches };
   if (typeof module !== "undefined") module.exports = api; else root.Game = api;
 })(typeof window !== "undefined" ? window : globalThis);

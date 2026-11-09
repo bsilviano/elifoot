@@ -33,7 +33,7 @@ tr.me{background:color-mix(in srgb,var(--ac) 30%,transparent);font-weight:800}tr
 .ctlr{justify-content:center;flex-wrap:wrap}.ctlr select,.ctlr button{padding:6px 10px;font-size:13px}.ctlr select,.ctlr button{margin:0}.rt{display:flex;align-items:center;gap:5px;flex:none;white-space:nowrap}.ovc{width:22px;text-align:right}.vl{width:82px;text-align:right;font-size:11px}.rt button{padding:5px 8px}.pl>span:first-child{min-width:0;flex:1;padding-right:6px}.pc{flex:none!important;width:38px;padding:0!important;display:flex;flex-direction:column;align-items:center;line-height:1.25;font-size:11px}.pc .pos{margin:0;min-width:0;width:auto}.nm{flex:1;min-width:0;padding:0 6px}.pl{display:flex;justify-content:space-between;align-items:center;padding:7px 4px;border-bottom:1px solid var(--line)}
 .pl.in{background:var(--hl)}
 .mut{color:var(--mut);font-size:12px}
-.big{font-size:20px;text-align:center;padding:8px}.tb{display:inline-block;padding:3px 9px;border-radius:8px;font-weight:700;font-size:15px;margin:2px}.mrow{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:4px;font-size:22px;font-weight:700;padding:6px 0}
+.hire{text-decoration:underline dotted;cursor:pointer}.big{font-size:20px;text-align:center;padding:8px}.tb{display:inline-block;padding:3px 9px;border-radius:8px;font-weight:700;font-size:15px;margin:2px}.mrow{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:4px;font-size:22px;font-weight:700;padding:6px 0}
 .good{color:var(--ac)}.bad{color:var(--bad)}.warn{color:var(--warn)}
 .campo{position:relative;height:clamp(310px,calc(100dvh - 375px),520px);border-radius:10px;border:2px solid #fff8;background:repeating-linear-gradient(0deg,#2e8b3d 0 43px,#287a35 43px 86px);display:flex;flex-direction:column;justify-content:space-around;padding:8px 4px;overflow:hidden}
 .campo:before{content:"";position:absolute;left:0;right:0;top:50%;border-top:2px solid #fff8}
@@ -50,13 +50,13 @@ tr.me{background:color-mix(in srgb,var(--ac) 30%,transparent);font-weight:800}tr
 <header><div class="hl"><span id="crest"></span><b id="hT">Meu Elifoot</b></div><div class="hr"><span id="flag"></span><span id="hS"></span></div></header>
 <main id="app"></main>
 <nav id="nav"></nav>
-<script src="clubs.js?v=81"></script>
-<script src="game.js?v=81"></script>
+<script src="clubs.js?v=82"></script>
+<script src="game.js?v=82"></script>
 <script>
 const PREFIX="elifoot:save:",SAVE1="Elifoot"; // um único save para todos os times
-let S=null,tab="jogo",msg="",mf={pos:"",q:"",any:true,min:1,max:null,afford:true,ord:"ovr",dir:-1},viewKey=null;
+let artCan=false,S=null,tab="jogo",msg="",mf={pos:"",q:"",any:true,min:1,max:null,afford:true,ord:"ovr",dir:-1},viewKey=null;
 const $=id=>document.getElementById(id);
-const VERSAO=81;
+const VERSAO=82;
 const moneyFull=n=>(n<0?"-":"")+"R$ "+Math.round(Math.abs(n)).toLocaleString("pt-BR");
 const money=moneyFull;
 const U=()=>S.teams[S.user];
@@ -330,13 +330,24 @@ function liveRun(){clearInterval(LTM);LTM=null;if(!LIVE||LIVE.live.done||LIVE.li
   LTM=setInterval(()=>{const l=LIVE.live;Game.liveStep(S,l,1);liveRender();liveAutoEnd();if(l.done||l.pending.length||!LSPD){clearInterval(LTM);LTM=null}},LSPD)}
 function liveSpeed(v){LSPD=v;try{localStorage.setItem("elifoot:spd",v)}catch(e){}liveRun();liveRender()}
 const LI={goal:"⚽",red:"🟥",inj:"🚑",yellow:"🟨",sub:"🔁"};
+const qa=x=>String(x).replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;");
+let LHIRE=[];
+function pn(name,club){if(!club||!S||!Game.lookup(S,name,club))return name;return `<a class="hire" data-n="${qa(name)}" data-c="${qa(club)}" onclick="hireAsk(this.dataset.n,this.dataset.c)">${name}</a>`}
+function hireAsk(n,c){
+  const f=Game.lookup(S,n,c);
+  if(!f){alert(n+" não está mais disponível para contratação.");return}
+  if(!confirm(`Quer contratar ${f.name} (${SPN(f)} · OVR ${f.ov} · ${f.age} anos · ${f.team}) por ${moneyFull(f.price)}?`))return;
+  if(S.cash<f.price){alert(`Você não tem dinheiro para contratar ${f.name}. Preço: ${moneyFull(f.price)}. Seu caixa: ${moneyFull(S.cash)}.`);return}
+  if(LIVE){if(!LHIRE.includes(f.id))LHIRE.push(f.id);alert(`${f.name} será contratado quando a partida terminar.`);return}
+  buy(f.id)}
 function liveEv(e){
   const m=e.min+"'";let t;
-  if(e.type==="goal")t=`${m} ⚽ <b>GOL</b> ${e.name}`;
-  else if(e.type==="red")t=`${m} 🟥 <b>Expulso</b> ${e.name} · ${e.n} jogo${e.n>1?"s":""} de suspensão`;
-  else if(e.type==="inj")t=`${m} 🚑 Lesão: ${e.name} · ${e.n} jogo${e.n>1?"s":""}`;
-  else if(e.type==="yellow")t=`${m} 🟨 ${e.name}${e.third?" · 3º amarelo, suspenso":""}`;
-  else t=`${m} 🔁 Entra ${e.name}, sai ${e.out}`;
+  const nm=pn(e.name,e.club);
+  if(e.type==="goal")t=`${m} ⚽ <b>GOL</b> ${nm}`;
+  else if(e.type==="red")t=`${m} 🟥 <b>Expulso</b> ${nm} · ${e.n} jogo${e.n>1?"s":""} de suspensão`;
+  else if(e.type==="inj")t=`${m} 🚑 Lesão: ${nm} · ${e.n} jogo${e.n>1?"s":""}`;
+  else if(e.type==="yellow")t=`${m} 🟨 ${nm}${e.third?" · 3º amarelo, suspenso":""}`;
+  else t=`${m} 🔁 Entra ${nm}, sai ${e.out}`;
   return tline(e.club,t);
 }
 function liveHtml(){
@@ -387,6 +398,8 @@ function liveCont(){Game.liveResolve(LIVE.live);liveRender();liveAutoEnd();liveR
 function liveEnd(){
   clearInterval(LTM);const L=LIVE;LIVE=null;_lp=null;
   Game.liveFinish(S,L.live,L.res);
+  const hm=LHIRE.map(id=>{const f=Game.market(S).find(p=>p.id===id);if(!f)return null;const e=Game.buy(S,id);return e?`${f.name}: ${e}`:`✅ ${f.name} contratado por ${moneyFull(Math.round(f.value*1.15))}.`}).filter(Boolean);LHIRE=[];
+  if(hm.length){save();setTimeout(()=>alert(hm.join("\n")),600)}
   showSummary(L.res)
 }
 
@@ -480,11 +493,13 @@ function vHist(){
 }
 let artTab="season";
 function vArt(){
-  const l=Game.topScorers(S,artTab,30);
+  let l=Game.topScorers(S,artTab,artCan?100000:30);
+  if(artCan)l=l.filter(e=>{const f=Game.lookup(S,e.n,e.c);return f&&f.price<=S.cash}).slice(0,30);
   const tb=(k,t)=>`<button class="${artTab===k?"p":"s"}" onclick="artTab='${k}';render()">${t}</button>`;
   return `<div class="card"><h2>Artilheiros</h2><div class="row">${tb("season","Temporada "+Game.yearOf(S.T))}${tb("all","De sempre")}</div>
-  <p class="mut">Gols de todas as competições do jogo. ${artTab==="season"?"Zera a cada ano.":"Gols da carreira real (Transfermarkt) somados aos que o jogador faz no jogo."}</p>
-  ${l.length?l.map((e,i)=>`<div class="pl ${e.mine?"in":""}"><span><b>${i+1}º</b> ${e.n}<br><span class="mut">${e.c}</span></span><span style="text-align:right"><b>${e.g}</b> gol${e.g>1?"s":""}${artTab==="all"&&e.real?`<br><span class="mut">${e.real} real + ${e.jogo} no jogo</span>`:""}</span></div>`).join(""):'<p class="mut">Ainda não houve gols. Jogue a primeira rodada.</p>'}</div>`;
+  <label class="mut" style="display:flex;align-items:center;gap:6px;margin:4px 0"><input type="checkbox" ${artCan?"checked":""} onchange="artCan=this.checked;render()"> Só os que posso contratar (caixa ${money(S.cash)})</label>
+  <p class="mut">Toque no nome de um jogador de outro time para contratá-lo. Gols de todas as competições do jogo. ${artTab==="season"?"Zera a cada ano.":"Gols da carreira real (Transfermarkt) somados aos que o jogador faz no jogo."}</p>
+  ${l.length?l.map((e,i)=>`<div class="pl ${e.mine?"in":""}"><span><b>${i+1}º</b> ${pn(e.n,e.c)}<br><span class="mut">${e.c}</span></span><span style="text-align:right"><b>${e.g}</b> gol${e.g>1?"s":""}${artTab==="all"&&e.real?`<br><span class="mut">${e.real} real + ${e.jogo} no jogo</span>`:""}</span></div>`).join(""):'<p class="mut">Ainda não houve gols. Jogue a primeira rodada.</p>'}</div>`;
 }
 function vMercado(){
   const all=Game.market(S),maxOvr=all.reduce((m,p)=>Math.max(m,p.ov),1),mx=mf.max==null?maxOvr:mf.max;
