@@ -50,13 +50,13 @@ tr.me{background:var(--hl);font-weight:700}
 <header><div class="hl"><span id="crest"></span><b id="hT">Meu Elifoot</b></div><div class="hr"><span id="flag"></span><span id="hS"></span></div></header>
 <main id="app"></main>
 <nav id="nav"></nav>
-<script src="clubs.js?v=23"></script>
-<script src="game.js?v=23"></script>
+<script src="clubs.js?v=24"></script>
+<script src="game.js?v=24"></script>
 <script>
 const PREFIX="elifoot:save:";
 let S=null,tab="jogo",msg="",mf={pos:"",q:"",min:1,max:null,afford:true,ord:"ovr",dir:-1},viewKey=null;
 const $=id=>document.getElementById(id);
-const VERSAO=23;
+const VERSAO=24;
 const moneyFull=n=>(n<0?"-":"")+"R$ "+Math.round(Math.abs(n)).toLocaleString("pt-BR");
 const money=moneyFull;
 const U=()=>S.teams[S.user];
@@ -190,6 +190,7 @@ function fixSP(){
   S.spv=1;S.lv5=1;save()}
 function render(){fixSP();
   if(!S)return start();
+  if(SUMM)return summRender();
   if(LIVE){$("nav").style.display="none";return liveRender()}
   const u=U();applyTheme(u.name);
   if(Game.myClubs(S).length>1)$("hT").innerHTML=`<select onchange="swClub(this.value)" style="background:transparent;color:inherit;font:inherit;font-weight:700;border:0;max-width:210px">${Game.myClubs(S).map(id=>`<option value="${id}" ${id===S.user?"selected":""}>${S.teams[id].name}</option>`).join("")}</select>`;else $("hT").textContent=u.name;
@@ -273,8 +274,12 @@ function showSummary(r){
   r.notes.forEach(x=>t+=`<p>${x}</p>`);
   if(r.fixed)t+=`<p class="mut">Escalação inválida: o auxiliar escalou o time automaticamente.</p>`;
   if(r.skipped)t+=`<p class="mut">${r.skipped} rodada(s) sem jogo seu foram simuladas.</p>`;
-  msg=t+`<p class="mut">💾 Jogo salvo automaticamente.</p>`;save();render();
+  save();SUMM=t+`<p class="mut">💾 Jogo salvo automaticamente.</p>`;msg="";SUMN=5;summRender();
+  clearInterval(SUMT);SUMT=setInterval(()=>{SUMN--;if(SUMN<=0)summGo();else summRender()},1000);
 }
+let SUMM=null,SUMT=null,SUMN=0;
+function summRender(){if(!SUMM)return;$("nav").style.display="none";$("app").innerHTML=`<div class="card">${SUMM}</div><div class="card"><p class="mut">Indo para a classificação em ${SUMN}s</p><button class="p" style="width:100%" onclick="summGo()">Ir agora para a classificação</button></div>`;window.scrollTo(0,0)}
+function summGo(){clearInterval(SUMT);SUMM=null;$("nav").style.display="";viewKey=null;tab="tabela";render()}
 
 
 let LIVE=null,LTM=null,LSPD=900;
@@ -303,7 +308,7 @@ function liveHtml(){
     ${m.bench[p.side].length&&m.subs[p.side]<5?m.bench[p.side].map(q=>`<div class="pl"><span><span class="pos">${SPN(q)}</span>${q.name}</span><span><b>${q.ov}</b> <button class="s p" onclick="LSEL=${q.id};liveRender()">${LSEL===q.id?"Selecionado":"Entrar"}</button></span></div>`).join(""):`<p class="mut">Sem substituições disponíveis.</p>`}
     <div class="row" style="margin-top:8px"><button onclick="liveAuto()">Reorganizar automaticamente</button><button class="p" onclick="liveCont()">Continuar o jogo</button></div></div>`;
   }
-  for(const m of l.matches){
+  for(const m of l.matches.slice().sort((a,b)=>(b.mine.h||b.mine.a)-(a.mine.h||a.mine.a))){
     const mine=m.mine.h||m.mine.a;
     h+=`<div class="card" ${mine?'style="border-color:var(--ac)"':""}><div class="big">${m.H.name} ${m.gh} x ${m.ga} ${m.A.name}</div>`;
     if(mine)h+=`<p class="mut">🏟️ Público ${m.gate.att.toLocaleString("pt-BR")} de ${m.gate.cap.toLocaleString("pt-BR")} · ingresso ${money(m.gate.price)}</p>`;
