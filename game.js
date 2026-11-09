@@ -492,7 +492,7 @@
         hl.push({ y: yearOf(rd.T), T: rd.T, date: dateOf(rd.T), comp: c.name + (rd.n ? " \u00b7 " + rd.n : ""), h: H.name, a: A.name, gh: r.gh, ga: r.ga, home: tm === H });
         if (hl.length > 400) hl.splice(0, hl.length - 400);
       }
-      if (!silent && (isMine(s, h) || isMine(s, a))) res.reports.push({ comp: c.name + (rd.n ? " · " + rd.n : ""), date: dateOf(rd.T), home: H.name, away: A.name, ...r });
+      if (!silent && (isMine(s, h) || isMine(s, a))) res.reports.push({ cid: c.id, comp: c.name + (rd.n ? " · " + rd.n : ""), date: dateOf(rd.T), home: H.name, away: A.name, ...r });
     }
     if (s.offDue && !silent) { s.offDue = false; periodicOffers(s, res); }
     if (rd.k === "tab") {

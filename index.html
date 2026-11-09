@@ -50,13 +50,13 @@ tr.me{background:var(--hl);font-weight:700}
 <header><div class="hl"><span id="crest"></span><b id="hT">Meu Elifoot</b></div><div class="hr"><span id="flag"></span><span id="hS"></span></div></header>
 <main id="app"></main>
 <nav id="nav"></nav>
-<script src="clubs.js?v=50"></script>
-<script src="game.js?v=50"></script>
+<script src="clubs.js?v=51"></script>
+<script src="game.js?v=51"></script>
 <script>
 const PREFIX="elifoot:save:";
 let S=null,tab="jogo",msg="",mf={pos:"",q:"",min:1,max:null,afford:true,ord:"ovr",dir:-1},viewKey=null;
 const $=id=>document.getElementById(id);
-const VERSAO=50;
+const VERSAO=51;
 const moneyFull=n=>(n<0?"-":"")+"R$ "+Math.round(Math.abs(n)).toLocaleString("pt-BR");
 const money=moneyFull;
 const U=()=>S.teams[S.user];
@@ -295,12 +295,13 @@ function showSummary(r){
   r.notes.forEach(x=>t+=`<p>${x}</p>`);
   if(r.fixed)t+=`<p class="mut">Escalação inválida: o auxiliar escalou o time automaticamente.</p>`;
   if(r.skipped)t+=`<p class="mut">${r.skipped} rodada(s) sem jogo seu foram simuladas.</p>`;
+  {const mine=r.reports.filter(m=>m.home===U().name||m.away===U().name);const rp=mine[mine.length-1]||r.reports[r.reports.length-1];SUMC=rp?rp.cid:null}
   save();SUMM=t+`<p class="mut">💾 Jogo salvo automaticamente.</p>`;msg="";SUMN=5;summRender();
   clearInterval(SUMT);SUMT=setInterval(()=>{SUMN--;if(SUMN<=0)summGo();else summRender()},1000);
 }
-let SUMM=null,SUMT=null,SUMN=0;
+let SUMM=null,SUMT=null,SUMN=0,SUMC=null;
 function summRender(){if(!SUMM)return;$("nav").style.display="none";$("app").innerHTML=`<div class="card">${SUMM}</div><div class="card"><p class="mut">Indo para a classificação em ${SUMN}s</p><button class="p" style="width:100%" onclick="summGo()">Ir agora para a classificação</button></div>`;window.scrollTo(0,0)}
-function summGo(){clearInterval(SUMT);SUMM=null;$("nav").style.display="";viewKey=null;tab="tabela";render()}
+function summGo(){clearInterval(SUMT);SUMM=null;$("nav").style.display="";viewKey=SUMC&&S.comps[SUMC]?SUMC:null;SUMC=null;HISTV=false;tab="tabela";render()}
 
 
 let LIVE=null,LTM=null,LSPD=900,LEND=null;
