@@ -426,13 +426,18 @@
       s.aged++;
       for (const t of Object.values(s.teams)) {
         t.players.forEach((p) => {
+          if (p.long == null) p.long = p.age > 40 ? 1 : 0; // já passava dos 40 na vida real: aposenta aos 45
           p.age++;
           p.value = valueOf(p.ov, p.age); p.wage = Math.round(p.value / 900);
         });
-        if (!isMine(s, t.id)) {
-          const keep = t.players.filter((p) => p.age < 37), lost = t.players.length - keep.length;
-          t.players = keep;
-          for (let i = 0; i < lost; i++) t.players.push(mkPlayer(pick(["DEF","MID","ATT"]), t.base - 3, ri(18, 22)));
+        // aposentadoria em todos os times: 40 anos (45 para quem já jogava depois dos 40 na vida real)
+        const keep = t.players.filter((p) => p.age < (p.long ? 45 : 40)), retired = t.players.filter((p) => !keep.includes(p));
+        t.players = keep;
+        if (isMine(s, t.id)) {
+          s.notices = s.notices || [];
+          retired.forEach((p) => s.notices.push(`🏁 ${p.name} (${p.age} anos) se aposentou do ${t.name}.`));
+        } else {
+          for (let i = 0; i < retired.length; i++) t.players.push(mkPlayer(pick(["DEF","MID","ATT"]), t.base - 3, ri(18, 22)));
         }
         if (isMine(s, t.id)) fixLineup(t); else t.lineup = autoLineup(t);
       }
@@ -1158,7 +1163,7 @@
         const af = age <= 22 ? 1.4 : age >= 32 ? 0.5 : age >= 29 ? 0.8 : 1;
         const ov = q.ov || (q.value ? clamp(Math.round(40 + 15 * Math.log10(q.value / af / 20000)), 40, 92) : 55);
         const value = q.value || valueOf(ov, age);
-        ps.push({ id: PID++, name: q.name, pos: q.pos, sp: q.sp, cg: q.cg || 0, ov, age, value, wage: Math.round(value / 900) });
+        ps.push({ id: PID++, name: q.name, pos: q.pos, sp: q.sp, cg: q.cg || 0, ov, age, value, wage: Math.round(value / 900), long: age > 40 ? 1 : 0 });
       }
       if (dt.stad && !t.stadUp) t.stad = dt.stad;
       t.players = ps; t.lineup = autoLineup(t); n++;
