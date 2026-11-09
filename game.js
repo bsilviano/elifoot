@@ -409,6 +409,29 @@
       }
     }
   }
+  // Artilheiros: chave nome|clube; total (g) e da temporada (sg, ano sy).
+  function trackGoals(s, team, names) {
+    s.scorers = s.scorers || {};
+    const y = yearOf(s.T);
+    s.scY = y;
+    if (Object.keys(s.scorers).length > 3000) { // limita o tamanho do save: mantém os 600 maiores de sempre e os 600 da temporada
+      const es = Object.entries(s.scorers);
+      const keep = new Set(es.slice().sort((a, b) => b[1].g - a[1].g).slice(0, 600).map((x) => x[0]));
+      es.filter((x) => x[1].sy === y).sort((a, b) => b[1].sg - a[1].sg).slice(0, 600).forEach((x) => keep.add(x[0]));
+      for (const k of Object.keys(s.scorers)) if (!keep.has(k)) delete s.scorers[k];
+    }
+    for (const nm of names) {
+      const k = nm + "|" + team.name;
+      const e = s.scorers[k] || (s.scorers[k] = { n: nm, c: team.name, g: 0, sy: y, sg: 0 });
+      if (e.sy !== y) { e.sy = y; e.sg = 0; }
+      e.g++; e.sg++;
+    }
+  }
+  function topScorers(s, kind, n) {
+    const y = yearOf(s.T), all = Object.values(s.scorers || {});
+    const list = kind === "season" ? all.filter((e) => e.sy === y && e.sg > 0).sort((a, b) => b.sg - a.sg || b.g - a.g) : all.sort((a, b) => b.g - a.g || b.sg - a.sg);
+    return list.slice(0, n || 30).map((e) => ({ n: e.n, c: e.c, g: kind === "season" ? e.sg : e.g, mine: (s.clubs || [s.user]).concat(s.user).some((id) => s.teams[id] && s.teams[id].name === e.c) }));
+  }
   function processRound(s, rd, res, silent) {
     const c = s.comps[rd.c];
     if (!c) return;
@@ -417,6 +440,7 @@
       if (!silent && h === s.user) { /* escalação do usuário ativo */ } else if (!silent && isMine(s, h)) fixLineup(H); else H.lineup = autoLineup(H);
       if (!silent && a === s.user) { /* escalação do usuário ativo */ } else if (!silent && isMine(s, a)) fixLineup(A); else A.lineup = autoLineup(A);
       const r = simMatch(H, A);
+      trackGoals(s, H, r.sh); trackGoals(s, A, r.sa);
       if (rd.k === "tab") {
         const th = c.tab[h], ta = c.tab[a];
         th.p++; ta.p++; th.gf += r.gh; th.ga += r.ga; ta.gf += r.ga; ta.ga += r.gh;
@@ -880,6 +904,6 @@
     if (s.cashes) delete s.cashes[id];
     return null;
   }
-  const api = { bestFormation, avail, nextRoundClubs, myClubs, addClub, switchClub, dropClub, STATES, CONT, COUNTRIES, LEAGUES, LG, FORMATIONS, TACTICS, newGame, autoLineup, ratings, playRound, acceptOffer, market, buy, sell, auction, sellTo, applyUpdate, resetPid, lineupPlayers, fixLineup, nextUserRound, sortTab, dateOf, userComps, userMatches };
+  const api = { topScorers, yearOf, bestFormation, avail, nextRoundClubs, myClubs, addClub, switchClub, dropClub, STATES, CONT, COUNTRIES, LEAGUES, LG, FORMATIONS, TACTICS, newGame, autoLineup, ratings, playRound, acceptOffer, market, buy, sell, auction, sellTo, applyUpdate, resetPid, lineupPlayers, fixLineup, nextUserRound, sortTab, dateOf, userComps, userMatches };
   if (typeof module !== "undefined") module.exports = api; else root.Game = api;
 })(typeof window !== "undefined" ? window : globalThis);
