@@ -30,18 +30,18 @@ tr.me{background:var(--hl);font-weight:700}
 .z1{border-left:3px solid var(--ac)}.z2{border-left:3px solid var(--bad)}
 .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .pos{display:inline-block;width:38px;font-size:11px;color:var(--mut)}
-.ctlr{justify-content:center;flex-wrap:wrap}.ctlr select,.ctlr button{margin:0}.rt{display:flex;align-items:center;gap:5px;flex:none;white-space:nowrap}.ovc{width:22px;text-align:right}.vl{width:82px;text-align:right;font-size:11px}.rt button{padding:5px 8px}.pl>span:first-child{min-width:0;flex:1;padding-right:6px}.pc{flex:none!important;width:38px;padding:0!important;display:flex;flex-direction:column;align-items:center;line-height:1.25;font-size:11px}.pc .pos{margin:0;min-width:0;width:auto}.nm{flex:1;min-width:0;padding:0 6px}.pl{display:flex;justify-content:space-between;align-items:center;padding:7px 4px;border-bottom:1px solid var(--line)}
+.ctlr{justify-content:center;flex-wrap:wrap}.ctlr select,.ctlr button{padding:6px 10px;font-size:13px}.ctlr select,.ctlr button{margin:0}.rt{display:flex;align-items:center;gap:5px;flex:none;white-space:nowrap}.ovc{width:22px;text-align:right}.vl{width:82px;text-align:right;font-size:11px}.rt button{padding:5px 8px}.pl>span:first-child{min-width:0;flex:1;padding-right:6px}.pc{flex:none!important;width:38px;padding:0!important;display:flex;flex-direction:column;align-items:center;line-height:1.25;font-size:11px}.pc .pos{margin:0;min-width:0;width:auto}.nm{flex:1;min-width:0;padding:0 6px}.pl{display:flex;justify-content:space-between;align-items:center;padding:7px 4px;border-bottom:1px solid var(--line)}
 .pl.in{background:var(--hl)}
 .mut{color:var(--mut);font-size:12px}
 .big{font-size:20px;text-align:center;padding:8px}.tb{display:inline-block;padding:3px 9px;border-radius:8px;font-weight:700;font-size:15px;margin:2px}.mrow{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:4px;font-size:22px;font-weight:700;padding:6px 0}
 .good{color:var(--ac)}.bad{color:var(--bad)}.warn{color:var(--warn)}
-.campo{position:relative;height:430px;border-radius:10px;border:2px solid #fff8;background:repeating-linear-gradient(0deg,#2e8b3d 0 43px,#287a35 43px 86px);display:flex;flex-direction:column;justify-content:space-around;padding:8px 4px;overflow:hidden}
+.campo{position:relative;height:clamp(310px,calc(100dvh - 375px),520px);border-radius:10px;border:2px solid #fff8;background:repeating-linear-gradient(0deg,#2e8b3d 0 43px,#287a35 43px 86px);display:flex;flex-direction:column;justify-content:space-around;padding:8px 4px;overflow:hidden}
 .campo:before{content:"";position:absolute;left:0;right:0;top:50%;border-top:2px solid #fff8}
 .campo:after{content:"";position:absolute;left:50%;top:50%;width:70px;height:70px;margin:-35px 0 0 -35px;border:2px solid #fff8;border-radius:50%}
 .lin.dup{justify-content:center;gap:14%}
 .lin{display:flex;justify-content:space-around;align-items:center;position:relative;z-index:1}
 .jog{display:flex;flex-direction:column;align-items:center;width:20%;min-width:0}
-.jog i{font-style:normal;font-weight:800;font-size:13px;width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid #fff;box-shadow:0 1px 4px #0008}
+.jog i{font-style:normal;font-weight:800;font-size:13px;width:31px;height:31px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid #fff;box-shadow:0 1px 4px #0008}
 .jog small{display:block;font-size:9px;opacity:.8}
 .jog span{font-size:10px;line-height:1.1;color:#fff;text-shadow:0 1px 2px #000;margin-top:2px;max-width:100%;text-align:center;white-space:normal;overflow-wrap:anywhere}
 </style>
@@ -50,13 +50,13 @@ tr.me{background:var(--hl);font-weight:700}
 <header><div class="hl"><span id="crest"></span><b id="hT">Meu Elifoot</b></div><div class="hr"><span id="flag"></span><span id="hS"></span></div></header>
 <main id="app"></main>
 <nav id="nav"></nav>
-<script src="clubs.js?v=35"></script>
-<script src="game.js?v=35"></script>
+<script src="clubs.js?v=36"></script>
+<script src="game.js?v=36"></script>
 <script>
 const PREFIX="elifoot:save:";
 let S=null,tab="jogo",msg="",mf={pos:"",q:"",min:1,max:null,afford:true,ord:"ovr",dir:-1},viewKey=null;
 const $=id=>document.getElementById(id);
-const VERSAO=35;
+const VERSAO=36;
 const moneyFull=n=>(n<0?"-":"")+"R$ "+Math.round(Math.abs(n)).toLocaleString("pt-BR");
 const money=moneyFull;
 const U=()=>S.teams[S.user];
@@ -218,10 +218,10 @@ function vJogo(){
     `<p><button class="s" onclick="S.offers=[];save();render()">Recusar todos</button></p></div>`;
   }
   const n=Game.nextUserRound(S);
-  h+=`<div class="card"><h2>Próxima partida</h2>`;
+  h+=`<div class="card" style="padding:8px 12px;margin-bottom:8px">`;
   if(n){
-    h+=`<div class="big">${n.home.name} x ${n.away.name}</div><p class="mut" style="text-align:center">${n.date} · ${n.comp}<br>Seu OVR: ${Game.ratings(u).ovr.toFixed(1)} · Adversário: ${Game.ratings(n.home===u?n.away:n.home).ovr.toFixed(1)}</p>`;
-  }else h+=`<p>Sem jogos agendados. Clique para avançar o calendário.</p>`;
+    h+=`<div style="text-align:center;font-weight:700;font-size:16px">${n.home.name} x ${n.away.name}</div><p class="mut" style="text-align:center;margin:2px 0 0;font-size:12px">${n.date} · ${n.comp} · OVR ${Game.ratings(u).ovr.toFixed(1)} x ${Game.ratings(n.home===u?n.away:n.home).ovr.toFixed(1)}</p>`;
+  }else h+=`<p style="margin:0">Sem jogos agendados. Clique para avançar o calendário.</p>`;
   h+=`</div>`+lineupCard(u)+(msg?`<div class="card">${msg}</div>`:"");
   return h;
 }
@@ -236,8 +236,8 @@ function lineupCard(u){
   const l=[1,3,5].map(i=>parseInt(col.substr(i,2),16)),tx=(0.3*l[0]+0.59*l[1]+0.11*l[2])>150?"#111":"#fff";
   const short=n=>{const w=n.split(" ");return w.length>1?w[w.length-1]:n};
   const bestF0=Game.bestFormation(u).f;
-  const ctl=`<div class="row ctlr" style="align-items:center;margin:0 0 10px"><select onchange="setF(this.value)">${Object.keys(Game.FORMATIONS).map(f=>`<option value="${f}" ${u.formation===f?"selected":""}>${f}${f===bestF0?" (melhor)":""}</option>`).join("")}</select>${CONF?`<button class="p" onclick="confNext()">${CONF.i<CONF.q.length-1?"Confirmar e próximo time":"Confirmar e jogar"}</button><button class="s" onclick="confCancel()">Cancelar</button>`:`<button class="p" onclick="play()">Jogar</button><button class="p" onclick="playBest()">Jogar com melhor formação</button>`}</div>${CONF?`<p class="mut" style="margin:0 0 8px">Escalação ${CONF.i+1} de ${CONF.q.length}: ajuste o time e confirme.</p>`:""}`;
-  let h=`<div class="card"><h2>Sua escalação${u.fAuto===false?"":` <span class="mut" style="font-size:12px;font-weight:400">· melhor formação automática</span>`}</h2>${ctl}`;
+  const ctl=`<div class="row ctlr" style="align-items:center;margin:0 0 6px;gap:6px"><select onchange="setF(this.value)">${Object.keys(Game.FORMATIONS).map(f=>`<option value="${f}" ${u.formation===f?"selected":""}>${f}${f===bestF0?" (melhor)":""}</option>`).join("")}</select>${CONF?`<button class="p" onclick="confNext()">${CONF.i<CONF.q.length-1?"Confirmar e próximo time":"Confirmar e jogar"}</button><button class="s" onclick="confCancel()">Cancelar</button>`:`<button class="p" onclick="play()">Jogar</button><button class="p" onclick="playBest()">Jogar com melhor formação</button>`}</div>${CONF?`<p class="mut" style="margin:0 0 8px">Escalação ${CONF.i+1} de ${CONF.q.length}: ajuste o time e confirme.</p>`:""}`;
+  let h=`<div class="card" style="padding:8px 10px;margin-bottom:8px"><h2 style="margin:0 0 6px;font-size:15px">Sua escalação${u.fAuto===false?"":` <span class="mut" style="font-size:11px;font-weight:400">· melhor formação automática</span>`}</h2>${ctl}`;
   if(!st.length)return h+`<p class="mut">Nenhum titular escalado. Toque em Auto na aba Elenco.</p><p><button class="s" onclick="setTab('elenco')">Mudar escalação</button></p></div>`;
   h+=`<div class="campo">`;
   const mids=st.filter(p=>p.pos==="MID");
