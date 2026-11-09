@@ -50,13 +50,13 @@ tr.me{background:var(--hl);font-weight:700}
 <header><div class="hl"><span id="crest"></span><b id="hT">Meu Elifoot</b></div><div class="hr"><span id="flag"></span><span id="hS"></span></div></header>
 <main id="app"></main>
 <nav id="nav"></nav>
-<script src="clubs.js?v=14"></script>
-<script src="game.js?v=14"></script>
+<script src="clubs.js?v=15"></script>
+<script src="game.js?v=15"></script>
 <script>
 const PREFIX="elifoot:save:";
-let S=null,tab="jogo",msg="",mf={pos:"",q:"",min:0},viewKey=null;
+let S=null,tab="jogo",msg="",mf={pos:"",q:"",min:0,max:99,afford:true},viewKey=null;
 const $=id=>document.getElementById(id);
-const VERSAO=14;
+const VERSAO=15;
 const moneyFull=n=>(n<0?"-":"")+"R$ "+Math.round(Math.abs(n)).toLocaleString("pt-BR");
 const money=moneyFull;
 const U=()=>S.teams[S.user];
@@ -269,11 +269,12 @@ function vTabela(){
 }
 
 function vMercado(){
-  let l=Game.market(S).filter(p=>(!mf.pos||SPN(p)===mf.pos)&&p.ov>=mf.min&&(!mf.q||(p.name+p.team).toLowerCase().includes(mf.q.toLowerCase())));
+  let l=Game.market(S).filter(p=>(!mf.pos||SPN(p)===mf.pos)&&p.ov>=mf.min&&p.ov<=mf.max&&(!mf.afford||Math.round(p.value*1.15)<=S.cash)&&(!mf.q||(p.name+p.team).toLowerCase().includes(mf.q.toLowerCase())));
   l.sort((a,b)=>b.ov-a.ov);const n=l.length;l=l.slice(0,40);
   return `<div class="card"><h2>Mercado</h2><div class="row">
   <select onchange="mf.pos=this.value;render()"><option value="">Todas</option>${["GOL","LD","LE","ZAG","VOL","ME","MD","MC","PD","PE","CA"].map(p=>`<option ${mf.pos===p?"selected":""}>${p}</option>`).join("")}</select>
-  <select onchange="mf.min=+this.value;render()">${[0,60,65,70,75].map(v=>`<option value="${v}" ${mf.min===v?"selected":""}>OVR ≥ ${v}</option>`).join("")}</select>
+  <label class="mut" style="display:flex;align-items:center;gap:4px">OVR <input type="number" min="0" max="99" value="${mf.min}" onchange="mf.min=Math.max(0,+this.value||0);render()" style="width:58px"> a <input type="number" min="0" max="99" value="${mf.max}" onchange="mf.max=Math.min(99,+this.value||99);render()" style="width:58px"></label>
+  <label class="mut" style="display:flex;align-items:center;gap:6px;flex-basis:100%"><input type="checkbox" ${mf.afford?"checked":""} onchange="mf.afford=this.checked;render()"> Só jogadores que cabem no meu caixa (${money(S.cash)})</label>
   <input placeholder="nome/time" value="${mf.q}" onchange="mf.q=this.value;render()" style="flex:1;min-width:100px"></div>
   <p class="mut">${n} jogadores · preço = valor +15% · mostrando os 40 melhores</p></div>
   <div class="card">${l.map(p=>`<div class="pl"><span><span class="pos">${SPN(p)}</span>${p.name} <span class="mut">${p.age}a · ${p.team}</span></span><span><b>${p.ov}</b> <button class="s p" onclick="buy(${p.id})">${money(Math.round(p.value*1.15))}</button></span></div>`).join("")}</div>`;
