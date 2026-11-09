@@ -749,11 +749,12 @@
   function jobOffers(s, why, res, cid) {
     cid = cid != null ? cid : s.user;
     const me = level(s, cid), SLACK = 0.1;
+    const myOvr = ratings(s.teams[cid]).ovr; // nunca convida para clube com OVR menor que o do meu time
     const lv = {};
     const elig = Object.values(s.teams).filter((t) => {
       if (t.id === cid || t.local || isMine(s, t.id) || !LG[t.lkey]) return false;
       const L = (lv[t.id] = level(s, t.id));
-      return L.esp < me.esp && L.esp >= me.atu - SLACK;
+      return L.esp < me.esp && L.esp >= me.atu - SLACK && ratings(t).ovr >= myOvr;
     });
     elig.sort((a, b) => Math.abs(lv[a.id].esp - me.atu) - Math.abs(lv[b.id].esp - me.atu));
     const picks = shuffle(elig.slice(0, 15)).slice(0, 3);
