@@ -50,13 +50,13 @@ tr.me{background:color-mix(in srgb,var(--ac) 30%,transparent);font-weight:800}tr
 <header><div class="hl"><span id="crest"></span><b id="hT">Meu Elifoot</b></div><div class="hr"><span id="flag"></span><span id="hS"></span></div></header>
 <main id="app"></main>
 <nav id="nav"></nav>
-<script src="clubs.js?v=76"></script>
-<script src="game.js?v=76"></script>
+<script src="clubs.js?v=77"></script>
+<script src="game.js?v=77"></script>
 <script>
 const PREFIX="elifoot:save:",SAVE1="Elifoot"; // um único save para todos os times
 let S=null,tab="jogo",msg="",mf={pos:"",q:"",min:1,max:null,afford:true,ord:"ovr",dir:-1},viewKey=null;
 const $=id=>document.getElementById(id);
-const VERSAO=76;
+const VERSAO=77;
 const moneyFull=n=>(n<0?"-":"")+"R$ "+Math.round(Math.abs(n)).toLocaleString("pt-BR");
 const money=moneyFull;
 const U=()=>S.teams[S.user];
@@ -361,7 +361,7 @@ function liveHtml(){
     const mine=m.mine.h||m.mine.a;
     h+=`<div class="card" ${mine?'style="border-color:var(--ac)"':""}><div class="mrow">${tbox(m.H.name)} <span>${m.gh} x ${m.ga}</span> ${tbox(m.A.name)}</div>`;
     if(mine)h+=`<p class="mut">🏟️ Público ${m.gate.att.toLocaleString("pt-BR")} de ${m.gate.cap.toLocaleString("pt-BR")} · ingresso ${money(m.gate.price)}</p>`;
-    h+=m.ev.length?m.ev.map(liveEv).join(""):`<p class="mut">Sem lances ainda.</p>`;
+    h+=m.ev.length?`<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:13px"><div style="min-width:0">${m.ev.filter(e=>e.side==="h").map(liveEv).join("")}</div><div style="min-width:0">${m.ev.filter(e=>e.side==="a").map(liveEv).join("")}</div></div>`:`<p class="mut">Sem lances ainda.</p>`;
     h+=`</div>`;
   }
   if(l.done&&l.shoot){const sh=l.shoot,sc=[0,0];sh.kicks.slice(0,sh.shown).forEach(k=>{if(k.ok)sc[k.team===sh.ids[0]?0:1]++});const fin=sh.shown>=sh.kicks.length;
