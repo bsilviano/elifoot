@@ -50,13 +50,13 @@ tr.me{background:var(--hl);font-weight:700}
 <header><div class="hl"><span id="crest"></span><b id="hT">Meu Elifoot</b></div><div class="hr"><span id="flag"></span><span id="hS"></span></div></header>
 <main id="app"></main>
 <nav id="nav"></nav>
-<script src="clubs.js?v=22"></script>
-<script src="game.js?v=22"></script>
+<script src="clubs.js?v=23"></script>
+<script src="game.js?v=23"></script>
 <script>
 const PREFIX="elifoot:save:";
 let S=null,tab="jogo",msg="",mf={pos:"",q:"",min:1,max:null,afford:true,ord:"ovr",dir:-1},viewKey=null;
 const $=id=>document.getElementById(id);
-const VERSAO=22;
+const VERSAO=23;
 const moneyFull=n=>(n<0?"-":"")+"R$ "+Math.round(Math.abs(n)).toLocaleString("pt-BR");
 const money=moneyFull;
 const U=()=>S.teams[S.user];
@@ -66,12 +66,61 @@ const LGu=()=>Game.LG[U().lkey];
 let _tt=null;
 function toast(t){let e=document.getElementById("toast");if(!e){e=document.createElement("div");e.id="toast";e.style.cssText="position:fixed;top:74px;right:12px;z-index:50;background:#000c;color:#fff;font-size:12px;padding:6px 10px;border-radius:14px;transition:opacity .4s;pointer-events:none";document.body.appendChild(e)}e.textContent=t;e.style.opacity=1;clearTimeout(_tt);_tt=setTimeout(()=>e.style.opacity=0,1400)}
 function save(){
-  try{if(!S.saveName)S.saveName=U().name;localStorage.setItem(PREFIX+S.saveName,JSON.stringify(S));localStorage.setItem("elifoot:last",S.saveName);toast("💾 Jogo salvo")}
+  try{if(!S.saveName)S.saveName=U().name;localStorage.setItem(PREFIX+S.saveName,JSON.stringify(S));localStorage.setItem("elifoot:last",S.saveName);localStorage.setItem(TSK+S.saveName,Date.now());syncPushLater(S.saveName);toast("💾 Jogo salvo")}
   catch(e){alert("Sem espaço no aparelho para salvar. Apague saves antigos na tela inicial.")}
+}
+
+// ---- sincronização entre aparelhos (gist privado do GitHub, comprimido) ----
+const TSK="elifoot:ts:",GK="elifoot:gist",GDESC="elifoot-saves";
+const gcfg=()=>{try{return JSON.parse(localStorage.getItem(GK)||"null")}catch(e){return null}};
+const gset=c=>localStorage.setItem(GK,JSON.stringify(c));
+const fname=n=>"save-"+encodeURIComponent(n)+".txt";
+async function gz(str){const cs=new Blob([str]).stream().pipeThrough(new CompressionStream("gzip"));const b=new Uint8Array(await new Response(cs).arrayBuffer());let bin="";for(let i=0;i<b.length;i+=8192)bin+=String.fromCharCode.apply(null,b.subarray(i,i+8192));return btoa(bin)}
+async function ungz(b64){const bin=atob(b64),b=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)b[i]=bin.charCodeAt(i);const ds=new Blob([b]).stream().pipeThrough(new DecompressionStream("gzip"));return await new Response(ds).text()}
+async function gapi(path,method,body){const c=gcfg();const r=await fetch("https://api.github.com"+path,{method:method||"GET",headers:{Authorization:"Bearer "+c.token,Accept:"application/vnd.github+json","Content-Type":"application/json"},body:body?JSON.stringify(body):undefined});if(!r.ok)throw new Error("GitHub "+r.status);return r.json()}
+let _pt=null,SYNCST="";
+function syncSt(t){SYNCST=t;const e=document.getElementById("syncSt");if(e)e.textContent=t}
+function syncPushLater(name){if(!gcfg())return;clearTimeout(_pt);_pt=setTimeout(()=>syncPush(name),2500)}
+async function syncPush(name){
+  const c=gcfg();if(!c||!c.id)return;
+  try{syncSt("Enviando save para a nuvem...");const raw=localStorage.getItem(PREFIX+name);if(!raw)return;
+    const ts=+localStorage.getItem(TSK+name)||Date.now();
+    await gapi("/gists/"+c.id,"PATCH",{files:{[fname(name)]:{content:ts+"|"+await gz(raw)}}});syncSt("☁️ Sincronizado ("+new Date().toLocaleTimeString("pt-BR")+")")}
+  catch(e){syncSt("Falha ao enviar: "+e.message)}
+}
+async function syncDelete(name){const c=gcfg();if(!c||!c.id)return;try{await gapi("/gists/"+c.id,"PATCH",{files:{[fname(name)]:null}})}catch(e){}}
+// baixa saves mais novos da nuvem e envia os que só existem aqui; devolve quantos vieram da nuvem
+async function syncPull(){
+  const c=gcfg();if(!c)return 0;
+  if(!c.id){const l=await gapi("/gists?per_page=100");const g=l.find(x=>x.description===GDESC);
+    if(g)c.id=g.id;else{const n=await gapi("/gists","POST",{description:GDESC,public:false,files:{"LEIA-ME.txt":{content:"Saves do Elifoot (comprimidos)."}}});c.id=n.id}gset(c)}
+  const g=await gapi("/gists/"+c.id);let got=0;const seen=new Set();
+  for(const f of Object.values(g.files)){
+    if(!f.filename.startsWith("save-"))continue;
+    const name=decodeURIComponent(f.filename.slice(5,-4));seen.add(name);
+    let txt=f.content;if(f.truncated||txt==null){txt=await (await fetch(f.raw_url)).text()}
+    const i=txt.indexOf("|"),ts=+txt.slice(0,i),loc=+localStorage.getItem(TSK+name)||0;
+    if(ts>loc||!localStorage.getItem(PREFIX+name)){localStorage.setItem(PREFIX+name,await ungz(txt.slice(i+1)));localStorage.setItem(TSK+name,ts);if(!localStorage.getItem("elifoot:last"))localStorage.setItem("elifoot:last",name);got++}
+  }
+  for(const n of listSaves())if(!seen.has(n))await syncPush(n);
+  syncSt("☁️ Sincronizado ("+new Date().toLocaleTimeString("pt-BR")+")");return got;
+}
+async function syncOn(){
+  const t=$("gtok").value.trim();if(!t){alert("Cole o token.");return}
+  gset({token:t});
+  try{const n=await syncPull();msg=`Sincronização ativada. ${n} save(s) baixado(s) da nuvem.`;S=null;const last=localStorage.getItem("elifoot:last");if(last&&localStorage.getItem(PREFIX+last))loadSave(last);else render()}
+  catch(e){localStorage.removeItem(GK);alert("Não consegui ativar: "+e.message+". Confira se o token tem permissão de gist.")}
+}
+function syncOff(){if(confirm("Desativar a sincronização neste aparelho? Os saves ficam aqui e na nuvem."))localStorage.removeItem(GK),render()}
+async function syncNow(){try{await syncPush(S.saveName);const n=await syncPull();if(n){const nm=S.saveName;loadSave(nm)}else render()}catch(e){syncSt("Falha: "+e.message)}}
+function syncCard(){
+  const c=gcfg();
+  if(c)return `<div class="card"><h2>Sincronização</h2><p class="mut" id="syncSt">${SYNCST||"☁️ Ativada neste aparelho."}</p><p class="mut">Cada save é enviado à nuvem ao salvar e baixado ao abrir o jogo. Vale o mais recente. Não jogue nos dois aparelhos ao mesmo tempo.</p><div class="row"><button class="p" onclick="syncNow()">Sincronizar agora</button><button class="s d" onclick="syncOff()">Desativar</button></div></div>`;
+  return `<div class="card"><h2>Sincronizar celular e computador</h2><p class="mut">Cole o token do GitHub (permissão só de gist). Nada para instalar. Faça o mesmo em cada aparelho.</p><div class="row"><input id="gtok" type="password" placeholder="ghp_... ou github_pat_..." style="flex:1;min-width:0"><button class="p" onclick="syncOn()">Ativar</button></div></div>`;
 }
 function listSaves(){const r=[];for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k.startsWith(PREFIX))r.push(k.slice(PREFIX.length))}return r.sort()}
 function loadSave(name){try{S=JSON.parse(localStorage.getItem(PREFIX+name));Game.resetPid(S);viewKey=null;tab="jogo";msg="";localStorage.setItem("elifoot:last",name);render()}catch(e){console.error(e);if(S&&typeof Game.bestFormation!=="function"){alert("Versão antiga do jogo em cache. Recarregue a página (Ctrl+F5) e abra o save de novo.")}else alert("Erro ao abrir o save: "+(e&&e.message||e))}}
-function delSave(name){if(confirm("Apagar o save de "+name+"?")){localStorage.removeItem(PREFIX+name);start()}}
+function delSave(name){if(confirm("Apagar o save de "+name+"?")){localStorage.removeItem(PREFIX+name);syncDelete(name);start()}}
 
 function clubOpts(){let sel="";const opts=Game.COUNTRIES;for(const c in opts){const ls=Game.LEAGUES.filter(l=>l.country===c);sel+=`<optgroup label="${opts[c].name}">`+ls.map(l=>l.clubs.map(n=>`<option value="${n}">${n} (${l.name})</option>`).join("")).join("")+`</optgroup>`}return sel}
 function tidByName(n){return +Object.keys(S.teams).find(k=>S.teams[k].name===n)}
@@ -91,6 +140,7 @@ function start(){applyTheme(null);
   <div class="card"><h2>Novo jogo</h2><p class="mut">8 países, 2 a 3 divisões cada, copas continentais. Elencos do protótipo são <b>estimados</b>, não reais. Se já existir save com o nome do time escolhido, ele é sobrescrito.</p>
   <div class="row"><select id="clubSel" style="flex:1;min-width:0">${sel}</select><button class="p" onclick="go()">Começar</button></div>
   <div class="row" style="margin-top:8px"><select id="rndSel" style="flex:1;min-width:0"><option value="">Qualquer país</option>${Object.values(opts).map(c=>`<option>${c.name}</option>`).join("")}</select><button onclick="goRandom()">🎲 Time aleatório</button></div></div>
+  ${syncCard()}
   <div class="card"><label class="mut">Importar save (.json)</label><br><input type="file" accept=".json" onchange="importSave(event)"></div>`;
   $("nav").innerHTML="";$("hT").textContent="Meu Elifoot";$("hS").textContent="";$("crest").innerHTML="";$("flag").innerHTML="";
 }
@@ -366,6 +416,7 @@ function vMais(){
   <div class="card"><h2>Meus times</h2>${Game.myClubs(S).map(id=>`<div class="pl ${id===S.user?"in":""}"><span><b>${S.teams[id].name}</b><br><span class="mut">Caixa ${moneyFull(id===S.user?S.cash:(S.cashes&&S.cashes[id])||0)}${id===S.user?" · ativo":""}</span></span><span>${id===S.user?"":`<button class="s p" onclick="swClub(${id})">Comandar</button> <button class="s d" onclick="dropClubUI(${id})">Largar</button>`}</span></div>`).join("")}
   <div class="row" style="margin-top:8px"><select id="addSel" style="flex:1;min-width:0">${clubOpts()}</select><button class="p" onclick="addClubUI()">Adicionar time</button></div>
   <p class="mut">Cada time tem elenco, escalação e caixa próprios. O jogo avança até a próxima partida do time ativo; os outros times seus jogam com escalação automática se ela ficar inválida e pagam salários e recebem bilheteria. Prêmios e propostas de fim de temporada só valem para o time ativo.</p></div>
+  ${syncCard()}
   <div class="card"><h2>Save e elencos</h2><p class="mut">Salvamento automático com o nome do time (${u.name}).</p>
   <div class="row"><button onclick="exportSave()">Exportar save</button><button onclick="start()">Trocar de save / novo jogo</button></div>
   <p class="mut">Os elencos são atualizados automaticamente ao abrir o jogo. Todos os times são atualizados, exceto o seu. O seu elenco nunca é alterado enquanto você for o técnico; jogadores que você vendeu ficam no clube comprador.</p>${msg?`<p>${msg}</p>`:""}</div>`;
@@ -377,8 +428,10 @@ async function update(auto){
   catch(e){if(!auto)msg="Ainda não há elencos.json publicado."}
   if(S)render();
 }
-try{const last=localStorage.getItem("elifoot:last");if(last&&localStorage.getItem(PREFIX+last))loadSave(last);else render()}catch(e){render()}
-if(S)update(true); // atualiza sozinho ao abrir, se houver elencos.json novo
+function boot(){try{const last=localStorage.getItem("elifoot:last");if(last&&localStorage.getItem(PREFIX+last))loadSave(last);else render()}catch(e){render()}
+if(S)update(true)}
+if(gcfg()){$("app").innerHTML='<div class="card"><p>☁️ Sincronizando saves...</p></div>';syncPull().catch(e=>syncSt("Falha: "+e.message)).finally(boot)}else boot();
+// // atualiza sozinho ao abrir, se houver elencos.json novo
 if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});
 </script>
 </body>
