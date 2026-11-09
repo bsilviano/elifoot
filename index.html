@@ -50,13 +50,13 @@ tr.me{background:var(--hl);font-weight:700}
 <header><div class="hl"><span id="crest"></span><b id="hT">Meu Elifoot</b></div><div class="hr"><span id="flag"></span><span id="hS"></span></div></header>
 <main id="app"></main>
 <nav id="nav"></nav>
-<script src="clubs.js?v=56"></script>
-<script src="game.js?v=56"></script>
+<script src="clubs.js?v=57"></script>
+<script src="game.js?v=57"></script>
 <script>
 const PREFIX="elifoot:save:",SAVE1="Elifoot"; // um único save para todos os times
 let S=null,tab="jogo",msg="",mf={pos:"",q:"",min:1,max:null,afford:true,ord:"ovr",dir:-1},viewKey=null;
 const $=id=>document.getElementById(id);
-const VERSAO=56;
+const VERSAO=57;
 const moneyFull=n=>(n<0?"-":"")+"R$ "+Math.round(Math.abs(n)).toLocaleString("pt-BR");
 const money=moneyFull;
 const U=()=>S.teams[S.user];
@@ -289,7 +289,7 @@ let CONF=null;
 function play(){
   if(S.fired){alert("Você está sem clube. Aceite uma oferta de emprego na aba Jogo.");return}
   const nr=Game.myClubs(S).length>1?Game.nextRoundClubs(S):null;
-  if(nr&&nr.clubs.length>1){CONF={q:nr.clubs,i:0};confShow();return}
+  if(nr&&(nr.clubs.length>1||nr.clubs[0]!==S.user)){CONF={q:nr.clubs,i:0};confShow();return}
   doPlay()}
 function confShow(){if(S.user!==CONF.q[CONF.i])Game.switchClub(S,CONF.q[CONF.i]);viewKey=null;tab="jogo";msg="";save();render();window.scrollTo(0,0)}
 function confNext(){if(CONF.i<CONF.q.length-1){CONF.i++;confShow()}else{CONF=null;doPlay()}}
@@ -314,7 +314,7 @@ function showSummary(r){
 }
 let SUMM=null,SUMT=null,SUMN=0,SUMC=null;
 function summRender(){if(!SUMM)return;$("nav").style.display="none";$("app").innerHTML=`<div class="card">${SUMM}</div><div class="card"><p class="mut">Indo para a classificação em ${SUMN}s</p><button class="p" style="width:100%" onclick="summGo()">Ir agora para a classificação</button></div>`;window.scrollTo(0,0)}
-function summGo(){clearInterval(SUMT);SUMM=null;$("nav").style.display="";viewKey=SUMC&&S.comps[SUMC]?SUMC:null;SUMC=null;HISTV=false;tab="tabela";render()}
+function summGo(){clearInterval(SUMT);SUMM=null;try{if(Game.myClubs(S).length>1){const nr=Game.nextRoundClubs(S);if(nr&&!nr.clubs.includes(S.user)){Game.switchClub(S,nr.clubs[0]);save()}}}catch(e){}$("nav").style.display="";viewKey=SUMC&&S.comps[SUMC]?SUMC:null;SUMC=null;HISTV=false;tab="tabela";render()}
 
 
 let LIVE=null,LTM=null,LSPD=900,LEND=null;
