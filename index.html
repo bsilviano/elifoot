@@ -51,13 +51,13 @@ tr.me{background:color-mix(in srgb,var(--ac) 30%,transparent);font-weight:800}tr
 <header><div class="hl"><span id="crest"></span><b id="hT">Meu Elifoot</b></div><div class="hr"><span id="flag"></span><span id="hS"></span></div></header>
 <main id="app"></main>
 <nav id="nav"></nav>
-<script src="clubs.js?v=114"></script>
-<script src="game.js?v=114"></script>
+<script src="clubs.js?v=115"></script>
+<script src="game.js?v=115"></script>
 <script>
 const PREFIX="elifoot:save:",SAVE1="Elifoot"; // um único save para todos os times
 let artCan=false,S=null,tab="jogo",msg="",mf={pos:"",q:"",any:true,min:1,max:null,afford:true,ord:"ovr",dir:-1},viewKey=null;
 const $=id=>document.getElementById(id);
-const VERSAO=114;
+const VERSAO=115;
 const moneyFull=n=>(n<0?"-":"")+"R$ "+Math.round(Math.abs(n)).toLocaleString("pt-BR");
 const money=moneyFull;
 const U=()=>S.teams[S.user];
@@ -353,6 +353,7 @@ function liveEv(e){
   else if(e.type==="pen")t=e.ok?`${m} ⚽ <b>GOL DE PÊNALTI</b> ${nm}`:`${m} ❌ <b>Pênalti perdido</b> ${nm}`;
   else if(e.type==="red")t=`${m} 🟥 <b>Expulso</b> ${nm} · ${e.n} jogo${e.n>1?"s":""} de suspensão`;
   else if(e.type==="inj")t=`${m} 🚑 Lesão: ${nm} · ${e.n} jogo${e.n>1?"s":""}`;
+  else if(e.type==="pos")t=`${m} 🔀 ${nm} passa a jogar de ${e.sp}`;
   else if(e.type==="yellow")t=`${m} 🟨 ${nm}${e.third?" · 3º amarelo, suspenso":""}`;
   else t=`${m} 🔁 Entra ${nm}, sai ${e.out}`;
   return tline(e.club,t);
@@ -374,7 +375,8 @@ function liveHtml(){
     <div class="row" style="margin-top:8px"><button class="p" onclick="liveCont()">Deixar o auxiliar escolher</button></div></div>`;
   }else if(p){
     const m=l.matches[p.mi]
-    h+=`<div class="card" style="border-color:#d33"><h2>🟥 ${p.name} foi expulso!</h2><p class="mut">${p.club} está com ${m.on[p.side].length} em campo. Substituições: ${m.subs[p.side]}/5. Troque um jogador ou reorganize o time.</p>
+    h+=`<div class="card" style="border-color:#d33"><h2>🟥 ${p.name} (${p.sp||"?"}${p.ov?" "+p.ov:""}) foi expulso!</h2><p class="mut">${p.club} está com ${m.on[p.side].length} em campo. Substituições: ${m.subs[p.side]}/5. Troque um jogador ou reorganize o time: toque num jogador no campo e depois na nova posição dele.</p>
+    ${pitchLive(m.on[p.side],p.club,p.mi,p.side)}
     <p><b>Em campo</b>${LSEL?` <span class="mut">escolha quem sai</span>`:""}</p>${m.on[p.side].slice().sort((x,y)=>SPR[SPN(x)]-SPR[SPN(y)]||y.ov-x.ov).map(q=>`<div class="pl"><span><span class="pos">${SPN(q)}</span>${q.name}</span><span><b>${q.ov}</b>${LSEL?` <button class="s d" onclick="liveSubUI(${p.mi},'${p.side}',${q.id})">Sai</button>`:""}</span></div>`).join("")}
     <p><b>Banco</b> <span class="mut">(toque em Entrar e escolha quem sai)</span></p>
     ${m.bench[p.side].length&&m.subs[p.side]<5?m.bench[p.side].slice().sort((x,y)=>SPR[SPN(x)]-SPR[SPN(y)]||y.ov-x.ov).map(q=>`<div class="pl"><span><span class="pos">${SPN(q)}</span>${q.name}</span><span><b>${q.ov}</b> <button class="s p" onclick="LSEL=${q.id};liveRender()">${LSEL===q.id?"Selecionado":"Entrar"}</button></span></div>`).join(""):`<p class="mut">Sem substituições disponíveis.</p>`}
@@ -393,6 +395,23 @@ function liveHtml(){
   if(l.done)h+=`<div class="card"><p class="mut">Fim de jogo. Encerrando a rodada...</p></div>`;
   return h;
 }
+let LPOS=null;
+function pitchLive(ps,club,mi,side){
+  const col=(TEAM_COLORS[club]||themeFor(club).ac),l=[1,3,5].map(i=>parseInt(col.substr(i,2),16)),tx=(0.3*l[0]+0.59*l[1]+0.11*l[2])>150?"#111":"#fff";
+  const st=ps.slice(),mids=st.filter(p=>p.pos==="MID");
+  let m1=mids.filter(p=>SPN(p)!=="VOL"),m2=mids.filter(p=>SPN(p)==="VOL");if(!m1.length){m1=m2;m2=[]}
+  const atts=st.filter(p=>p.pos==="ATT");let a1=atts.filter(p=>!["PE","PD"].includes(SPN(p))),a2=atts.filter(p=>["PE","PD"].includes(SPN(p)));if(!a1.length||atts.length!==3){a1=atts;a2=[]}
+  const rows=[a1,a2,m1,m2,st.filter(p=>p.pos==="DEF"),st.filter(p=>p.pos==="GK")];
+  let h=`<div class="campo">`;
+  for(const g of rows){if(!g.length)continue;g.sort((a,b)=>(SPO[SPN(a)]-SPO[SPN(b)])||a.name.localeCompare(b.name));
+    h+=`<div class="lin${g.length===2&&g[0].pos==="ATT"?" dup":""}">`+g.map(p=>`<div class="jog" style="cursor:pointer" onclick="LPOS=${LPOS===p.id?"null":p.id};liveRender()"><i style="background:${col};color:${tx};${LPOS===p.id?"outline:3px solid #ffd166;outline-offset:2px":""}">${p.ov}</i><span>${p.name}</span><small>${SPN(p)}${p.rp?" ↻":""}</small></div>`).join("")+`</div>`}
+  h+=`</div>`;
+  const sel=LPOS!=null&&ps.find(p=>p.id===LPOS);
+  if(sel)h+=`<p class="mut" style="margin:6px 0 2px">Nova posição de <b>${sel.name}</b> (fora da posição natural ele rende menos):</p><div class="row">${["GOL","LD","ZAG","LE","VOL","ME","MC","MD","PD","PE","CA"].map(x=>`<button class="s ${SPN(sel)===x?"p":""}" onclick="liveRepo(${mi},'${side}',${sel.id},'${x}')">${x}</button>`).join("")}</div>`;
+  else h+=`<p class="mut" style="margin:6px 0 0">Toque num jogador do campo para mudar a posição dele.</p>`;
+  return h;
+}
+function liveRepo(mi,side,id,sp){if(!Game.liveReposition(LIVE.live,mi,side,id,sp)){alert("Posição inválida.");return}LPOS=null;liveRender()}
 let _lp=null,LSEL=null;
 function liveRender(){
   if(!LIVE)return;

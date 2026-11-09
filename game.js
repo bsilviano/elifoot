@@ -1029,10 +1029,28 @@
     const oi = m.on[side].findIndex((p) => p.id === outId), bi = m.bench[side].findIndex((p) => p.id === inId);
     if (oi < 0 || bi < 0 || m.subs[side] >= SUBS_MAX) return false;
     const pout = m.on[side][oi], pin = m.bench[side][bi];
+    unrole(pout);
     m.on[side][oi] = pin; m.bench[side].splice(bi, 1); m.subs[side]++;
     m.ev.push({ min: m.min || 0, type: "sub", side, name: pin.name, out: pout.name, club: (side === "h" ? m.H : m.A).name, why });
     liveRates(m);
     return true;
+  }
+  // Reposicionar um jogador em campo durante a partida (clique no campo). Fora da posição natural ele rende menos até o fim do jogo.
+  const SP_GROUP = { GOL: "GK", LD: "DEF", ZAG: "DEF", LE: "DEF", VOL: "MID", ME: "MID", MC: "MID", MD: "MID", PD: "ATT", PE: "ATT", CA: "ATT" };
+  function liveReposition(live, mi, side, pid, newSp) {
+    const m = live.matches[mi], p = m.on[side].find((q) => q.id === pid), g = SP_GROUP[newSp];
+    if (!p || !g) return false;
+    if (!p.rp) p.rp = { pos: p.pos, sp: p.sp, ov: p.ov };
+    const nat = p.rp, natSp = nat.sp || ({ GK: "GOL", DEF: "ZAG", MID: "MC", ATT: "CA" })[nat.pos];
+    const f = newSp === natSp ? 1 : g === nat.pos ? 0.97 : (g === "GK" || nat.pos === "GK") ? 0.6 : 0.85;
+    p.pos = g; p.sp = newSp; p.ov = Math.max(1, Math.round(nat.ov * f));
+    m.ev.push({ min: live.minute, type: "pos", side, name: p.name, sp: newSp, club: (side === "h" ? m.H : m.A).name });
+    liveRates(m);
+    return true;
+  }
+  function unrole(p) { if (p && p.rp) { p.pos = p.rp.pos; p.sp = p.rp.sp; p.ov = p.rp.ov; delete p.rp; } }
+  function restoreRoles(live) {
+    for (const m of live.matches) for (const side of ["h", "a"]) for (const p of m.on[side].concat(m.bench[side])) unrole(p);
   }
   function liveSub(live, mi, side, outId, inId) {
     const m = live.matches[mi]; m.min = live.minute;
@@ -1079,12 +1097,12 @@
       // expulsão
       if (m.on[side].length > 8 && Math.random() < 0.05 / 90) {
         const p = wpickP(m.on[side], (q) => ({ GK: 0.2, DEF: 1.4, MID: 1, ATT: 0.7 }[q.pos]));
-        m.on[side].splice(m.on[side].indexOf(p), 1);
+        m.on[side].splice(m.on[side].indexOf(p), 1); unrole(p);
         p.sus = pick([1, 1, 1, 1, 1, 2, 2, 3, 4]); p.yc = 0;
         evs.push({ type: "red", name: p.name, n: p.sus });
         m.ev.push({ min: mn, type: "red", side, name: p.name, n: p.sus, club: team.name });
         liveRates(m);
-        if (isMine(s, team.id)) live.pending.push({ mi: m.i, side, name: p.name, club: team.name });
+        if (isMine(s, team.id)) live.pending.push({ mi: m.i, side, name: p.name, club: team.name, sp: p.sp || ({ GK: "GOL", DEF: "ZAG", MID: "MC", ATT: "CA" })[p.pos], ov: p.ov });
         else autoReorg(m, side);
       }
       // lesão (substituição automática por reserva do mesmo setor)
@@ -1163,6 +1181,7 @@
     autoReorg(m, p.side);
   }
   function liveFinish(s, live, res) {
+    restoreRoles(live);
     const pre = live.matches.map((m) => ({ gh: m.gh, ga: m.ga, sh: m.sh, sa: m.sa, evh: m.evh, eva: m.eva, gate: m.gate }));
     const ix = s.q.indexOf(live.rd);
     if (ix >= 0) s.q.splice(ix, 1);
@@ -1499,6 +1518,6 @@
     if (s.cashes) delete s.cashes[id];
     return null;
   }
-  const api = { applyLeagues, clubCash, yearOf, startRound, liveStep, liveSub, liveTakePen, penProb, liveResolve, liveFinish, autoReorg, getStad, stadCost, upgradeStadium, topScorers, lookup, yearOf, bestFormation, avail, nextRoundClubs, myClubs, addClub, switchClub, dropClub, STATES, CONT, COUNTRIES, LEAGUES, LG, FORMATIONS, TACTICS, newGame, autoLineup, ratings, playRound, acceptOffer, market, buy, sell, auction, sellTo, applyUpdate, resetPid, migrateOvr, lineupPlayers, fixLineup, nextUserRound, sortTab, dateOf, userComps, userMatches };
+  const api = { liveReposition, applyLeagues, clubCash, yearOf, startRound, liveStep, liveSub, liveTakePen, penProb, liveResolve, liveFinish, autoReorg, getStad, stadCost, upgradeStadium, topScorers, lookup, yearOf, bestFormation, avail, nextRoundClubs, myClubs, addClub, switchClub, dropClub, STATES, CONT, COUNTRIES, LEAGUES, LG, FORMATIONS, TACTICS, newGame, autoLineup, ratings, playRound, acceptOffer, market, buy, sell, auction, sellTo, applyUpdate, resetPid, migrateOvr, lineupPlayers, fixLineup, nextUserRound, sortTab, dateOf, userComps, userMatches };
   if (typeof module !== "undefined") module.exports = api; else root.Game = api;
 })(typeof window !== "undefined" ? window : globalThis);
