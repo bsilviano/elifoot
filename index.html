@@ -51,13 +51,13 @@ tr.me{background:color-mix(in srgb,var(--ac) 30%,transparent);font-weight:800}tr
 <header><div class="hl"><span id="crest"></span><b id="hT">Meu Elifoot</b></div><div class="hr"><span id="flag"></span><span id="hS"></span></div></header>
 <main id="app"></main>
 <nav id="nav"></nav>
-<script src="clubs.js?v=103"></script>
-<script src="game.js?v=103"></script>
+<script src="clubs.js?v=104"></script>
+<script src="game.js?v=104"></script>
 <script>
 const PREFIX="elifoot:save:",SAVE1="Elifoot"; // um único save para todos os times
 let artCan=false,S=null,tab="jogo",msg="",mf={pos:"",q:"",any:true,min:1,max:null,afford:true,ord:"ovr",dir:-1},viewKey=null;
 const $=id=>document.getElementById(id);
-const VERSAO=103;
+const VERSAO=104;
 const moneyFull=n=>(n<0?"-":"")+"R$ "+Math.round(Math.abs(n)).toLocaleString("pt-BR");
 const money=moneyFull;
 const U=()=>S.teams[S.user];
@@ -415,13 +415,16 @@ function liveEnd(){
   showSummary(L.res)
 }
 
+function posResumo(u,extra){
+  const cnt={},out={};u.players.forEach(p=>{const k=SPN(p);if(Game.avail(p))cnt[k]=(cnt[k]||0)+1;else out[k]=(out[k]||0)+1});
+  const ln=(t,ks)=>`<div style="display:grid;grid-template-columns:52px repeat(4,1fr);font-size:13px;padding:2px 0;text-align:center"><span class="mut" style="text-align:left">${t}</span>${ks.map(k=>`<span><span class="mut">${k}</span> <b>${cnt[k]||0}</b> <span class="mut">(${out[k]||0})</span></span>`).join("")}</div>`;
+  return `<div class="card" style="padding:8px 10px">${ln("Defesa",["GOL","LD","ZAG","LE"])}${ln("Meio",["VOL","ME","MC","MD"])}${ln("Ataque",["PD","PE","CA"])}<div class="mut" style="text-align:center;font-size:11px;margin-top:2px">${u.players.length} jogadores</div>${extra||""}</div>`
+}
 function vElenco(){
   const u=U(),set=new Set(u.lineup);
   const order={GK:0,DEF:1,MID:2,ATT:3};
   const ps=u.players.slice().sort((a,b)=>SPR[SPN(a)]-SPR[SPN(b)]||b.ov-a.ov);
-  const cnt={},out={};u.players.forEach(p=>{const k=SPN(p);if(Game.avail(p))cnt[k]=(cnt[k]||0)+1;else out[k]=(out[k]||0)+1});
-  const ln=(t,ks)=>`<div style="display:grid;grid-template-columns:52px repeat(4,1fr);font-size:13px;padding:2px 0;text-align:center"><span class="mut" style="text-align:left">${t}</span>${ks.map(k=>`<span><span class="mut">${k}</span> <b>${cnt[k]||0}</b> <span class="mut">(${out[k]||0})</span></span>`).join("")}</div>`;
-  const resumo=`<div class="card" style="padding:8px 10px">${ln("Defesa",["GOL","LD","ZAG","LE"])}${ln("Meio",["VOL","ME","MC","MD"])}${ln("Ataque",["PD","PE","CA"])}<div class="mut" style="text-align:center;font-size:11px;margin-top:2px">${u.players.length} jogadores</div>${destaques(u)}</div>`;
+  const resumo=posResumo(u,destaques(u));
   return aucCard()+resumo+`<div class="card"><h2>Escalação (${u.lineup.length}/11)</h2>
   <div class="row"><button class="s" onclick="U().lineup=Game.autoLineup(U());save();render()">Auto</button><span class="mut">Toque para titular/reserva</span></div></div>
   <div class="card">${ps.map(p=>`<div class="pl ${set.has(p.id)?"in":""}" onclick="tog(${p.id})"><span class="pc"><span class="pos">${SPN(p)}</span><span class="mut">${p.age}a</span></span><span class="nm">${p.name}${p.inj>0?` <span class="bad">🚑 ${p.inj} jogo${p.inj>1?"s":""}</span>`:""}${p.sus>0?` <span class="bad">🟥 susp. ${p.sus}</span>`:""}${p.yc?` <span class="mut">🟨${p.yc}</span>`:""}</span><span class="rt"><b class="ovc">${p.ov}</b><button class="s d" onclick="event.stopPropagation();sell(${p.id})">Leiloar</button><span class="mut vl" title="Valor mínimo de venda">${money(p.value)}</span></span></div>`).join("")}</div>`;
@@ -526,7 +529,7 @@ function vMercado(){
   const all=Game.market(S),maxOvr=all.reduce((m,p)=>Math.max(m,p.ov),1),mx=mf.max==null?maxOvr:mf.max;
   let l=all.filter(p=>(!mf.pos||SPN(p)===mf.pos)&&(mf.any||(p.ov>=mf.min&&p.ov<=mx))&&(!mf.afford||Math.round(p.value*1.15)<=S.cash)&&(!mf.q||(p.name+p.team).toLowerCase().includes(mf.q.toLowerCase())));
   l.sort((a,b)=>mf.ord==="valor"?(mf.dir*(a.value-b.value)||mf.dir*(a.ov-b.ov)||a.age-b.age||a.name.localeCompare(b.name)):(mf.dir*(a.ov-b.ov)||a.value-b.value||a.age-b.age||a.name.localeCompare(b.name)));const n=l.length;l=l.slice(0,40);
-  return `<div class="card"><h2>Mercado</h2><div class="row">
+  return posResumo(U())+`<div class="card"><h2>Mercado</h2><div class="row">
   <select onchange="mf.pos=this.value;render()"><option value="">Todas</option>${["GOL","LD","LE","ZAG","VOL","ME","MD","MC","PD","PE","CA"].map(p=>`<option ${mf.pos===p?"selected":""}>${p}</option>`).join("")}</select>
   <label class="mut" style="display:flex;align-items:center;gap:4px"><input type="checkbox" ${mf.any?"checked":""} onchange="mf.any=this.checked;render()"> OVR qualquer</label>
   <label class="mut" style="display:flex;align-items:center;gap:4px;${mf.any?"opacity:.45":""}">OVR <input type="number" ${mf.any?"disabled":""} min="1" max="${maxOvr}" value="${mf.min}" onchange="mf.min=Math.max(1,+this.value||1);render()" style="width:58px"> a <input type="number" min="1" max="${maxOvr}" value="${mx}" onchange="mf.max=this.value===""?null:+this.value;render()" style="width:58px" ${mf.any?"disabled":""}></label>
