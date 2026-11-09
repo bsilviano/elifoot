@@ -50,13 +50,13 @@ tr.me{background:color-mix(in srgb,var(--ac) 30%,transparent);font-weight:800}tr
 <header><div class="hl"><span id="crest"></span><b id="hT">Meu Elifoot</b></div><div class="hr"><span id="flag"></span><span id="hS"></span></div></header>
 <main id="app"></main>
 <nav id="nav"></nav>
-<script src="clubs.js?v=96"></script>
-<script src="game.js?v=96"></script>
+<script src="clubs.js?v=97"></script>
+<script src="game.js?v=97"></script>
 <script>
 const PREFIX="elifoot:save:",SAVE1="Elifoot"; // um único save para todos os times
 let artCan=false,S=null,tab="jogo",msg="",mf={pos:"",q:"",any:true,min:1,max:null,afford:true,ord:"ovr",dir:-1},viewKey=null;
 const $=id=>document.getElementById(id);
-const VERSAO=96;
+const VERSAO=97;
 const moneyFull=n=>(n<0?"-":"")+"R$ "+Math.round(Math.abs(n)).toLocaleString("pt-BR");
 const money=moneyFull;
 const U=()=>S.teams[S.user];
@@ -244,7 +244,7 @@ function vJogo(){
   const n=Game.nextUserRound(S);
   h+=`<div class="card" style="padding:8px 12px;margin-bottom:8px">`;
   if(n){
-    h+=`<div style="text-align:center;font-weight:700;font-size:16px">${n.home.name}${n.hp?` (${n.hp}º)`:""} x ${n.away.name}${n.ap?` (${n.ap}º)`:""}</div><p class="mut" style="text-align:center;margin:2px 0 0;font-size:12px">${n.date} · ${n.rodada&&n.rodada.includes(" - ")?n.rodada:n.comp} · OVR ${Game.ratings(u).ovr.toFixed(1)} x ${Game.ratings(n.home===u?n.away:n.home).ovr.toFixed(1)}</p>`;
+    h+=`<div style="text-align:center;font-weight:700;font-size:16px">${n.home.name} (${n.hp?n.hp+"º · ":""}OVR ${Game.ratings(n.home).ovr.toFixed(1)}) x ${n.away.name} (${n.ap?n.ap+"º · ":""}OVR ${Game.ratings(n.away).ovr.toFixed(1)})</div><p class="mut" style="text-align:center;margin:2px 0 0;font-size:12px">${n.date} · ${n.rodada&&n.rodada.includes(" - ")?n.rodada:n.comp}</p>`;
   }else h+=`<p style="margin:0">Sem jogos agendados. Clique para avançar o calendário.</p>`;
   h+=`</div>`+lineupCard(u)+(msg?`<div class="card">${msg}</div>`:"");
   return h;
