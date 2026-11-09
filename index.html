@@ -50,13 +50,13 @@ tr.me{background:color-mix(in srgb,var(--ac) 30%,transparent);font-weight:800}tr
 <header><div class="hl"><span id="crest"></span><b id="hT">Meu Elifoot</b></div><div class="hr"><span id="flag"></span><span id="hS"></span></div></header>
 <main id="app"></main>
 <nav id="nav"></nav>
-<script src="clubs.js?v=77"></script>
-<script src="game.js?v=77"></script>
+<script src="clubs.js?v=78"></script>
+<script src="game.js?v=78"></script>
 <script>
 const PREFIX="elifoot:save:",SAVE1="Elifoot"; // um único save para todos os times
 let S=null,tab="jogo",msg="",mf={pos:"",q:"",min:1,max:null,afford:true,ord:"ovr",dir:-1},viewKey=null;
 const $=id=>document.getElementById(id);
-const VERSAO=77;
+const VERSAO=78;
 const moneyFull=n=>(n<0?"-":"")+"R$ "+Math.round(Math.abs(n)).toLocaleString("pt-BR");
 const money=moneyFull;
 const U=()=>S.teams[S.user];
@@ -341,7 +341,7 @@ function liveEv(e){
 }
 function liveHtml(){
   const l=LIVE.live,p=l.pending[0];
-  let h=`<div class="card"><h2>${l.comp}</h2><p class="mut">${l.date}</p><div class="big">⏱ ${l.minute}'${l.done?" · Fim de jogo":""}</div>`;
+  let h=`<div class="card"><h2>${l.comp}</h2><p class="mut">${l.date}${l.rodada?" · "+l.rodada:""}</p><div class="big">⏱ ${l.minute}'${l.done?" · Fim de jogo":""}</div>`;
   if(!l.done&&!p)h+=`<div class="row"><button class="${LSPD===900?"p":""}" onclick="liveSpeed(900)">▶ Normal</button><button class="${LSPD===250?"p":""}" onclick="liveSpeed(250)">⏩ Rápido</button><button class="${LSPD===-1?"p":""}" onclick="liveSpeed(-1)">⏭ Ir ao fim</button></div>`;
   h+=`</div>`;
   if(p&&p.kind==="inj"){

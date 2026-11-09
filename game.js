@@ -906,7 +906,7 @@
   }
   function createLive(s, rd) {
     const c = s.comps[rd.c];
-    const live = { rd, T: rd.T, date: dateOf(rd.T), comp: c ? c.name + (rd.n ? " · " + rd.n : "") : "", minute: 0, pending: [], done: false, matches: [] };
+    const live = { rd, T: rd.T, date: dateOf(rd.T), comp: c ? c.name + (rd.n ? " · " + rd.n : "") : "", rodada: c && rd.k === "tab" && c.R ? `Rodada ${Math.min(c.rDone + 1, c.R)} de ${c.R}` : (rd.n || ""), minute: 0, pending: [], done: false, matches: [] };
     rd.fx.forEach(([h, a, k], i) => {
       const H = s.teams[h], A = s.teams[a];
       for (const [t, id] of [[H, h], [A, a]]) { if (isMine(s, id)) fixLineup(t); else t.lineup = autoLineup(t); }
