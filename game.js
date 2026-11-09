@@ -422,9 +422,10 @@
   function ageCheck(s) {
     if (s.evo == null) s.evo = Math.floor(s.T / 13);
     while (s.T >= (s.evo + 1) * 13) { s.evo++; evolve(s); }
-    while (s.T >= (s.aged + 1) * 52) {
-      s.aged++;
-      for (const t of Object.values(s.teams)) {
+  }
+  // fim de temporada de um país: todos os jogadores envelhecem 1 ano e os de 40 (ou 45) se aposentam
+  function seasonAging(s, ids) {
+    for (const t of ids.map((id) => s.teams[id]).filter(Boolean)) {
         t.players.forEach((p) => {
           if (p.long == null) p.long = p.age > 40 ? 1 : 0; // já passava dos 40 na vida real: aposenta aos 45
           p.age++;
@@ -441,7 +442,6 @@
         }
         if (isMine(s, t.id)) fixLineup(t); else t.lineup = autoLineup(t);
       }
-    }
   }
   // Artilheiros: chave nome|clube; total (g) e da temporada (sg, ano sy).
   function trackGoals(s, team, names) {
@@ -764,6 +764,7 @@
       const nk = tiers.find((l) => s.lg[l.key].includes(before));
       if (nk) res.notes.push(`Na próxima temporada seu clube joga a ${nk.name}.`);
     }
+    seasonAging(s, tiers.flatMap((l) => s.lg[l.key]));
     if (country === "BRA") createBrazil(s, s.season.BRA + 1);
     else if (country === "ARG") createArgentina(s, s.season.ARG + 1);
     else {
