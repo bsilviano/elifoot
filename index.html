@@ -12,7 +12,7 @@
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.4 system-ui,sans-serif;padding-bottom:70px}
 header{position:sticky;top:0;background:var(--hd);padding:10px 14px;display:flex;justify-content:space-between;align-items:center;z-index:5;gap:8px}
-header b{font-size:16px}header span{font-size:12px;color:var(--hdt);text-align:right}.hl{flex:1 1 auto}.hr{flex:0 0 auto}.hl,.hr{display:flex;align-items:center;gap:8px;min-width:0}.hl b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}#hS{white-space:pre-line;line-height:1.25}#hS .cx{color:#fff;font-weight:700;font-size:14px}#crest svg{display:block}#flag svg{display:block;border-radius:2px}
+header b{font-size:16px;color:#fff}header span{font-size:12px;color:var(--hdt);text-align:right}.hl{flex:1 1 auto}.hr{flex:0 0 auto}.hl,.hr{display:flex;align-items:center;gap:8px;min-width:0}.hl b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}#hS{white-space:pre-line;line-height:1.25}#hS .cx{color:#fff;font-weight:700;font-size:14px}#crest svg{display:block}#flag svg{display:block;border-radius:2px}
 main{padding:12px 12px 84px;max-width:640px;margin:auto}
 .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:12px}
 h2{margin:0 0 8px;font-size:16px}
@@ -50,13 +50,13 @@ tr.me{background:var(--hl);font-weight:700}
 <header><div class="hl"><span id="crest"></span><b id="hT">Meu Elifoot</b></div><div class="hr"><span id="flag"></span><span id="hS"></span></div></header>
 <main id="app"></main>
 <nav id="nav"></nav>
-<script src="clubs.js?v=54"></script>
-<script src="game.js?v=54"></script>
+<script src="clubs.js?v=56"></script>
+<script src="game.js?v=56"></script>
 <script>
 const PREFIX="elifoot:save:",SAVE1="Elifoot"; // um único save para todos os times
 let S=null,tab="jogo",msg="",mf={pos:"",q:"",min:1,max:null,afford:true,ord:"ovr",dir:-1},viewKey=null;
 const $=id=>document.getElementById(id);
-const VERSAO=54;
+const VERSAO=56;
 const moneyFull=n=>(n<0?"-":"")+"R$ "+Math.round(Math.abs(n)).toLocaleString("pt-BR");
 const money=moneyFull;
 const U=()=>S.teams[S.user];
@@ -160,10 +160,10 @@ function themeFor(name){const h=baseColor(name,1);
 function applyTheme(name){const r=document.documentElement.style;if(!name){["--bg","--card","--line","--hd","--btn","--hl","--ac","--hdt","--mut","--onac"].forEach(k=>r.removeProperty(k));document.querySelector('meta[name=theme-color]').content="#0b3d1e";return}
  const t=themeFor(name);r.setProperty("--bg",t.bg);r.setProperty("--card",t.card);r.setProperty("--line",t.line);r.setProperty("--hd",t.hd);r.setProperty("--btn",t.btn);r.setProperty("--hl",t.hl);r.setProperty("--ac",t.ac);r.setProperty("--hdt",t.hdt);r.setProperty("--mut",t.mut);r.setProperty("--onac",t.onac);document.querySelector('meta[name=theme-color]').content=t.hd;
  ["--tx","--bad","--warn","--dbg"].forEach(k=>r.removeProperty(k));
- const L=LIGHT[name];LIGHTON=!!L;if(L){for(const k in L)r.setProperty(k,L[k]);document.querySelector('meta[name=theme-color]').content=L["--hd"]}}
+ const L=name==="_neutro"?LIGHT.Vasco:LIGHT[name];LIGHTON=!!L;if(L){for(const k in L)r.setProperty(k,L[k]);document.querySelector('meta[name=theme-color]').content=L["--hd"]}}
 // temas claros (fundo branco) por clube
 let LIGHTON=false;
-const LIGHT={"Vasco":{"--bg":"#f1f1f1","--card":"#ffffff","--line":"#d4d4d4","--tx":"#161616","--mut":"#666666","--ac":"#161616","--onac":"#ffffff","--hd":"#161616","--hdt":"#d8d8d8","--btn":"#e8e8e8","--hl":"#e2e2e2","--bad":"#c62828","--warn":"#a15c00","--dbg":"#f3c9c9"}};
+const LIGHT={"_neutro":null,"Vasco":{"--bg":"#f1f1f1","--card":"#ffffff","--line":"#d4d4d4","--tx":"#161616","--mut":"#666666","--ac":"#161616","--onac":"#ffffff","--hd":"#161616","--hdt":"#d8d8d8","--btn":"#e8e8e8","--hl":"#e2e2e2","--bad":"#c62828","--warn":"#a15c00","--dbg":"#f3c9c9"}};
 
 function lumi(h){const c=[1,3,5].map(i=>parseInt(h.substr(i,2),16));return(0.299*c[0]+0.587*c[1]+0.114*c[2])/255}
 function tcol(name){const h=baseColor(name);if(LIGHTON)return lumi(h)>0.7?"#555555":h;if(lumi(h)>=0.32)return h;const c=[1,3,5].map(i=>parseInt(h.substr(i,2),16));return hx(mixc(c,[255,255,255],.55))} // cor do time legível no fundo escuro
@@ -211,7 +211,7 @@ function fixSP(){
     if(ch)t.lineup=Game.autoLineup(t)}
   S.spv=1;S.lv5=1;save()}
 function freeScreen(){
-  applyTheme(null);$("nav").style.display="none";$("hT").textContent="Sem clube";$("hS").textContent="versão "+VERSAO;$("crest").innerHTML="";$("flag").innerHTML="";
+  applyTheme("_neutro");$("nav").style.display="none";$("hT").textContent="Sem clube";$("hS").textContent="versão "+VERSAO;$("crest").innerHTML="";$("flag").innerHTML="";
   $("app").innerHTML=`<div class="card"><h2>Você está sem clube</h2><p class="mut">${S.fired?S.fired.why+" ":""}Escolha um time para comandar. Seus times anteriores continuam no jogo, controlados pela IA.</p>
   <div class="row"><select id="addSel" style="flex:1;min-width:0">${clubOpts()}</select><button class="p" onclick="addClubUI()">Comandar</button></div>
   <div class="row" style="margin-top:8px"><select id="addCty" style="flex:1;min-width:0"><option value="">Qualquer país</option>${cNames().map(n=>`<option>${n}</option>`).join("")}</select><button onclick="addRandomUI()">🎲 Time aleatório</button></div>${msg?`<p>${msg}</p>`:""}</div>
