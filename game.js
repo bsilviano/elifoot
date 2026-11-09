@@ -30,7 +30,7 @@
     return Math.round(v / 1000) * 1000;
   }
   function mkPlayer(pos, ov, age) {
-    ov = clamp(Math.round(ov), 35, 95);
+    ov = Math.max(1, Math.round(ov)); // sem teto: só o mínimo é 1
     age = age || ri(18, 36);
     const value = valueOf(ov, age);
     const sp = pick({ GK: ["GOL"], DEF: ["ZAG", "ZAG", "LD", "LE"], MID: ["VOL", "MC", "MC", "ME", "MD"], ATT: ["CA", "CA", "PD", "PE"] }[pos]);
@@ -443,7 +443,7 @@
       if (!isMine(s, t.id)) continue; // os outros times seguem o Transfermarkt (atualização diária)
       t.players.forEach((p) => {
         if (p.of == null || Math.round(p.of) !== p.ov) p.of = p.ov;
-        p.of = clamp(p.of + evoDelta(p), 35, 95);
+        p.of = Math.max(1, p.of + evoDelta(p));
         const n = Math.round(p.of);
         if (n !== p.ov) { p.ov = n; p.value = valueOf(p.ov, p.age); p.wage = Math.round(p.value / 900); }
       });
@@ -1315,7 +1315,7 @@
         if (mine.has(key(q.name)) && bought.has(key(q.name))) { removed++; continue; }
         const age = q.age || 25;
         const af = age <= 22 ? 1.4 : age >= 32 ? 0.5 : age >= 29 ? 0.8 : 1;
-        const ov = q.ov || (q.value ? clamp(Math.round(40 + 15 * Math.log10(q.value / af / 20000)), 40, 92) : 55);
+        const ov = q.ov || (q.value ? Math.max(1, Math.round(40 + 15 * Math.log10(q.value / af / 20000))) : 55);
         const value = q.value || valueOf(ov, age);
         ps.push({ id: PID++, name: q.name, pos: q.pos, sp: q.sp, cg: q.cg || 0, ov, age, value, wage: Math.round(value / 900), long: age > 40 ? 1 : 0 });
       }
