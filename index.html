@@ -50,13 +50,13 @@ tr.me{background:var(--hl);font-weight:700}
 <header><div class="hl"><span id="crest"></span><b id="hT">Meu Elifoot</b></div><div class="hr"><span id="flag"></span><span id="hS"></span></div></header>
 <main id="app"></main>
 <nav id="nav"></nav>
-<script src="clubs.js?v=37"></script>
-<script src="game.js?v=37"></script>
+<script src="clubs.js?v=38"></script>
+<script src="game.js?v=38"></script>
 <script>
 const PREFIX="elifoot:save:";
 let S=null,tab="jogo",msg="",mf={pos:"",q:"",min:1,max:null,afford:true,ord:"ovr",dir:-1},viewKey=null;
 const $=id=>document.getElementById(id);
-const VERSAO=37;
+const VERSAO=38;
 const moneyFull=n=>(n<0?"-":"")+"R$ "+Math.round(Math.abs(n)).toLocaleString("pt-BR");
 const money=moneyFull;
 const U=()=>S.teams[S.user];
@@ -213,9 +213,9 @@ function render(){fixSP();
 function vJogo(){
   const u=U();let h="";
   if(S.offers&&S.offers.length){
-    h+=`<div class="card"><h2>Convites de outros clubes</h2><p class="mut">Sua reputação: ${S.rep}/100. Se aceitar, você assume o novo clube (com o caixa dele) e o time atual segue com a IA.</p>`+
+    h+=`<div class="card"${S.fired?' style="border-color:#d33"':""}><h2>${S.fired?"🚫 Demitido do "+S.fired.club:"Convites de outros clubes"}</h2>${S.fired?`<p>${S.fired.why}</p>`:""}<p class="mut">Sua reputação: ${S.rep}/100. Se aceitar, você assume o novo clube (com o caixa dele) e o time atual segue com a IA.</p>`+
     S.offers.map(o=>`<div class="pl"><span>${o.name}<br><span class="mut">${o.league} · ${o.country} · OVR ${o.ovr}${o.why?"<br>"+o.why:""}</span></span><button class="s p" onclick="accept(${o.tid})">Aceitar</button></div>`).join("")+
-    `<p><button class="s" onclick="S.offers=[];save();render()">Recusar todos</button></p></div>`;
+    `<p><button class="p" onclick="acceptRandom()">🎲 Escolher aleatório</button>${S.fired?"":` <button class="s" onclick="S.offers=[];save();render()">Recusar todos</button>`}</p></div>`;
   }
   const n=Game.nextUserRound(S);
   h+=`<div class="card" style="padding:8px 12px;margin-bottom:8px">`;
@@ -254,6 +254,8 @@ function lineupCard(u){
   if(res.length)h+=`<p class="mut" style="margin:8px 0 0">Banco: ${res.map(p=>`${p.name} (${SPN(p)} ${p.ov})`).join(", ")}</p>`;
   return h+`<p><button class="s" onclick="setTab('elenco')">Mudar escalação</button></p></div>`;
 }
+function acceptRandom(){const o=S.offers[Math.floor(Math.random()*S.offers.length)];if(o)accept(o.tid)}
+function addRandomUI(){const mine=new Set(Game.myClubs(S).map(i=>S.teams[i].name)),o=[...$("addSel").options].filter(x=>!mine.has(x.value));const x=o[Math.floor(Math.random()*o.length)];if(!x)return;$("addSel").value=x.value;addClubUI()}
 function accept(tid){const e=Game.acceptOffer(S,tid);if(e){alert(e);return}viewKey=null;msg=`<p class="good">Você agora comanda o ${U().name}. O jogo continua no mesmo save.</p>`;save();render()}
 function playBest(){const u=U();u.fAuto=true;autoBest(u);save();play()}
 function buildStad(){const e=Game.upgradeStadium(S);if(e){alert(e);return}save();render()}
@@ -262,6 +264,7 @@ function setF(f){const u=U();u.fAuto=false;u.formation=f;u.lineup=Game.autoLineu
 const sc=a=>a.length?a.join(", "):"–";
 let CONF=null;
 function play(){
+  if(S.fired){alert("Você está sem clube. Aceite uma oferta de emprego na aba Jogo.");return}
   const nr=Game.myClubs(S).length>1?Game.nextRoundClubs(S):null;
   if(nr&&nr.clubs.length>1){CONF={q:nr.clubs,i:0};confShow();return}
   doPlay()}
@@ -459,7 +462,7 @@ function vMais(){
   return `<div class="card"><h2>Finanças</h2><p>Caixa: <b>${moneyFull(S.cash)}</b><br>Folha por rodada: ${money(w)}<br>Torcida (estimada): ${u.fans} mil<br>Reputação: ${S.rep}/100</p></div>
   <div class="card"><h2>Estádio</h2>${(()=>{const cap=Game.getStad(u),max=cap>=100000;return `<p>Capacidade: <b>${cap.toLocaleString("pt-BR")}</b> lugares${max?" (máximo)":""}<br><span class="mut">Mínimo 10.000 · máximo 100.000 · amplia de 10.000 em 10.000. Custo: capacidade atual × 100. A renda do jogo vai para o caixa: mandante 70%, visitante 30%. O público depende da torcida (${u.fans} mil).</span></p>${max?"":`<p><button class="p" onclick="buildStad()">Ampliar para ${(cap+10000).toLocaleString("pt-BR")} lugares (${moneyFull(Game.stadCost(u))})</button></p>`}`})()}</div>
   <div class="card"><h2>Meus times</h2>${Game.myClubs(S).map(id=>`<div class="pl ${id===S.user?"in":""}"><span><b>${S.teams[id].name}</b><br><span class="mut">Caixa ${moneyFull(id===S.user?S.cash:(S.cashes&&S.cashes[id])||0)}${id===S.user?" · ativo":""}</span></span><span>${id===S.user?"":`<button class="s p" onclick="swClub(${id})">Comandar</button> <button class="s d" onclick="dropClubUI(${id})">Largar</button>`}</span></div>`).join("")}
-  <div class="row" style="margin-top:8px"><select id="addSel" style="flex:1;min-width:0">${clubOpts()}</select><button class="p" onclick="addClubUI()">Adicionar time</button></div>
+  <div class="row" style="margin-top:8px"><select id="addSel" style="flex:1;min-width:0">${clubOpts()}</select><button class="p" onclick="addClubUI()">Adicionar time</button><button onclick="addRandomUI()">🎲 Aleatório</button></div>
   <p class="mut">Cada time tem elenco, escalação e caixa próprios. O jogo avança até a próxima partida do time ativo; os outros times seus jogam com escalação automática se ela ficar inválida e pagam salários e recebem bilheteria. Prêmios e propostas de fim de temporada só valem para o time ativo.</p></div>
   ${syncCard()}
   <div class="card"><h2>Save e elencos</h2><p class="mut">Salvamento automático com o nome do time (${u.name}).</p>

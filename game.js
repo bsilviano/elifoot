@@ -666,6 +666,23 @@
     if (add.length) res.notes.push(`<span class="warn">Você recebeu ${add.length} convite(s) de clube. Veja no topo.</span>`);
   }
   // Propostas de outros clubes: a cada 10 jogos do time ativo (substituem as anteriores não aceitas).
+  // Demissão: se o desempenho é muito ruim o clube demite o técnico e o jogo oferece novos empregos.
+  function fireUser(s, res, why) {
+    const old = s.teams[s.user], others = myClubs(s).filter((x) => x !== s.user);
+    s.rep = clamp(s.rep - 6, 0, 100);
+    if (others.length) { // tem outro clube: apenas deixa este
+      const oid = s.user;
+      switchClub(s, others[0]); dropClub(s, oid);
+      res.notes.push(`<span class="bad">🚫 Você foi demitido do ${old.name}. ${why} Você segue no ${s.teams[s.user].name}.</span>`);
+      return;
+    }
+    const target = ratings(old).ovr - 1.5 + (s.rep - 50) * 0.03;
+    const cands = Object.values(s.teams).filter((t) => t.id !== s.user && !t.local)
+      .sort((a, b) => Math.abs(ratings(a).ovr - target) - Math.abs(ratings(b).ovr - target)).slice(0, 30);
+    s.offers = shuffle(cands).slice(0, 5).map((t) => ({ tid: t.id, name: t.name, league: LG[t.lkey].name, country: COUNTRIES[t.country].name, ovr: Math.round(ratings(t).ovr * 10) / 10, cash: CASH[LG[t.lkey].tier - 1], why: "Oportunidade após a demissão." }));
+    s.fired = { club: old.name, why };
+    res.notes.push(`<span class="bad">🚫 Você foi demitido do ${old.name}! ${why} Escolha um novo emprego na aba Jogo.</span>`);
+  }
   function periodicOffers(s, res) {
     const u = s.teams[s.user];
     const c = Object.values(s.comps).find((x) => (x.after === "lg" || x.after === "arG") && !x.done && x.tab && x.ids.includes(s.user));
@@ -674,6 +691,10 @@
       const tab = sortTab(c.ids, c.tab), pos = tab.indexOf(s.user) + 1, exp = byStrength(s, c.ids).indexOf(s.user) + 1;
       diff = exp - pos;
       why = `Após 10 jogos: você está em ${pos}º (esperado: ${exp}º).`;
+    }
+    if (c && c.tab[s.user] && c.tab[s.user].p >= 6) {
+      const tab = sortTab(c.ids, c.tab), pos = tab.indexOf(s.user) + 1;
+      if (diff <= -7 || (pos >= c.ids.length - 1 && diff <= -4)) { fireUser(s, res, `Após 10 jogos, o time está em ${pos}º, muito abaixo do esperado (${pos + diff}º).`); return; }
     }
     const target = ratings(u).ovr + clamp(diff * 0.5, -3, 4) + (s.rep - 50) * 0.03;
     s.offers = [];
@@ -826,6 +847,7 @@
     return live;
   }
   function startRound(s) {
+    if (s.fired) return { res: { reports: [], notes: [], wages: 0, gate: 0, skipped: 0 }, live: null, blocked: true };
     const u = s.teams[s.user];
     const res = { reports: [], notes: [], wages: 0, gate: 0, skipped: 0, fixed: fixLineup(u) };
     const nOffers = s.offers.length;
@@ -945,7 +967,9 @@
   function acceptOffer(s, tid) {
     const o = s.offers.find((x) => x.tid === tid);
     if (!o) return "Convite inválido.";
-    s.user = tid; s.cash = o.cash; s.offers = [];
+    const old = s.user;
+    if (s.clubs && s.clubs.includes(old)) { s.clubs = s.clubs.map((x) => (x === old ? tid : x)); if (s.cashes) delete s.cashes[tid]; }
+    s.user = tid; s.cash = o.cash; s.offers = []; s.fired = null;
     s.teams[tid].lineup = autoLineup(s.teams[tid]);
     return null;
   }
