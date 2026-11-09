@@ -390,14 +390,37 @@
     if (!ok()) t.lineup = autoLineup(t);
     return true;
   }
+  // Evolução do OVR: a cada 13 rodadas (4x por ano), por idade, talento individual (p.dv) e teto.
+  const gauss = () => (Math.random() + Math.random() + Math.random() - 1.5) / 0.5; // ~N(0,1) limitado
+  function evoDelta(p) {
+    if (p.dv == null) p.dv = clamp(gauss() * 0.6, -1, 1);
+    const a = p.age;
+    let e = a <= 19 ? 1.1 : a <= 21 ? 0.8 : a <= 23 ? 0.5 : a <= 26 ? 0.2 : a <= 29 ? -0.1 : a <= 31 ? -0.4 : a <= 33 ? -0.75 : -1.1;
+    if (a <= 25) e += 0.45 * p.dv; else e += 0.15 * p.dv;
+    if (e > 0) e *= p.ov >= 85 ? 0.35 : p.ov >= 78 ? 0.6 : p.ov >= 70 ? 0.85 : 1.1;
+    else if (p.ov < 55) e *= 0.6;
+    return e + gauss() * 0.45;
+  }
+  function evolve(s) {
+    for (const t of Object.values(s.teams)) {
+      if (!isMine(s, t.id)) continue; // os outros times seguem o Transfermarkt (atualização diária)
+      t.players.forEach((p) => {
+        if (p.of == null || Math.round(p.of) !== p.ov) p.of = p.ov;
+        p.of = clamp(p.of + evoDelta(p), 35, 95);
+        const n = Math.round(p.of);
+        if (n !== p.ov) { p.ov = n; p.value = valueOf(p.ov, p.age); p.wage = Math.round(p.value / 900); }
+      });
+      fixLineup(t);
+    }
+  }
   function ageCheck(s) {
+    if (s.evo == null) s.evo = Math.floor(s.T / 13);
+    while (s.T >= (s.evo + 1) * 13) { s.evo++; evolve(s); }
     while (s.T >= (s.aged + 1) * 52) {
       s.aged++;
       for (const t of Object.values(s.teams)) {
         t.players.forEach((p) => {
           p.age++;
-          const d = p.age <= 23 ? ri(0, 3) : p.age <= 29 ? ri(-2, 1) : ri(-4, 0);
-          p.ov = clamp(p.ov + d, 35, 95);
           p.value = valueOf(p.ov, p.age); p.wage = Math.round(p.value / 900);
         });
         if (!isMine(s, t.id)) {
