@@ -336,6 +336,7 @@
 
   // ---------- processamento de rodadas ----------
   function userComps(s) { return Object.values(s.comps).filter((c) => !c.done && c.ids.includes(s.user)); }
+  function isMine(s, id) { return id === s.user || (s.clubs || []).includes(id); }
   function fixLineup(t) {
     const ok = t.lineup.length === 11 && t.lineup.every((i) => t.players.some((p) => p.id === i)) &&
       lineupPlayers(t).filter((p) => p.pos === "GK").length === 1;
@@ -352,12 +353,12 @@
           p.ov = clamp(p.ov + d, 35, 95);
           p.value = valueOf(p.ov, p.age); p.wage = Math.round(p.value / 900);
         });
-        if (t.id !== s.user) {
+        if (!isMine(s, t.id)) {
           const keep = t.players.filter((p) => p.age < 37), lost = t.players.length - keep.length;
           t.players = keep;
           for (let i = 0; i < lost; i++) t.players.push(mkPlayer(pick(["DEF","MID","ATT"]), t.base - 3, ri(18, 22)));
         }
-        t.lineup = autoLineup(t);
+        if (isMine(s, t.id)) fixLineup(t); else t.lineup = autoLineup(t);
       }
     }
   }
@@ -366,8 +367,8 @@
     if (!c) return;
     for (const [h, a, k] of rd.fx) {
       const H = s.teams[h], A = s.teams[a];
-      if (silent || h !== s.user) H.lineup = autoLineup(H);
-      if (silent || a !== s.user) A.lineup = autoLineup(A);
+      if (!silent && h === s.user) { /* escalação do usuário ativo */ } else if (!silent && isMine(s, h)) fixLineup(H); else H.lineup = autoLineup(H);
+      if (!silent && a === s.user) { /* escalação do usuário ativo */ } else if (!silent && isMine(s, a)) fixLineup(A); else A.lineup = autoLineup(A);
       const r = simMatch(H, A);
       if (rd.k === "tab") {
         const th = c.tab[h], ta = c.tab[a];
@@ -608,6 +609,14 @@
       s.T = rd.T; ageCheck(s);
       const mine = rd.fx.find((m) => m[0] === s.user || m[1] === s.user);
       processRound(s, rd, res, false);
+      for (const id of s.clubs || []) {
+        if (id === s.user) continue;
+        const m2 = rd.fx.find((m) => m[0] === id || m[1] === id);
+        if (!m2) continue;
+        const t2 = s.teams[id];
+        s.cashes = s.cashes || {};
+        s.cashes[id] = (s.cashes[id] || 0) - t2.players.reduce((x, p) => x + p.wage, 0) + (m2[0] === id ? Math.round(t2.fans * 180 * rnd(0.85, 1.15)) : 0);
+      }
       if (mine) {
         res.wages += u.players.reduce((x, p) => x + p.wage, 0);
         if (mine[0] === s.user) res.gate += Math.round(u.fans * 180 * rnd(0.85, 1.15));
@@ -631,7 +640,7 @@
 
   function market(s) {
     const out = [];
-    for (const t of Object.values(s.teams)) if (t.id !== s.user) for (const p of t.players) out.push({ ...p, team: t.name, tid: t.id });
+    for (const t of Object.values(s.teams)) if (!isMine(s, t.id)) for (const p of t.players) out.push({ ...p, team: t.name, tid: t.id });
     return out;
   }
   function findPlayer(s, pid) {
@@ -644,7 +653,7 @@
   function buy(s, pid) {
     const u = s.teams[s.user];
     const f = findPlayer(s, pid);
-    if (!f || f.t.id === s.user) return "Jogador indisponível.";
+    if (!f || isMine(s, f.t.id)) return "Jogador indisponível.";
     const price = Math.round(f.p.value * 1.15);
     if (s.cash < price) return "Dinheiro insuficiente.";
     if (u.players.length >= 30) return "Elenco cheio (máx. 30).";
@@ -667,7 +676,7 @@
     const p = u.players[i];
     s.cash += Math.round(p.value * 0.85);
     u.players.splice(i, 1);
-    const ids = Object.keys(s.teams).filter((k) => +k !== s.user && !s.teams[k].local);
+    const ids = Object.keys(s.teams).filter((k) => !isMine(s, +k) && !s.teams[k].local);
     const buyer = s.teams[pick(ids)];
     s.sold = s.sold || [];
     s.sold.push({ p: { ...p }, tid: buyer.id });
@@ -684,7 +693,7 @@
     const p = u.players.find((q) => q.id === pid);
     if (!p) return { err: "Jogador não encontrado." };
     if (u.players.length <= 18) return { err: "Elenco mínimo de 18 jogadores." };
-    const ids = Object.keys(s.teams).filter((k) => +k !== s.user && !s.teams[k].local);
+    const ids = Object.keys(s.teams).filter((k) => !isMine(s, +k) && !s.teams[k].local);
     for (let i = ids.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [ids[i], ids[j]] = [ids[j], ids[i]]; }
     const bids = [];
     for (const k of ids.slice(0, 40)) {
@@ -727,18 +736,18 @@
     const key = (x) => String(x).toLowerCase();
     // Saves antigos: sem registro de compras, ninguém sai do elenco nesta atualização
     s.sold = s.sold || [];
-    const mine = new Set(u.players.map((p) => key(p.name)));
+    const mine = new Set((s.clubs || [s.user]).concat(s.user).flatMap((id) => s.teams[id].players.map((p) => key(p.name))));
     const bought = mine; // meu elenco nunca é atualizado
     const realTeam = {}; // nome do jogador -> time real (no elencos.json), exceto o time do usuário
     for (const dt of data.teams || []) {
       const t = Object.values(s.teams).find((x) => x.name === dt.name);
-      if (!t || t.id === s.user) continue;
+      if (!t || isMine(s, t.id)) continue;
       for (const q of dt.players || []) realTeam[key(q.name)] = t.id;
     }
     let n = 0, removed = 0, left = [], kept = 0;
     for (const dt of data.teams || []) {
       const t = Object.values(s.teams).find((x) => x.name === dt.name);
-      if (!t || t.id === s.user) continue;
+      if (!t || isMine(s, t.id)) continue;
       const ps = [];
       for (const q of dt.players || []) {
         // jogador comprado por mim continua comigo; os que saíram de verdade vão para o novo clube
@@ -756,7 +765,7 @@
       const nm = key(x.p.name);
       if (realTeam[nm] !== undefined) continue;
       const b = s.teams[x.tid];
-      if (!b || b.id === s.user || b.players.some((p) => key(p.name) === nm)) continue;
+      if (!b || isMine(s, b.id) || b.players.some((p) => key(p.name) === nm)) continue;
       b.players.push({ ...x.p, id: PID++ }); kept++;
     }
     // jogadores originais do meu time que, no mundo real, foram para outro clube: transfere também aqui
@@ -768,7 +777,7 @@
       left.push(p.name + " → " + s.teams[realTeam[nm]].name);
     }
     for (const t of Object.values(s.teams)) {
-      if (t.id === s.user) continue;
+      if (isMine(s, t.id)) continue;
       for (const pos of ["GK", "DEF", "MID", "ATT"]) {
         const min = { GK: 2, DEF: 6, MID: 6, ATT: 4 }[pos];
         while (t.players.filter((p) => p.pos === pos).length < min) t.players.push(mkPlayer(pos, t.base - 5, ri(18, 30)));
@@ -778,6 +787,38 @@
     return { teams: n, removed, kept, left };
   }
 
-  const api = { STATES, CONT, COUNTRIES, LEAGUES, LG, FORMATIONS, TACTICS, newGame, autoLineup, ratings, playRound, acceptOffer, market, buy, sell, auction, sellTo, applyUpdate, resetPid, lineupPlayers, fixLineup, nextUserRound, sortTab, dateOf, userComps, userMatches };
+
+  // Vários clubes sob o meu comando: o ativo usa s.cash; os demais guardam o caixa em s.cashes.
+  function myClubs(s) { return s.clubs && s.clubs.length ? s.clubs : [s.user]; }
+  function addClub(s, id) {
+    id = +id;
+    if (!s.teams[id]) return "Time inválido.";
+    if (myClubs(s).includes(id)) return "Você já comanda este time.";
+    if (s.teams[id].local) return "Time indisponível.";
+    s.clubs = myClubs(s).concat(id);
+    s.cashes = s.cashes || {};
+    s.cashes[id] = clubCash(s.teams[id]);
+    s.teams[id].lineup = autoLineup(s.teams[id]);
+    return null;
+  }
+  function switchClub(s, id) {
+    id = +id;
+    if (id === s.user || !myClubs(s).includes(id)) return "Time inválido.";
+    s.cashes = s.cashes || {};
+    s.cashes[s.user] = s.cash;
+    s.user = id;
+    s.cash = s.cashes[id] || 0;
+    delete s.cashes[id];
+    fixLineup(s.teams[id]);
+    return null;
+  }
+  function dropClub(s, id) {
+    id = +id;
+    if (id === s.user || !myClubs(s).includes(id)) return "Troque para outro time antes de largar este.";
+    s.clubs = s.clubs.filter((x) => x !== id);
+    if (s.cashes) delete s.cashes[id];
+    return null;
+  }
+  const api = { myClubs, addClub, switchClub, dropClub, STATES, CONT, COUNTRIES, LEAGUES, LG, FORMATIONS, TACTICS, newGame, autoLineup, ratings, playRound, acceptOffer, market, buy, sell, auction, sellTo, applyUpdate, resetPid, lineupPlayers, fixLineup, nextUserRound, sortTab, dateOf, userComps, userMatches };
   if (typeof module !== "undefined") module.exports = api; else root.Game = api;
 })(typeof window !== "undefined" ? window : globalThis);
