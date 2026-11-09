@@ -553,7 +553,7 @@
       if (!silent && (t.a === s.user || t.b === s.user)) {
         const won = t.w === s.user;
         res.notes.push(`<b>${c.name} · ${c.stage}</b>: ${s.teams[t.a].name} ${ga} x ${gb} ${s.teams[t.b].name}${t.pens ? (t.pk ? ` (pênaltis ${t.pk[0]} x ${t.pk[1]})` : " (pênaltis)") : ""} — ${won ? "você avança!" : "você foi eliminado."}`);
-        if (won && c.prize) { s.cash += c.prize; res.notes.push(`Premiação: +R$ ${Math.round(c.prize).toLocaleString("pt-BR")}`); }
+        if (won && c.prize) { s.cash += c.prize; led(s, s.user, `Premiação: ${c.name} · ${c.stage}`, c.prize); res.notes.push(`Premiação: +R$ ${Math.round(c.prize).toLocaleString("pt-BR")}`); }
       }
     }
     if (!c.closed && c.ties.every((t) => t.w !== null)) {
@@ -694,7 +694,7 @@
     const ul = LG[c.key], pos = final.indexOf(s.user) + 1;
     const expPos = byStrength(s, c.ids).indexOf(s.user) + 1;
     const prize = (final.length + 1 - pos) * [400000, 150000, 60000][ul.tier - 1];
-    s.cash += prize;
+    s.cash += prize; led(s, s.user, `Premiação da temporada: ${c.name} (${pos}º lugar)`, prize);
     let rep = s.rep + (expPos - pos) * 0.9 + (pos === 1 ? 4 : 0);
     s.honors.filter((h) => h.year === yearOf(s.T) && h.club === s.teams[s.user].name).forEach(() => (rep += 3));
     s.rep = clamp(Math.round(rep), 0, 100);
@@ -837,6 +837,7 @@
     if (cap >= STAD_MAX) return "O estádio já está no tamanho máximo (100.000 lugares).";
     const cost = stadCost(t);
     if (s.cash < cost) return "Dinheiro insuficiente para ampliar o estádio.";
+    led(s, s.user, `Ampliação do estádio para ${Math.min(STAD_MAX, cap + STAD_STEP).toLocaleString("pt-BR")} lugares`, -cost);
     s.cash -= cost; t.stad = Math.min(STAD_MAX, cap + STAD_STEP); t.stadUp = 1;
     return null;
   }
@@ -850,8 +851,7 @@
     const att = Math.round(Math.min(cap, t.fans * 1000 * 0.12 * rnd(0.65, 1.3) * oppF));
     const price = [50, 30, 15][tier - 1];
     const rev = att * price;
-    const home = Math.round(rev * 0.7);
-    return { att, cap, price, rev, home, away: rev - home };
+    return { att, cap, price, rev, home: rev, away: 0 }; // toda a renda é do mandante
   }
   // Clubes meus que jogam na próxima rodada que envolve algum deles.
   function nextRoundClubs(s) {
@@ -862,9 +862,33 @@
     }
     return null;
   }
+  // Livro-caixa do clube que estou comandando (histórico de dinheiro recebido e pago)
+  function led(s, id, d, v) {
+    if (!v) return;
+    s.ledger = s.ledger || [];
+    s.ledger.push({ T: s.T, id, d, v: Math.round(v) });
+    if (s.ledger.length > 4000) s.ledger.splice(0, s.ledger.length - 4000);
+  }
+  const monthIdx = (T) => { const d = new Date(Date.UTC(START_YEAR, 0, 1) + Math.round(T * 7) * 864e5); return d.getUTCFullYear() * 12 + d.getUTCMonth(); };
+  const MESES = ["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
+  // salários são pagos uma vez por mês (soma dos salários por rodada × 52/12)
+  function paySalaries(s, T) {
+    const mi = monthIdx(T);
+    if (s.payM == null) s.payM = mi - 1;
+    while (s.payM < mi) {
+      s.payM++;
+      for (const id of myClubs(s)) {
+        const amt = Math.round(s.teams[id].players.reduce((x, p) => x + p.wage, 0) * 52 / 12);
+        if (id === s.user) s.cash -= amt; else { s.cashes = s.cashes || {}; s.cashes[id] = (s.cashes[id] || 0) - amt; }
+        s.ledger = s.ledger || [];
+        s.ledger.push({ T, id, d: `Salários de ${MESES[s.payM % 12]}/${Math.floor(s.payM / 12)}`, v: -amt });
+      }
+    }
+  }
   // Fecha uma rodada: tabela/copas (processRound) + finanças dos meus clubes.
   function settleRd(s, rd, res, pre) {
     processRound(s, rd, res, false, pre);
+    paySalaries(s, rd.T);
     const credit = (id, x, wage) => {
       if (id === s.user) { res.gate += x; res.wages += wage; return; }
       s.cashes = s.cashes || {};
@@ -875,8 +899,7 @@
       const gt = (pre && pre[fi] && pre[fi].gate) || gateOf(s, h, a);
       res.gates = res.gates || [];
       res.gates.push({ home: s.teams[h].name, away: s.teams[a].name, att: gt.att, cap: gt.cap, rev: gt.rev, homeShare: gt.home, awayShare: gt.away, homeMine: isMine(s, h), awayMine: isMine(s, a) });
-      if (isMine(s, h)) credit(h, gt.home, s.teams[h].players.reduce((x, p) => x + p.wage, 0));
-      if (isMine(s, a)) credit(a, gt.away, s.teams[a].players.reduce((x, p) => x + p.wage, 0));
+      if (isMine(s, h)) { credit(h, gt.home, 0); s.ledger = s.ledger || []; s.ledger.push({ T: rd.T, id: h, d: `Renda: ${s.teams[h].name} x ${s.teams[a].name} (público ${gt.att.toLocaleString("pt-BR")})`, v: Math.round(gt.home) }); }
     });
   }
   function playRound(s) {
@@ -1154,7 +1177,7 @@
     if (!f || isMine(s, f.t.id)) return "Jogador indisponível.";
     const price = Math.round(f.p.value * 1.15);
     if (s.cash < price) return "Dinheiro insuficiente.";
-    s.cash -= price;
+    s.cash -= price; led(s, s.user, `Compra: ${f.p.name} (${f.t.name})`, -price);
     f.t.players.splice(f.i, 1);
     u.players.push(f.p);
     s.bought = s.bought || []; s.sold = s.sold || [];
@@ -1171,7 +1194,7 @@
     if (i < 0) return "Jogador não encontrado.";
     if (u.players.length <= 18) return "Elenco mínimo de 18 jogadores.";
     const p = u.players[i];
-    s.cash += Math.round(p.value * 0.85);
+    s.cash += Math.round(p.value * 0.85); led(s, s.user, `Venda: ${p.name}`, Math.round(p.value * 0.85));
     u.players.splice(i, 1);
     const ids = Object.keys(s.teams).filter((k) => !isMine(s, +k) && !s.teams[k].local);
     const buyer = s.teams[pick(ids)];
@@ -1217,7 +1240,7 @@
     if (i < 0 || !buyer) return "Negócio inválido.";
     if (u.players.length <= 18) return "Elenco mínimo de 18 jogadores.";
     const p = u.players[i];
-    s.cash += price;
+    s.cash += price; led(s, s.user, `Leilão: ${p.name}`, price);
     u.players.splice(i, 1);
     s.sold = s.sold || []; s.bought = s.bought || [];
     s.sold = s.sold.filter((x) => x.p.name.toLowerCase() !== p.name.toLowerCase());
