@@ -450,7 +450,21 @@
       fixLineup(t);
     }
   }
+  // OVR sem teto: jogadores que estavam travados em 92 (ou 95) voltam a valer o que o valor de mercado real pede
+  function migrateOvr(s) {
+    if (s.ovrV) return;
+    s.ovrV = 1;
+    for (const t of Object.values(s.teams)) {
+      for (const p of t.players) {
+        if (p.ov < 90 || !p.value) continue;
+        const af = p.age <= 22 ? 1.4 : p.age >= 32 ? 0.5 : p.age >= 29 ? 0.8 : 1;
+        const d = Math.max(1, Math.round(40 + 15 * Math.log10(p.value / af / 20000)));
+        if (d > p.ov) { p.ov = d; p.of = d; }
+      }
+    }
+  }
   function ageCheck(s) {
+    migrateOvr(s);
     if (s.evo == null) s.evo = Math.floor(s.T / 13);
     while (s.T >= (s.evo + 1) * 13) { s.evo++; evolve(s); }
   }
@@ -1395,6 +1409,6 @@
     if (s.cashes) delete s.cashes[id];
     return null;
   }
-  const api = { clubCash, yearOf, startRound, liveStep, liveSub, liveTakePen, penProb, liveResolve, liveFinish, autoReorg, getStad, stadCost, upgradeStadium, topScorers, lookup, yearOf, bestFormation, avail, nextRoundClubs, myClubs, addClub, switchClub, dropClub, STATES, CONT, COUNTRIES, LEAGUES, LG, FORMATIONS, TACTICS, newGame, autoLineup, ratings, playRound, acceptOffer, market, buy, sell, auction, sellTo, applyUpdate, resetPid, lineupPlayers, fixLineup, nextUserRound, sortTab, dateOf, userComps, userMatches };
+  const api = { clubCash, yearOf, startRound, liveStep, liveSub, liveTakePen, penProb, liveResolve, liveFinish, autoReorg, getStad, stadCost, upgradeStadium, topScorers, lookup, yearOf, bestFormation, avail, nextRoundClubs, myClubs, addClub, switchClub, dropClub, STATES, CONT, COUNTRIES, LEAGUES, LG, FORMATIONS, TACTICS, newGame, autoLineup, ratings, playRound, acceptOffer, market, buy, sell, auction, sellTo, applyUpdate, resetPid, migrateOvr, lineupPlayers, fixLineup, nextUserRound, sortTab, dateOf, userComps, userMatches };
   if (typeof module !== "undefined") module.exports = api; else root.Game = api;
 })(typeof window !== "undefined" ? window : globalThis);

@@ -50,13 +50,13 @@ tr.me{background:color-mix(in srgb,var(--ac) 30%,transparent);font-weight:800}tr
 <header><div class="hl"><span id="crest"></span><b id="hT">Meu Elifoot</b></div><div class="hr"><span id="flag"></span><span id="hS"></span></div></header>
 <main id="app"></main>
 <nav id="nav"></nav>
-<script src="clubs.js?v=94"></script>
-<script src="game.js?v=94"></script>
+<script src="clubs.js?v=95"></script>
+<script src="game.js?v=95"></script>
 <script>
 const PREFIX="elifoot:save:",SAVE1="Elifoot"; // um único save para todos os times
 let artCan=false,S=null,tab="jogo",msg="",mf={pos:"",q:"",any:true,min:1,max:null,afford:true,ord:"ovr",dir:-1},viewKey=null;
 const $=id=>document.getElementById(id);
-const VERSAO=94;
+const VERSAO=95;
 const moneyFull=n=>(n<0?"-":"")+"R$ "+Math.round(Math.abs(n)).toLocaleString("pt-BR");
 const money=moneyFull;
 const U=()=>S.teams[S.user];
@@ -119,7 +119,7 @@ function syncCard(){
   return `<div class="card"><h2>Sincronizar celular e computador</h2><p class="mut">Cole o token do GitHub (permissão só de gist). Nada para instalar. Faça o mesmo em cada aparelho.</p><div class="row"><input id="gtok" type="password" placeholder="ghp_... ou github_pat_..." style="flex:1;min-width:0"><button class="p" onclick="syncOn()">Ativar</button></div></div>`;
 }
 function listSaves(){const r=[];for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k.startsWith(PREFIX))r.push(k.slice(PREFIX.length))}return r.sort()}
-function loadSave(name){try{S=JSON.parse(localStorage.getItem(PREFIX+name));Game.resetPid(S);viewKey=null;tab="jogo";msg="";localStorage.setItem("elifoot:last",name);render()}catch(e){console.error(e);if(S&&typeof Game.bestFormation!=="function"){alert("Versão antiga do jogo em cache. Recarregue a página (Ctrl+F5) e abra o save de novo.")}else alert("Erro ao abrir o save: "+(e&&e.message||e))}}
+function loadSave(name){try{S=JSON.parse(localStorage.getItem(PREFIX+name));Game.resetPid(S);Game.migrateOvr(S);viewKey=null;tab="jogo";msg="";localStorage.setItem("elifoot:last",name);render()}catch(e){console.error(e);if(S&&typeof Game.bestFormation!=="function"){alert("Versão antiga do jogo em cache. Recarregue a página (Ctrl+F5) e abra o save de novo.")}else alert("Erro ao abrir o save: "+(e&&e.message||e))}}
 function delSave(name){if(confirm("Apagar o save de "+name+"?")){localStorage.removeItem(PREFIX+name);syncDelete(name);start()}}
 
 const cKeys=()=>Object.keys(Game.COUNTRIES).sort((a,b)=>Game.COUNTRIES[a].name.localeCompare(Game.COUNTRIES[b].name,"pt-BR"));
@@ -191,7 +191,7 @@ async function go(){
   S=Game.newGame($("clubSel").value);
   try{const r=await fetch("elencos.json?"+Date.now());if(r.ok){const d=await r.json();Game.applyUpdate(S,d,{initial:true});S.lastUpd=d.updated||"";S.cash=Game.clubCash(U());S.rep=Game.repFor?Game.repFor(Game.ratings(U()).ovr):S.rep}}catch(e){}
   viewKey=null;tab="jogo";msg="";save();render()}
-function importSave(e){const f=e.target.files[0];if(!f)return;f.text().then(t=>{S=JSON.parse(t);Game.resetPid(S);save();render()})}
+function importSave(e){const f=e.target.files[0];if(!f)return;f.text().then(t=>{S=JSON.parse(t);Game.resetPid(S);Game.migrateOvr(S);save();render()})}
 function exportSave(){const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify(S)],{type:"application/json"}));a.download="elifoot-"+U().name+".json";a.click()}
 
 let HISTV=false,HY=null;
