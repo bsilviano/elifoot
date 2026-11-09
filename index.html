@@ -42,7 +42,7 @@ tr.me{background:var(--hl);font-weight:700}
 .jog{display:flex;flex-direction:column;align-items:center;width:20%;min-width:0}
 .jog i{font-style:normal;font-weight:800;font-size:13px;width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid #fff;box-shadow:0 1px 4px #0008}
 .jog small{display:block;font-size:9px;opacity:.8}
-.jog span{font-size:11px;color:#fff;text-shadow:0 1px 2px #000;margin-top:2px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.jog span{font-size:10px;line-height:1.1;color:#fff;text-shadow:0 1px 2px #000;margin-top:2px;max-width:100%;text-align:center;white-space:normal;overflow-wrap:anywhere}
 </style>
 </head>
 <body>
@@ -55,7 +55,7 @@ tr.me{background:var(--hl);font-weight:700}
 const PREFIX="elifoot:save:";
 let S=null,tab="jogo",msg="",mf={pos:"",q:"",min:0},viewKey=null;
 const $=id=>document.getElementById(id);
-const VERSAO=3;
+const VERSAO=4;
 const moneyFull=n=>(n<0?"-":"")+"R$ "+Math.round(Math.abs(n)).toLocaleString("pt-BR");
 const money=moneyFull;
 const U=()=>S.teams[S.user];
@@ -174,7 +174,7 @@ function lineupCard(u){
   if(!st.length)return h+`<p class="mut">Nenhum titular escalado. Toque em Auto na aba Elenco.</p><p><button class="s" onclick="setTab('elenco')">Mudar escalação</button></p></div>`;
   h+=`<div class="campo">`;
   for(const k of ["ATT","MID","DEF","GK"]){const g=st.filter(p=>p.pos===k).sort((a,b)=>(SPO[SPN(a)]-SPO[SPN(b)])||a.name.localeCompare(b.name));
-    h+=`<div class="lin">`+g.map(p=>`<div class="jog"><i style="background:${col};color:${tx}">${p.ov}</i><span>${short(p.name)}</span><small>${SPN(p)}</small></div>`).join("")+`</div>`}
+    h+=`<div class="lin">`+g.map(p=>`<div class="jog"><i style="background:${col};color:${tx}">${p.ov}</i><span>${p.name}</span><small>${SPN(p)}</small></div>`).join("")+`</div>`}
   h+=`</div>`;
   if(res.length)h+=`<p class="mut" style="margin:8px 0 0">Banco: ${res.map(p=>`${p.name} (${SPN(p)} ${p.ov})`).join(", ")}</p>`;
   return h+`<p><button class="s" onclick="setTab('elenco')">Mudar escalação</button></p></div>`;
