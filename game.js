@@ -45,6 +45,7 @@
   function resetPid(s) {
     let m = 0;
     for (const t of Object.values(s.teams)) for (const p of t.players) m = Math.max(m, p.id);
+    for (const p of s.ext || []) m = Math.max(m, p.id);
     PID = m + 1;
   }
 
@@ -1290,16 +1291,20 @@
   function market(s) {
     const out = [];
     for (const t of Object.values(s.teams)) if (!isMine(s, t.id)) for (const p of t.players) out.push({ ...p, team: t.name, tid: t.id });
+    for (const p of s.ext || []) out.push({ ...p, team: p.club, tid: -1 }); // jogadores de clubes fora das ligas do jogo (Messi, Cristiano...)
     return out;
   }
   // procura jogador (de outro clube) pelo nome e clube, para o clique "contratar" em qualquer tela
   function lookup(s, name, club) {
     const t = Object.values(s.teams).find((x) => x.name === club);
-    if (!t || isMine(s, t.id)) return null;
+    if (!t) { const e = (s.ext || []).find((x) => x.name === name && x.club === club); return e ? { id: e.id, name: e.name, pos: e.pos, sp: e.sp, ov: e.ov, age: e.age, team: e.club, price: Math.round(e.value * 1.15) } : null; }
+    if (isMine(s, t.id)) return null;
     const p = t.players.find((x) => x.name === name);
     return p ? { id: p.id, name: p.name, pos: p.pos, sp: p.sp, ov: p.ov, age: p.age, team: t.name, price: Math.round(p.value * 1.15) } : null;
   }
   function findPlayer(s, pid) {
+    const xi = (s.ext || []).findIndex((p) => p.id === pid);
+    if (xi >= 0) return { t: { id: -1, name: s.ext[xi].club, players: s.ext, ext: true }, i: xi, p: s.ext[xi] };
     for (const t of Object.values(s.teams)) {
       const i = t.players.findIndex((p) => p.id === pid);
       if (i >= 0) return { t, i, p: t.players[i] };
@@ -1314,13 +1319,16 @@
     if (s.cash < price) return "Dinheiro insuficiente.";
     s.cash -= price; led(s, s.user, `Compra: ${f.p.name} (${f.t.name})`, -price);
     f.t.players.splice(f.i, 1);
+    if (f.t.ext) { delete f.p.club; delete f.p.ext; f.p.real = 1; }
     u.players.push(f.p);
     s.bought = s.bought || []; s.sold = s.sold || [];
     const bn = f.p.name.toLowerCase();
     if (!s.bought.includes(bn)) s.bought.push(bn);
     s.sold = s.sold.filter((x) => x.p.name.toLowerCase() !== bn);
-    f.t.players.push(mkPlayer(f.p.pos, f.p.ov - 4 + rnd(-2, 2), ri(18, 30)));
-    f.t.lineup = autoLineup(f.t);
+    if (!f.t.ext) {
+      f.t.players.push(mkPlayer(f.p.pos, f.p.ov - 4 + rnd(-2, 2), ri(18, 30)));
+      f.t.lineup = autoLineup(f.t);
+    }
     return null;
   }
   function sell(s, pid) {
@@ -1418,6 +1426,7 @@
     if (!initial) {
       const real = {};
       for (const dt of data.teams || []) for (const q of dt.players || []) real[key(q.name)] = q;
+      for (const q of data.outros || []) real[key(q.name)] = q;
       for (const t of Object.values(s.teams)) {
         if (!isMine(s, t.id)) continue;
         for (const p of t.players) {
@@ -1471,6 +1480,19 @@
         while (t.players.filter((p) => p.pos === pos).length < min) t.players.push(mkPlayer(pos, t.base - 5, ri(18, 30)));
       }
       t.lineup = autoLineup(t);
+    }
+    // Jogadores de clubes fora das ligas do jogo: ficam num pool externo, comprados pelo valor de mercado
+    if (data.outros) {
+      const have = new Set();
+      for (const t of Object.values(s.teams)) for (const p of t.players) have.add(key(p.name));
+      s.ext = [];
+      for (const q of data.outros) {
+        if (have.has(key(q.name))) continue;
+        const age = q.age || 27, af = age <= 22 ? 1.4 : age >= 32 ? 0.5 : age >= 29 ? 0.8 : 1;
+        const ov = q.ov || Math.max(1, Math.round(40 + 15 * Math.log10(q.value / af / 20000)));
+        const value = q.value || valueOf(ov, age);
+        s.ext.push({ id: PID++, name: q.name, pos: q.pos, sp: q.sp, cg: q.cg || 0, ov, age, value, wage: Math.round(value / 900), long: age > 40 ? 1 : 0, club: q.club, ext: 1 });
+      }
     }
     return { teams: n, removed, kept, left };
   }

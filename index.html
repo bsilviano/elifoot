@@ -51,13 +51,13 @@ tr.me{background:color-mix(in srgb,var(--ac) 30%,transparent);font-weight:800}tr
 <header><div class="hl"><span id="crest"></span><b id="hT">Meu Elifoot</b></div><div class="hr"><span id="flag"></span><span id="hS"></span></div></header>
 <main id="app"></main>
 <nav id="nav"></nav>
-<script src="clubs.js?v=119"></script>
-<script src="game.js?v=119"></script>
+<script src="clubs.js?v=120"></script>
+<script src="game.js?v=120"></script>
 <script>
 const PREFIX="elifoot:save:",SAVE1="Elifoot"; // um único save para todos os times
 let artCan=false,S=null,tab="jogo",msg="",mf={pos:"",q:"",any:true,min:1,max:null,afford:true,ord:"ovr",dir:-1},viewKey=null;
 const $=id=>document.getElementById(id);
-const VERSAO=119;
+const VERSAO=120;
 const moneyFull=n=>(n<0?"-":"")+"R$ "+Math.round(Math.abs(n)).toLocaleString("pt-BR");
 const money=moneyFull;
 const U=()=>S.teams[S.user];
@@ -606,7 +606,7 @@ function vMais(){
 }
 async function update(auto){
   try{const r=await fetch("elencos.json?"+Date.now());if(!r.ok)throw 0;const d=await r.json();
-    if(auto&&d.updated&&S.lastUpd===d.updated)return;
+    if(auto&&d.updated&&S.lastUpd===d.updated&&(S.ext||!d.outros))return;
     const tsPrev=localStorage.getItem(TSK+S.saveName),x=Game.applyUpdate(S,d);S.lastUpd=d.updated||"";msg=`Elencos atualizados (${d.updated||"?"}): ${x.teams} times, ${x.kept} jogadores vendidos mantidos nos compradores.`+(x.left.length?`<br>Saíram do seu time (transferência real): ${x.left.join("; ")}`:"");save();if(auto&&tsPrev){clearTimeout(_pt);localStorage.setItem(TSK+S.saveName,tsPrev)}}
   catch(e){if(!auto)msg="Ainda não há elencos.json publicado."}
   if(S)render();
