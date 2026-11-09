@@ -527,6 +527,7 @@
       t.res.forEach((r, i) => { if (i % 2 === 0) { ga += r[0]; gb += r[1]; } else { ga += r[1]; gb += r[0]; } });
       t.agg = [ga, gb];
       if (ga !== gb) t.w = ga > gb ? t.a : t.b;
+      else if (t.pre) { t.pens = true; t.w = t.pre.w; t.pk = t.pre.pk; }
       else { t.pens = true; const oa = ovrOf(s, t.a), ob = ovrOf(s, t.b); t.w = Math.random() < 0.5 + (oa - ob) * 0.01 ? t.a : t.b; const wn = ri(4, 6), ls = Math.random() < 0.3 ? wn - 1 : ri(Math.max(wn - 3, 2), wn - 1); t.pk = t.w === t.a ? [wn, ls] : [ls, wn]; }
       if (!silent && (t.a === s.user || t.b === s.user)) {
         const won = t.w === s.user;
@@ -990,11 +991,43 @@
       }
     }
   }
+  // Pênaltis ao vivo: se a decisão do meu mata-mata empatar no agregado, a cobrança é sorteada aqui (e revelada cobrança a cobrança na tela).
+  function prepShoot(s, live) {
+    if (live.rd.k !== "ko") return;
+    const c = s.comps[live.rd.c];
+    for (const m of live.matches) {
+      if (!(m.mine.h || m.mine.a)) continue;
+      const t = c && c.ties && c.ties[live.rd.fx[m.i][2]];
+      if (!t || t.w !== null || t.res.length !== t.legs - 1) continue;
+      let ga = 0, gb = 0;
+      t.res.forEach((r, i) => { if (i % 2 === 0) { ga += r[0]; gb += r[1]; } else { ga += r[1]; gb += r[0]; } });
+      const li = t.res.length;
+      if (li % 2 === 0) { ga += m.gh; gb += m.ga; } else { ga += m.ga; gb += m.gh; }
+      if (ga !== gb) continue;
+      const order = (tm) => m.on[tm === m.H ? "h" : "a"].filter((p) => p.pos !== "GK").sort((x, y) => y.ov - x.ov).concat(m.on[tm === m.H ? "h" : "a"].filter((p) => p.pos === "GK"));
+      const side = { [t.a]: t.a === m.hid ? m.H : m.A, [t.b]: t.b === m.hid ? m.H : m.A };
+      const ta = side[t.a], tb = side[t.b], oa = order(ta), ob = order(tb);
+      const kicks = [];
+      const kick = (tm, list, i) => { const p = list[i % list.length] || { name: "Jogador", ov: 60 }; return { team: tm.id, club: tm.name, name: p.name, ok: Math.random() < clamp(0.76 + ((p.ov || 60) - 70) * 0.004, 0.6, 0.9) }; };
+      let fa = 0, fb = 0, ka = 0, kb = 0;
+      for (;;) {
+        const first = ka === kb;
+        const k = first ? kick(ta, oa, ka) : kick(tb, ob, kb);
+        kicks.push(k);
+        if (first) { ka++; if (k.ok) fa++; } else { kb++; if (k.ok) fb++; }
+        if (ka <= 5 && kb <= 5) { if (fa > fb + (5 - kb) || fb > fa + (5 - ka)) break; }
+        if (ka === kb && ka >= 5 && fa !== fb) break;
+        if (kicks.length > 60) { fa += 1; break; }
+      }
+      live.shoot = { mi: m.i, a: ta.name, b: tb.name, kicks, shown: 0, pk: [fa, fb], w: fa > fb ? t.a : t.b, tie: live.rd.fx[m.i][2], ids: [t.a, t.b] };
+      return;
+    }
+  }
   function liveStep(s, live, n) {
     for (let k = 0; k < n && !live.done && !live.pending.length; k++) {
       live.minute++;
       for (const m of live.matches) liveMinute(s, live, m);
-      if (live.minute >= 90) live.done = true;
+      if (live.minute >= 90) { live.done = true; prepShoot(s, live); }
     }
   }
   function liveResolve(live) { // fecha a tela de expulsão/lesão: o lesionado não substituído sai e o auxiliar garante um goleiro em campo
@@ -1012,6 +1045,7 @@
     const ix = s.q.indexOf(live.rd);
     if (ix >= 0) s.q.splice(ix, 1);
     s.T = live.rd.T; ageCheck(s);
+    if (live.shoot) { const t = s.comps[live.rd.c].ties[live.shoot.tie]; t.pre = { w: live.shoot.w, pk: live.shoot.pk }; }
     settleRd(s, live.rd, res, pre);
     s.cash += res.gate - res.wages;
     res.date = dateOf(s.T);

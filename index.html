@@ -50,13 +50,13 @@ tr.me{background:color-mix(in srgb,var(--ac) 30%,transparent);font-weight:800}tr
 <header><div class="hl"><span id="crest"></span><b id="hT">Meu Elifoot</b></div><div class="hr"><span id="flag"></span><span id="hS"></span></div></header>
 <main id="app"></main>
 <nav id="nav"></nav>
-<script src="clubs.js?v=69"></script>
-<script src="game.js?v=69"></script>
+<script src="clubs.js?v=70"></script>
+<script src="game.js?v=70"></script>
 <script>
 const PREFIX="elifoot:save:",SAVE1="Elifoot"; // um único save para todos os times
 let S=null,tab="jogo",msg="",mf={pos:"",q:"",min:1,max:null,afford:true,ord:"ovr",dir:-1},viewKey=null;
 const $=id=>document.getElementById(id);
-const VERSAO=69;
+const VERSAO=70;
 const moneyFull=n=>(n<0?"-":"")+"R$ "+Math.round(Math.abs(n)).toLocaleString("pt-BR");
 const money=moneyFull;
 const U=()=>S.teams[S.user];
@@ -320,7 +320,11 @@ function summGo(){clearInterval(SUMT);SUMM=null;try{if(Game.myClubs(S).length>1)
 
 
 let LIVE=null,LTM=null,LSPD=900,LEND=null;
-function liveAutoEnd(){if(LIVE&&LIVE.live.done&&!LIVE.live.pending.length&&!LEND){clearInterval(LTM);LEND=setTimeout(()=>{LEND=null;if(LIVE&&LIVE.live.done)liveEnd()},1500)}}
+let PTM=null;
+function penRun(){const sh=LIVE&&LIVE.live.shoot;if(!sh||PTM||sh.shown>=sh.kicks.length)return;
+  if(LSPD===-1){sh.shown=sh.kicks.length;liveRender();return}
+  PTM=setInterval(()=>{if(!LIVE){clearInterval(PTM);PTM=null;return}sh.shown++;liveRender();if(sh.shown>=sh.kicks.length){clearInterval(PTM);PTM=null;liveAutoEnd()}},LSPD===250?600:1400)}
+function liveAutoEnd(){if(LIVE&&LIVE.live.done&&LIVE.live.shoot&&LIVE.live.shoot.shown<LIVE.live.shoot.kicks.length){clearInterval(LTM);penRun();return}if(LIVE&&LIVE.live.done&&!LIVE.live.pending.length&&!LEND){clearInterval(LTM);LEND=setTimeout(()=>{LEND=null;if(LIVE&&LIVE.live.done)liveEnd()},1500)}}
 function liveRun(){clearInterval(LTM);LTM=null;if(!LIVE||LIVE.live.done||LIVE.live.pending.length||LSPD===0)return;
   if(LSPD===-1){const l=LIVE.live;while(!l.done&&!l.pending.length)Game.liveStep(S,l,1);liveRender();liveAutoEnd();return}
   LTM=setInterval(()=>{const l=LIVE.live;Game.liveStep(S,l,1);liveRender();liveAutoEnd();if(l.done||l.pending.length||!LSPD){clearInterval(LTM);LTM=null}},LSPD)}
@@ -360,6 +364,8 @@ function liveHtml(){
     h+=m.ev.length?m.ev.map(liveEv).join(""):`<p class="mut">Sem lances ainda.</p>`;
     h+=`</div>`;
   }
+  if(l.done&&l.shoot){const sh=l.shoot,sc=[0,0];sh.kicks.slice(0,sh.shown).forEach(k=>{if(k.ok)sc[k.team===sh.ids[0]?0:1]++});const fin=sh.shown>=sh.kicks.length;
+    h+=`<div class="card" style="border-color:var(--ac)"><h2>🥅 Disputa de pênaltis</h2><div class="mrow">${tbox(sh.a)} <span>${sc[0]} x ${sc[1]}</span> ${tbox(sh.b)}</div>${sh.kicks.slice(0,sh.shown).map((k,i)=>tline(k.club,`${Math.floor(i/2)+1}ª · ${k.ok?"⚽ converteu":"❌ perdeu"} ${k.name}`)).join("")}${fin?`<p><b>${S.teams[sh.w].name}</b> vence nos pênaltis (${sh.pk[0]} x ${sh.pk[1]}).</p>`:`<p class="mut">Cobrando...</p>`}</div>`}
   if(l.done)h+=`<div class="card"><p class="mut">Fim de jogo. Encerrando a rodada...</p></div>`;
   return h;
 }
