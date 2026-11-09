@@ -160,7 +160,7 @@ function vJogo(){
   return h;
 }
 const SPN=p=>p.sp||({GK:"GOL",DEF:"ZAG",MID:"MC",ATT:"CA"})[p.pos];
-const SPR={GOL:0,LD:1,LE:2,ZAG:3,VOL:4,ME:5,MD:6,MC:7,PD:8,PE:9,CA:10};
+const SPR={GOL:0,LD:1,ZAG:2,LE:3,VOL:4,ME:5,MC:6,MD:7,PD:8,PE:9,CA:10};
 const SPO={LE:0,ZAG:1,LD:2,ME:0,VOL:1,MC:2,MD:3,PE:0,CA:1,PD:2,GOL:0};
 function lineupCard(u){
   const set=new Set(u.lineup),order={GK:0,DEF:1,MID:2,ATT:3};
