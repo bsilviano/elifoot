@@ -160,11 +160,12 @@ function vJogo(){
   return h;
 }
 const SPN=p=>p.sp||({GK:"GOL",DEF:"ZAG",MID:"MC",ATT:"CA"})[p.pos];
+const SPR={GOL:0,LD:1,LE:2,ZAG:3,VOL:4,ME:5,MD:6,MC:7,PD:8,PE:9,CA:10};
 const SPO={LE:0,ZAG:1,LD:2,ME:0,VOL:1,MC:2,MD:3,PE:0,CA:1,PD:2,GOL:0};
 function lineupCard(u){
   const set=new Set(u.lineup),order={GK:0,DEF:1,MID:2,ATT:3};
   const st=u.players.filter(p=>set.has(p.id)).sort((a,b)=>b.ov-a.ov);
-  const res=u.players.filter(p=>!set.has(p.id)).sort((a,b)=>b.ov-a.ov).slice(0,7);
+  const res=u.players.filter(p=>!set.has(p.id)).sort((a,b)=>b.ov-a.ov).slice(0,7).sort((a,b)=>SPR[SPN(a)]-SPR[SPN(b)]);
   const col=(TEAM_COLORS[u.name]||themeFor(u.name).ac);
   const l=[1,3,5].map(i=>parseInt(col.substr(i,2),16)),tx=(0.3*l[0]+0.59*l[1]+0.11*l[2])>150?"#111":"#fff";
   const short=n=>{const w=n.split(" ");return w.length>1?w[w.length-1]:n};
@@ -202,7 +203,7 @@ function doPlay(){
 function vElenco(){
   const u=U(),set=new Set(u.lineup);
   const order={GK:0,DEF:1,MID:2,ATT:3};
-  const ps=u.players.slice().sort((a,b)=>order[a.pos]-order[b.pos]||b.ov-a.ov);
+  const ps=u.players.slice().sort((a,b)=>SPR[SPN(a)]-SPR[SPN(b)]||b.ov-a.ov);
   return aucCard()+`<div class="card"><h2>Escalação (${u.lineup.length}/11)</h2>
   <div class="row"><button class="s" onclick="U().lineup=Game.autoLineup(U());save();render()">Auto</button><span class="mut">Toque para titular/reserva</span></div></div>
   <div class="card">${ps.map(p=>`<div class="pl ${set.has(p.id)?"in":""}" onclick="tog(${p.id})"><span><span class="pos">${SPN(p)}</span>${p.name} <span class="mut">${p.age}a</span></span><span><b>${p.ov}</b> <span class="mut" title="Valor mínimo de venda">${money(p.value)}</span> <button class="s d" onclick="event.stopPropagation();sell(${p.id})">Leiloar</button></span></div>`).join("")}</div>`;
