@@ -50,13 +50,13 @@ tr.me{background:color-mix(in srgb,var(--ac) 30%,transparent);font-weight:800}tr
 <header><div class="hl"><span id="crest"></span><b id="hT">Meu Elifoot</b></div><div class="hr"><span id="flag"></span><span id="hS"></span></div></header>
 <main id="app"></main>
 <nav id="nav"></nav>
-<script src="clubs.js?v=84"></script>
-<script src="game.js?v=84"></script>
+<script src="clubs.js?v=85"></script>
+<script src="game.js?v=85"></script>
 <script>
 const PREFIX="elifoot:save:",SAVE1="Elifoot"; // um único save para todos os times
 let artCan=false,S=null,tab="jogo",msg="",mf={pos:"",q:"",any:true,min:1,max:null,afford:true,ord:"ovr",dir:-1},viewKey=null;
 const $=id=>document.getElementById(id);
-const VERSAO=84;
+const VERSAO=85;
 const moneyFull=n=>(n<0?"-":"")+"R$ "+Math.round(Math.abs(n)).toLocaleString("pt-BR");
 const money=moneyFull;
 const U=()=>S.teams[S.user];
@@ -371,6 +371,7 @@ function liveHtml(){
   for(const m of l.matches.slice().sort((a,b)=>(b.mine.h||b.mine.a)-(a.mine.h||a.mine.a))){
     const mine=m.mine.h||m.mine.a;
     h+=`<div class="card" ${mine?'style="border-color:var(--ac)"':""}><div class="mrow">${tbox(m.H.name)} <span>${m.gh} x ${m.ga}</span> ${tbox(m.A.name)}</div>`;
+    if(m.ida){const [ra,rb]=m.ida.r,hi=m.ida.home===0?ra:rb,ai=m.ida.home===0?rb:ra;h+=`<p class="mut" style="text-align:center;margin:4px 0;font-size:12px">Ida: ${m.A.name} ${ai} x ${hi} ${m.H.name} · Agregado: ${m.H.name} ${hi+m.gh} x ${ai+m.ga} ${m.A.name}</p>`}
     if(mine)h+=`<p class="mut">🏟️ Público ${m.gate.att.toLocaleString("pt-BR")} de ${m.gate.cap.toLocaleString("pt-BR")} · ingresso ${money(m.gate.price)}</p>`;
     h+=m.ev.length?`<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:13px"><div style="min-width:0">${m.ev.filter(e=>e.side==="h").map(liveEv).join("")}</div><div style="min-width:0">${m.ev.filter(e=>e.side==="a").map(liveEv).join("")}</div></div>`:`<p class="mut">Sem lances ainda.</p>`;
     h+=`</div>`;

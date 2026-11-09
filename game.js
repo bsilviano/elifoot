@@ -918,6 +918,8 @@
       const H = s.teams[h], A = s.teams[a];
       for (const [t, id] of [[H, h], [A, a]]) { if (isMine(s, id)) fixLineup(t); else t.lineup = autoLineup(t); }
       const m = { i, hid: h, aid: a, H, A, gh: 0, ga: 0, sh: [], sa: [], evh: [], eva: [], ev: [], subs: { h: 0, a: 0 }, mine: { h: isMine(s, h), a: isMine(s, a) } };
+      const tie = rd.k === "ko" && c && c.ties && c.ties[k];
+      if (tie && tie.res.length) m.ida = { r: tie.res[0], home: tie.a === h ? 0 : 1 }; // jogo de volta: resultado da ida ([gols do time A, gols do time B]; home=0 se o mandante da volta era o A)
       m.on = { h: lineupPlayers(H).slice(), a: lineupPlayers(A).slice() };
       const bench = (t) => t.players.filter((p) => avail(p) && !t.lineup.includes(p.id)).sort((x, y) => y.ov - x.ov);
       m.bench = { h: bench(H), a: bench(A) };
