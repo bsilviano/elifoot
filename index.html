@@ -55,7 +55,7 @@ tr.me{background:var(--hl);font-weight:700}
 const PREFIX="elifoot:save:";
 let S=null,tab="jogo",msg="",mf={pos:"",q:"",min:0},viewKey=null;
 const $=id=>document.getElementById(id);
-const VERSAO=5;
+const VERSAO=6;
 const moneyFull=n=>(n<0?"-":"")+"R$ "+Math.round(Math.abs(n)).toLocaleString("pt-BR");
 const money=moneyFull;
 const U=()=>S.teams[S.user];
@@ -174,7 +174,12 @@ function lineupCard(u){
   let h=`<div class="card"><h2>Sua escalação</h2>${ctl}`;
   if(!st.length)return h+`<p class="mut">Nenhum titular escalado. Toque em Auto na aba Elenco.</p><p><button class="s" onclick="setTab('elenco')">Mudar escalação</button></p></div>`;
   h+=`<div class="campo">`;
-  for(const k of ["ATT","MID","DEF","GK"]){const g=st.filter(p=>p.pos===k).sort((a,b)=>(SPO[SPN(a)]-SPO[SPN(b)])||a.name.localeCompare(b.name));
+  const mids=st.filter(p=>p.pos==="MID");
+  let m1=mids.filter(p=>SPN(p)!=="VOL"),m2=mids.filter(p=>SPN(p)==="VOL");
+  if(!m1.length){m1=m2;m2=[]}
+  const rows=[st.filter(p=>p.pos==="ATT"),m1,m2,st.filter(p=>p.pos==="DEF"),st.filter(p=>p.pos==="GK")];
+  for(const g of rows){if(!g.length)continue;
+    g.sort((a,b)=>(SPO[SPN(a)]-SPO[SPN(b)])||a.name.localeCompare(b.name));
     h+=`<div class="lin">`+g.map(p=>`<div class="jog"><i style="background:${col};color:${tx}">${p.ov}</i><span>${p.name}</span><small>${SPN(p)}</small></div>`).join("")+`</div>`}
   h+=`</div>`;
   if(res.length)h+=`<p class="mut" style="margin:8px 0 0">Banco: ${res.map(p=>`${p.name} (${SPN(p)} ${p.ov})`).join(", ")}</p>`;
