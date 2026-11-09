@@ -51,13 +51,13 @@ tr.me{background:color-mix(in srgb,var(--ac) 30%,transparent);font-weight:800}tr
 <header><div class="hl"><span id="crest"></span><b id="hT">Meu Elifoot</b></div><div class="hr"><span id="flag"></span><span id="hS"></span></div></header>
 <main id="app"></main>
 <nav id="nav"></nav>
-<script src="clubs.js?v=110"></script>
-<script src="game.js?v=110"></script>
+<script src="clubs.js?v=111"></script>
+<script src="game.js?v=111"></script>
 <script>
 const PREFIX="elifoot:save:",SAVE1="Elifoot"; // um único save para todos os times
 let artCan=false,S=null,tab="jogo",msg="",mf={pos:"",q:"",any:true,min:1,max:null,afford:true,ord:"ovr",dir:-1},viewKey=null;
 const $=id=>document.getElementById(id);
-const VERSAO=110;
+const VERSAO=111;
 const moneyFull=n=>(n<0?"-":"")+"R$ "+Math.round(Math.abs(n)).toLocaleString("pt-BR");
 const money=moneyFull;
 const U=()=>S.teams[S.user];
@@ -475,12 +475,12 @@ function vTabela(){
   let h=`<div class="card"><select onchange="viewKey=this.value;render()" style="width:100%">${compOpts(id)}</select></div>`;
   const mi=mineIds();
   const tieCard=(nm,ties)=>`<div class="card"><h2>${c.name} — ${nm}</h2>`+ties.map(t=>{
-    const A=S.teams[t.a].name,B=S.teams[t.b].name,m=mi.includes(t.a)||mi.includes(t.b),W=t.w!==null?S.teams[t.w].name:"";
+    const A=S.teams[t.a].name,B=S.teams[t.b].name,m=mi.includes(t.a)||mi.includes(t.b);
     // resultado de cada jogo com os times na ordem em que jogaram (mandante primeiro)
     const legs=t.res.map((r,k)=>{const h=k%2===0?A:B,a=k%2===0?B:A;return `${t.legs===2?(k?"Volta":"Ida")+": ":""}${h} ${r[0]} x ${r[1]} ${a}`});
-    if(!legs.length)legs.push("a jogar");
+    if(!legs.length)legs.push(`${A} × ${B}`);
     if(t.pens)legs.push(`Pênaltis: ${A} ${t.pk?t.pk[0]:"?"} x ${t.pk?t.pk[1]:"?"} ${B}`);
-    return `<div style="padding:5px 0;border-bottom:1px solid var(--line)"><div class="${m?"good":""}" style="${m?"font-weight:800":"font-weight:600"}">${A} × ${B}${W?` → <b>${W}</b>`:""}</div>${legs.map(x=>`<div class="mut" style="font-size:12px">${x}</div>`).join("")}</div>`}).join("")+`</div>`;
+    return `<div style="padding:5px 0;border-bottom:1px solid var(--line)">${legs.map(x=>`<div class="${m?"good":""}" style="font-size:16px;font-weight:${m?800:700}">${x}</div>`).join("")}</div>`}).join("")+`</div>`;
   // fase mais atual primeiro: campeão, fase atual, fases anteriores (da mais recente à mais antiga) e por último a fase de grupos
   if(T.ties){
     if(T.champion)h+=`<div class="card">Campeão: <b>${S.teams[T.champion].name}</b></div>`;
