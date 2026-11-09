@@ -366,6 +366,12 @@
     s.cash = clubCash(u);
     s.rep = repFor(ratings(u).ovr);
     for (const k in s.lg) s.rank[k] = byStrength(s, s.lg[k]);
+    // Brasileirão: vagas das copas sul-americanas seguem a classificação real do Brasileirão 2026 (após a 34ª rodada, 08/11/2026)
+    {
+      const real = ["Flamengo","Palmeiras","Cruzeiro","Fluminense","Athletico-PR","Bahia","Atlético-MG","Bragantino","Santos","São Paulo","Botafogo","Coritiba","Vasco","Mirassol","Vitória","Internacional","Corinthians","Grêmio","Remo","Chapecoense"];
+      const ids = real.map((n) => Object.values(s.teams).find((t) => t.name === n && s.lg.BRA1.includes(t.id))).filter(Boolean).map((t) => t.id);
+      s.rank.BRA1 = ids.concat(s.rank.BRA1.filter((i) => !ids.includes(i)));
+    }
     // Europa: temporada 2026/27 já em andamento; 1ª metade é simulada automaticamente
     EU.forEach((c) => createEuroLeagues(s, c, 2026));
     createEuroCups(s, 2026);
