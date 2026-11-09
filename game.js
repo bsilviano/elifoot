@@ -689,28 +689,34 @@
     s.fired = { club: old.name, why };
     res.notes.push(`<span class="bad">🚫 Você foi demitido do ${old.name}! ${why} Escolha um novo emprego na aba Jogo.</span>`);
   }
-  // posição do clube na tabela do campeonato nacional (ou força esperada antes da bola rolar)
-  function standing(s, tid) {
+  // Nível do clube: divisão + percentil. "esp" = pelo valor do elenco dentro do próprio campeonato; "atu" = pela posição atual na tabela.
+  function clubVal(t) { return t.players.reduce((x, p) => x + (p.value || 0), 0); }
+  function level(s, tid) {
     const t = s.teams[tid], tier = LG[t.lkey] ? LG[t.lkey].tier : 3;
+    const ids = (s.lg && s.lg[t.lkey]) || [tid], n = Math.max(ids.length, 2);
+    const rk = ids.slice().sort((a, b) => clubVal(s.teams[b]) - clubVal(s.teams[a])).indexOf(tid);
+    const esp = (tier - 1) + (rk < 0 ? 0.5 : rk / (n - 1));
+    let atu = esp;
     const c = Object.values(s.comps).find((x) => x.key === t.lkey && !x.done && x.tab && x.tab[tid] && x.ids.includes(tid));
-    let pos;
-    if (c && c.ids.some((i) => c.tab[i].p > 0)) pos = sortTab(c.ids, c.tab).indexOf(tid) + 1;
-    else { const r = s.rank && s.rank[t.lkey]; pos = r && r.indexOf(tid) >= 0 ? r.indexOf(tid) + 1 : 99; }
-    return { tier, pos };
+    if (c && c.ids.some((i) => c.tab[i].p > 0)) {
+      const pos = sortTab(c.ids, c.tab).indexOf(tid);
+      atu = (tier - 1) + pos / (Math.max(c.ids.length, 2) - 1);
+    }
+    return { tier, esp, atu, rk: rk + 1 };
   }
-  // Só oferece clubes melhor colocados na tabela nacional; de divisão diferente, só da mesma divisão para cima.
+  // Convites: clubes melhores que o meu (pelo valor), desde que minha posição atual seja compatível com o valor do clube.
+  // Nunca de divisão inferior (nem em outro país).
   function jobOffers(s, why, res) {
-    const me = standing(s, s.user), u = s.teams[s.user];
-    const have = new Set();
+    const me = level(s, s.user), SLACK = 0.1;
+    const lv = {};
     const elig = Object.values(s.teams).filter((t) => {
       if (t.id === s.user || t.local || isMine(s, t.id) || !LG[t.lkey]) return false;
-      const st = standing(s, t.id);
-      return st.tier < me.tier || (st.tier === me.tier && st.pos < me.pos);
+      const L = (lv[t.id] = level(s, t.id));
+      return L.esp < me.esp && L.esp >= me.atu - SLACK;
     });
-    const target = ratings(u).ovr + (s.rep - 50) * 0.04;
-    elig.sort((a, b) => Math.abs(ratings(a).ovr - target) - Math.abs(ratings(b).ovr - target));
+    elig.sort((a, b) => Math.abs(lv[a.id].esp - me.atu) - Math.abs(lv[b.id].esp - me.atu));
     const picks = shuffle(elig.slice(0, 15)).slice(0, 3);
-    s.offers = picks.map((t) => ({ tid: t.id, name: t.name, league: LG[t.lkey].name, country: COUNTRIES[t.country].name, ovr: Math.round(ratings(t).ovr * 10) / 10, cash: clubCash(t), why: why + ` Posição do clube: ${standing(s, t.id).pos}º na ${LG[t.lkey].name}.` }));
+    s.offers = picks.map((t) => ({ tid: t.id, name: t.name, league: LG[t.lkey].name, country: COUNTRIES[t.country].name, ovr: Math.round(ratings(t).ovr * 10) / 10, cash: clubCash(t), why: why + ` Clube com o ${lv[t.id].rk}º maior elenco da ${LG[t.lkey].name}.` }));
     if (picks.length) res.notes.push(`<span class="warn">Você recebeu ${picks.length} convite(s) de clube. Veja no topo.</span>`);
   }
   function periodicOffers(s, res) {
