@@ -183,6 +183,7 @@
   }
   function startStage(s, c, pairs) {
     const st = c.plan[c.si];
+    if (c.ties && c.stage) (c.past = c.past || []).push({ name: c.stage, ties: c.ties }); // guarda as fases anteriores para a tabela
     c.stage = st.name; c.closed = false;
     c.ties = pairs.map(([a, b]) => ({ a, b, res: [], w: null, pens: false, legs: st.legs }));
     for (let leg = 0; leg < st.legs; leg++) {
