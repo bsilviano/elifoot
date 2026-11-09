@@ -50,13 +50,13 @@ tr.me{background:color-mix(in srgb,var(--ac) 30%,transparent);font-weight:800}tr
 <header><div class="hl"><span id="crest"></span><b id="hT">Meu Elifoot</b></div><div class="hr"><span id="flag"></span><span id="hS"></span></div></header>
 <main id="app"></main>
 <nav id="nav"></nav>
-<script src="clubs.js?v=72"></script>
-<script src="game.js?v=72"></script>
+<script src="clubs.js?v=73"></script>
+<script src="game.js?v=73"></script>
 <script>
 const PREFIX="elifoot:save:",SAVE1="Elifoot"; // um único save para todos os times
 let S=null,tab="jogo",msg="",mf={pos:"",q:"",min:1,max:null,afford:true,ord:"ovr",dir:-1},viewKey=null;
 const $=id=>document.getElementById(id);
-const VERSAO=72;
+const VERSAO=73;
 const moneyFull=n=>(n<0?"-":"")+"R$ "+Math.round(Math.abs(n)).toLocaleString("pt-BR");
 const money=moneyFull;
 const U=()=>S.teams[S.user];
@@ -345,16 +345,16 @@ function liveHtml(){
   if(!l.done&&!p)h+=`<div class="row"><button class="${LSPD===900?"p":""}" onclick="liveSpeed(900)">▶ Normal</button><button class="${LSPD===250?"p":""}" onclick="liveSpeed(250)">⏩ Rápido</button><button class="${LSPD===-1?"p":""}" onclick="liveSpeed(-1)">⏭ Ir ao fim</button></div>`;
   h+=`</div>`;
   if(p&&p.kind==="inj"){
-    const m=l.matches[p.mi],can=m.bench[p.side].length&&m.subs[p.side]<5;
-    h+=`<div class="card" style="border-color:#d33"><h2>🚑 ${p.name} se lesionou!</h2><p class="mut">${p.club} · ${p.n} jogo${p.n>1?"s":""} fora. Substituições: ${m.subs[p.side]}/5. Escolha quem entra no lugar dele.</p>
-    ${can?m.bench[p.side].map(q=>`<div class="pl"><span class="pc"><span class="pos">${SPN(q)}</span></span><span class="nm">${q.name}</span><span class="rt"><b class="ovc">${q.ov}</b><button class="s p" onclick="liveInjSub(${p.mi},'${p.side}',${p.outId},${q.id})">Entrar</button></span></div>`).join(""):`<p class="mut">Sem substituições disponíveis: o time segue com um a menos.</p>`}
+    const m=l.matches[p.mi],can=m.bench[p.side].length&&m.subs[p.side]<5,ip=m.on[p.side].find(x=>x.id===p.outId),bn=m.bench[p.side].slice().sort((x,y)=>SPR[SPN(x)]-SPR[SPN(y)]||y.ov-x.ov);
+    h+=`<div class="card" style="border-color:#d33"><h2>🚑 ${p.name} (${ip?SPN(ip):"?"}) se lesionou!</h2><p class="mut">${p.club} · ${p.n} jogo${p.n>1?"s":""} fora. Substituições: ${m.subs[p.side]}/5. Escolha quem entra no lugar dele.</p>
+    ${can?bn.map(q=>`<div class="pl"><span class="pc"><span class="pos">${SPN(q)}</span></span><span class="nm">${q.name}</span><span class="rt"><b class="ovc">${q.ov}</b><button class="s p" onclick="liveInjSub(${p.mi},'${p.side}',${p.outId},${q.id})">Entrar</button></span></div>`).join(""):`<p class="mut">Sem substituições disponíveis: o time segue com um a menos.</p>`}
     <div class="row" style="margin-top:8px"><button class="p" onclick="liveCont()">Continuar sem substituir</button></div></div>`;
   }else if(p){
     const m=l.matches[p.mi]
     h+=`<div class="card" style="border-color:#d33"><h2>🟥 ${p.name} foi expulso!</h2><p class="mut">${p.club} está com ${m.on[p.side].length} em campo. Substituições: ${m.subs[p.side]}/5. Troque um jogador ou reorganize o time.</p>
-    <p><b>Em campo</b>${LSEL?` <span class="mut">escolha quem sai</span>`:""}</p>${m.on[p.side].map(q=>`<div class="pl"><span><span class="pos">${SPN(q)}</span>${q.name}</span><span><b>${q.ov}</b>${LSEL?` <button class="s d" onclick="liveSubUI(${p.mi},'${p.side}',${q.id})">Sai</button>`:""}</span></div>`).join("")}
+    <p><b>Em campo</b>${LSEL?` <span class="mut">escolha quem sai</span>`:""}</p>${m.on[p.side].slice().sort((x,y)=>SPR[SPN(x)]-SPR[SPN(y)]||y.ov-x.ov).map(q=>`<div class="pl"><span><span class="pos">${SPN(q)}</span>${q.name}</span><span><b>${q.ov}</b>${LSEL?` <button class="s d" onclick="liveSubUI(${p.mi},'${p.side}',${q.id})">Sai</button>`:""}</span></div>`).join("")}
     <p><b>Banco</b> <span class="mut">(toque em Entrar e escolha quem sai)</span></p>
-    ${m.bench[p.side].length&&m.subs[p.side]<5?m.bench[p.side].map(q=>`<div class="pl"><span><span class="pos">${SPN(q)}</span>${q.name}</span><span><b>${q.ov}</b> <button class="s p" onclick="LSEL=${q.id};liveRender()">${LSEL===q.id?"Selecionado":"Entrar"}</button></span></div>`).join(""):`<p class="mut">Sem substituições disponíveis.</p>`}
+    ${m.bench[p.side].length&&m.subs[p.side]<5?m.bench[p.side].slice().sort((x,y)=>SPR[SPN(x)]-SPR[SPN(y)]||y.ov-x.ov).map(q=>`<div class="pl"><span><span class="pos">${SPN(q)}</span>${q.name}</span><span><b>${q.ov}</b> <button class="s p" onclick="LSEL=${q.id};liveRender()">${LSEL===q.id?"Selecionado":"Entrar"}</button></span></div>`).join(""):`<p class="mut">Sem substituições disponíveis.</p>`}
     <div class="row" style="margin-top:8px"><button onclick="liveAuto()">Reorganizar automaticamente</button><button class="p" onclick="liveCont()">Continuar o jogo</button></div></div>`;
   }
   for(const m of l.matches.slice().sort((a,b)=>(b.mine.h||b.mine.a)-(a.mine.h||a.mine.a))){
