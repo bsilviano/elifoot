@@ -50,13 +50,13 @@ tr.me{background:color-mix(in srgb,var(--ac) 30%,transparent);font-weight:800}tr
 <header><div class="hl"><span id="crest"></span><b id="hT">Meu Elifoot</b></div><div class="hr"><span id="flag"></span><span id="hS"></span></div></header>
 <main id="app"></main>
 <nav id="nav"></nav>
-<script src="clubs.js?v=98"></script>
-<script src="game.js?v=98"></script>
+<script src="clubs.js?v=99"></script>
+<script src="game.js?v=99"></script>
 <script>
 const PREFIX="elifoot:save:",SAVE1="Elifoot"; // um único save para todos os times
 let artCan=false,S=null,tab="jogo",msg="",mf={pos:"",q:"",any:true,min:1,max:null,afford:true,ord:"ovr",dir:-1},viewKey=null;
 const $=id=>document.getElementById(id);
-const VERSAO=98;
+const VERSAO=99;
 const moneyFull=n=>(n<0?"-":"")+"R$ "+Math.round(Math.abs(n)).toLocaleString("pt-BR");
 const money=moneyFull;
 const U=()=>S.teams[S.user];
@@ -90,7 +90,7 @@ async function syncPush(name){
 }
 async function syncDelete(name){const c=gcfg();if(!c||!c.id)return;try{await gapi("/gists/"+c.id,"PATCH",{files:{[fname(name)]:null}})}catch(e){}}
 // baixa saves mais novos da nuvem e envia os que só existem aqui; devolve quantos vieram da nuvem
-async function syncPull(){
+async function syncPull(force){
   const c=gcfg();if(!c)return 0;
   if(!c.id){const l=await gapi("/gists?per_page=100");const g=l.find(x=>x.description===GDESC);
     if(g)c.id=g.id;else{const n=await gapi("/gists","POST",{description:GDESC,public:false,files:{"LEIA-ME.txt":{content:"Saves do Elifoot (comprimidos)."}}});c.id=n.id}gset(c)}
@@ -100,7 +100,7 @@ async function syncPull(){
     const name=decodeURIComponent(f.filename.slice(5,-4));seen.add(name);
     let txt=f.content;if(f.truncated||txt==null){txt=await (await fetch(f.raw_url)).text()}
     const i=txt.indexOf("|"),ts=+txt.slice(0,i),loc=+localStorage.getItem(TSK+name)||0;
-    if(ts>loc||!localStorage.getItem(PREFIX+name)){localStorage.setItem(PREFIX+name,await ungz(txt.slice(i+1)));localStorage.setItem(TSK+name,ts);if(!localStorage.getItem("elifoot:last"))localStorage.setItem("elifoot:last",name);got++}
+    if(force||ts>loc||!localStorage.getItem(PREFIX+name)){localStorage.setItem(PREFIX+name,await ungz(txt.slice(i+1)));localStorage.setItem(TSK+name,ts);if(!localStorage.getItem("elifoot:last"))localStorage.setItem("elifoot:last",name);got++}
   }
   for(const n of listSaves())if(!seen.has(n))await syncPush(n);
   syncSt("☁️ Sincronizado ("+new Date().toLocaleTimeString("pt-BR")+")");return got;
@@ -112,10 +112,11 @@ async function syncOn(){
   catch(e){localStorage.removeItem(GK);alert("Não consegui ativar: "+e.message+". Confira se o token tem permissão de gist.")}
 }
 function syncOff(){if(confirm("Desativar a sincronização neste aparelho? Os saves ficam aqui e na nuvem."))localStorage.removeItem(GK),render()}
-async function syncNow(){try{await syncPush(S.saveName);const n=await syncPull();if(n){const nm=S.saveName;loadSave(nm)}else render()}catch(e){syncSt("Falha: "+e.message)}}
+async function syncNow(){try{const nm=S.saveName,n=await syncPull();if(n){loadSave(nm);syncSt("☁️ Save mais novo baixado da nuvem.")}else{await syncPush(nm);render()}}catch(e){syncSt("Falha: "+e.message)}}
+async function syncForce(){if(!confirm("Baixar da nuvem e SUBSTITUIR o save deste aparelho?"))return;try{const nm=S?S.saveName:localStorage.getItem("elifoot:last");await syncPull(true);if(nm&&localStorage.getItem(PREFIX+nm))loadSave(nm);else render()}catch(e){syncSt("Falha: "+e.message)}}
 function syncCard(){
   const c=gcfg();
-  if(c)return `<div class="card"><h2>Sincronização</h2><p class="mut" id="syncSt">${SYNCST||"☁️ Ativada neste aparelho."}</p><p class="mut">Cada save é enviado à nuvem ao salvar e baixado ao abrir o jogo. Vale o mais recente. Não jogue nos dois aparelhos ao mesmo tempo.</p><div class="row"><button class="p" onclick="syncNow()">Sincronizar agora</button><button class="s d" onclick="syncOff()">Desativar</button></div></div>`;
+  if(c)return `<div class="card"><h2>Sincronização</h2><p class="mut" id="syncSt">${SYNCST||"☁️ Ativada neste aparelho."}</p><p class="mut">Cada save é enviado à nuvem ao salvar e baixado ao abrir o jogo. Vale o mais recente. Não jogue nos dois aparelhos ao mesmo tempo.</p><div class="row"><button class="p" onclick="syncNow()">Sincronizar agora</button><button class="s" onclick="syncForce()">Baixar da nuvem</button><button class="s d" onclick="syncOff()">Desativar</button></div></div>`;
   return `<div class="card"><h2>Sincronizar celular e computador</h2><p class="mut">Cole o token do GitHub (permissão só de gist). Nada para instalar. Faça o mesmo em cada aparelho.</p><div class="row"><input id="gtok" type="password" placeholder="ghp_... ou github_pat_..." style="flex:1;min-width:0"><button class="p" onclick="syncOn()">Ativar</button></div></div>`;
 }
 function listSaves(){const r=[];for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k.startsWith(PREFIX))r.push(k.slice(PREFIX.length))}return r.sort()}
@@ -563,7 +564,7 @@ function vMais(){
 async function update(auto){
   try{const r=await fetch("elencos.json?"+Date.now());if(!r.ok)throw 0;const d=await r.json();
     if(auto&&d.updated&&S.lastUpd===d.updated)return;
-    const x=Game.applyUpdate(S,d);S.lastUpd=d.updated||"";msg=`Elencos atualizados (${d.updated||"?"}): ${x.teams} times, ${x.kept} jogadores vendidos mantidos nos compradores.`+(x.left.length?`<br>Saíram do seu time (transferência real): ${x.left.join("; ")}`:"");save()}
+    const tsPrev=localStorage.getItem(TSK+S.saveName),x=Game.applyUpdate(S,d);S.lastUpd=d.updated||"";msg=`Elencos atualizados (${d.updated||"?"}): ${x.teams} times, ${x.kept} jogadores vendidos mantidos nos compradores.`+(x.left.length?`<br>Saíram do seu time (transferência real): ${x.left.join("; ")}`:"");save();if(auto&&tsPrev){clearTimeout(_pt);localStorage.setItem(TSK+S.saveName,tsPrev)}}
   catch(e){if(!auto)msg="Ainda não há elencos.json publicado."}
   if(S)render();
 }
