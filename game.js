@@ -492,7 +492,10 @@
         const lab = { red: "🟥 expulso", yc3: "🟨 suspenso (3º amarelo)", inj: "🚑 lesionado" };
         for (const [tm, evs] of [[H, r.evh], [A, r.eva]]) if (isMine(s, tm.id)) for (const e of evs) res.notes.push(`${lab[e.type]}: ${e.name} (${tm.name}), fora por ${e.n} jogo${e.n > 1 ? "s" : ""}.`);
       }
-      if (!silent && (H.id === s.user || A.id === s.user)) { s.offG = (s.offG || 0) + 1; if (s.offG % (s.jobMode === "seek" ? 5 : 10) === 0) s.offDue = true; }
+      if (!silent) for (const tm of [H, A]) if (isMine(s, tm.id)) { // contador de jogos por clube: ofertas a cada 10 jogos (5 se procurando emprego)
+        s.offGc = s.offGc || {}; const n = (s.offGc[tm.id] = (s.offGc[tm.id] || 0) + 1);
+        if (n % (jobMode(s, tm.id) === "seek" ? 5 : 10) === 0) { if (!Array.isArray(s.offDue)) s.offDue = []; s.offDue.push(tm.id); }
+      }
       for (const tm of [H, A]) if (isMine(s, tm.id)) {
         s.hist = s.hist || {}; const hl = (s.hist[tm.id] = s.hist[tm.id] || []);
         hl.push({ y: yearOf(rd.T), T: rd.T, date: dateOf(rd.T), comp: c.name + (rd.n ? " \u00b7 " + rd.n : ""), h: H.name, a: A.name, gh: r.gh, ga: r.ga, home: tm === H });
@@ -500,7 +503,7 @@
       }
       if (!silent && (isMine(s, h) || isMine(s, a))) res.reports.push({ cid: c.id, comp: c.name + (rd.n ? " · " + rd.n : ""), date: dateOf(rd.T), home: H.name, away: A.name, ...r });
     }
-    if (s.offDue && !silent) { s.offDue = false; periodicOffers(s, res); }
+    if (Array.isArray(s.offDue) && s.offDue.length && !silent) { const due = s.offDue; s.offDue = []; due.forEach((id) => periodicOffers(s, res, id)); }
     if (rd.k === "tab") {
       c.rDone++;
       if (c.rDone >= c.R) finishComp(s, c, res, silent);
@@ -706,35 +709,38 @@
   }
   // Convites: clubes melhores que o meu (pelo valor), desde que minha posição atual seja compatível com o valor do clube.
   // Nunca de divisão inferior (nem em outro país).
-  function jobOffers(s, why, res) {
-    const me = level(s, s.user), SLACK = 0.1;
+  function jobOffers(s, why, res, cid) {
+    cid = cid != null ? cid : s.user;
+    const me = level(s, cid), SLACK = 0.1;
     const lv = {};
     const elig = Object.values(s.teams).filter((t) => {
-      if (t.id === s.user || t.local || isMine(s, t.id) || !LG[t.lkey]) return false;
+      if (t.id === cid || t.local || isMine(s, t.id) || !LG[t.lkey]) return false;
       const L = (lv[t.id] = level(s, t.id));
       return L.esp < me.esp && L.esp >= me.atu - SLACK;
     });
     elig.sort((a, b) => Math.abs(lv[a.id].esp - me.atu) - Math.abs(lv[b.id].esp - me.atu));
     const picks = shuffle(elig.slice(0, 15)).slice(0, 3);
-    s.offers = picks.map((t) => ({ tid: t.id, name: t.name, league: LG[t.lkey].name, country: COUNTRIES[t.country].name, ovr: Math.round(ratings(t).ovr * 10) / 10, cash: clubCash(t), why: why + ` Clube com o ${lv[t.id].rk}º maior elenco da ${LG[t.lkey].name}.` }));
+    const mine = picks.map((t) => ({ for: cid, forName: s.teams[cid].name, tid: t.id, name: t.name, league: LG[t.lkey].name, country: COUNTRIES[t.country].name, ovr: Math.round(ratings(t).ovr * 10) / 10, cash: clubCash(t), why: why + ` Clube com o ${lv[t.id].rk}º maior elenco da ${LG[t.lkey].name}.` }));
+    s.offers = (s.offers || []).filter((o) => o.for !== cid).concat(mine);
     if (picks.length) res.notes.push(`<span class="warn">Você recebeu ${picks.length} convite(s) de clube. Veja no topo.</span>`);
   }
-  function periodicOffers(s, res) {
-    const u = s.teams[s.user];
-    const c = Object.values(s.comps).find((x) => (x.after === "lg" || x.after === "arG") && !x.done && x.tab && x.ids.includes(s.user));
+  const jobMode = (s, id) => (s.jobModes && s.jobModes[id] != null ? s.jobModes[id] : s.jobMode || "");
+  function periodicOffers(s, res, cid) {
+    cid = cid != null ? cid : s.user;
+    const u = s.teams[cid];
+    const c = Object.values(s.comps).find((x) => (x.after === "lg" || x.after === "arG") && !x.done && x.tab && x.ids.includes(cid));
     let diff = 0, why = "Propostas de outros clubes.";
-    if (c && c.tab[s.user] && c.tab[s.user].p > 0) {
-      const tab = sortTab(c.ids, c.tab), pos = tab.indexOf(s.user) + 1, exp = byStrength(s, c.ids).indexOf(s.user) + 1;
+    if (c && c.tab[cid] && c.tab[cid].p > 0) {
+      const tab = sortTab(c.ids, c.tab), pos = tab.indexOf(cid) + 1, exp = byStrength(s, c.ids).indexOf(cid) + 1;
       diff = exp - pos;
       why = `Você está em ${pos}º (esperado: ${exp}º).`;
     }
-    if (s.offG % 10 === 0 && myClubs(s).length === 1 && c && c.tab[s.user] && c.tab[s.user].p >= 6) { // com vários clubes ninguém é demitido
-      const tab = sortTab(c.ids, c.tab), pos = tab.indexOf(s.user) + 1;
+    if (cid === s.user && (s.offGc && s.offGc[cid]) % 10 === 0 && myClubs(s).length === 1 && c && c.tab[cid] && c.tab[cid].p >= 6) { // com vários clubes ninguém é demitido
+      const tab = sortTab(c.ids, c.tab), pos = tab.indexOf(cid) + 1;
       if (diff <= -7 || (pos >= c.ids.length - 1 && diff <= -4)) { fireUser(s, res, `Após 10 jogos, o time está em ${pos}º, muito abaixo do esperado (${pos + diff}º).`); return; }
     }
-    if (s.jobMode === "refuse") return; // não quer ofertas de emprego
-    s.offers = [];
-    jobOffers(s, why, res);
+    if (jobMode(s, cid) === "refuse") return; // este clube não quer ofertas de emprego
+    jobOffers(s, why, res, cid);
   }
   function checkRollover(s, country, res, silent) {
     const tiers = LEAGUES.filter((l) => l.country === country).sort((a, b) => a.tier - b.tier);
@@ -1003,9 +1009,18 @@
   function acceptOffer(s, tid) {
     const o = s.offers.find((x) => x.tid === tid);
     if (!o) return "Convite inválido.";
-    const old = s.user;
-    if (s.clubs && s.clubs.includes(old)) { s.clubs = s.clubs.map((x) => (x === old ? tid : x)); if (s.cashes) delete s.cashes[tid]; }
-    s.user = tid; s.cash = o.cash; s.offers = []; s.fired = null;
+    const old = o.for != null && myClubs(s).includes(o.for) ? o.for : s.user;
+    s.offers = s.offers.filter((x) => x.for !== o.for && x.tid !== tid);
+    if (old === s.user) {
+      if (s.clubs && s.clubs.includes(old)) { s.clubs = s.clubs.map((x) => (x === old ? tid : x)); if (s.cashes) delete s.cashes[tid]; }
+      s.user = tid; s.cash = o.cash; s.fired = null;
+      if (!s.offers.some((x) => x.for === s.user)) { /* ofertas de outros clubes meus continuam */ }
+    } else { // troca de outro clube meu (não o ativo): sai do antigo e assume o novo com o caixa dele
+      s.clubs = s.clubs.map((x) => (x === old ? tid : x));
+      s.cashes = s.cashes || {}; delete s.cashes[old]; s.cashes[tid] = o.cash;
+      s.offers = s.offers.map((x) => (x.for === old ? { ...x, for: tid } : x));
+    }
+    if (s.jobModes && s.jobModes[old] != null) { s.jobModes[tid] = s.jobModes[old]; delete s.jobModes[old]; }
     s.teams[tid].lineup = autoLineup(s.teams[tid]);
     return null;
   }
