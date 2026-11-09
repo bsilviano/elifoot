@@ -50,13 +50,13 @@ tr.me{background:color-mix(in srgb,var(--ac) 30%,transparent);font-weight:800}tr
 <header><div class="hl"><span id="crest"></span><b id="hT">Meu Elifoot</b></div><div class="hr"><span id="flag"></span><span id="hS"></span></div></header>
 <main id="app"></main>
 <nav id="nav"></nav>
-<script src="clubs.js?v=73"></script>
-<script src="game.js?v=73"></script>
+<script src="clubs.js?v=74"></script>
+<script src="game.js?v=74"></script>
 <script>
 const PREFIX="elifoot:save:",SAVE1="Elifoot"; // um único save para todos os times
 let S=null,tab="jogo",msg="",mf={pos:"",q:"",min:1,max:null,afford:true,ord:"ovr",dir:-1},viewKey=null;
 const $=id=>document.getElementById(id);
-const VERSAO=73;
+const VERSAO=74;
 const moneyFull=n=>(n<0?"-":"")+"R$ "+Math.round(Math.abs(n)).toLocaleString("pt-BR");
 const money=moneyFull;
 const U=()=>S.teams[S.user];
@@ -346,7 +346,7 @@ function liveHtml(){
   h+=`</div>`;
   if(p&&p.kind==="inj"){
     const m=l.matches[p.mi],can=m.bench[p.side].length&&m.subs[p.side]<5,ip=m.on[p.side].find(x=>x.id===p.outId),bn=m.bench[p.side].slice().sort((x,y)=>SPR[SPN(x)]-SPR[SPN(y)]||y.ov-x.ov);
-    h+=`<div class="card" style="border-color:#d33"><h2>🚑 ${p.name} (${ip?SPN(ip):"?"}) se lesionou!</h2><p class="mut">${p.club} · ${p.n} jogo${p.n>1?"s":""} fora. Substituições: ${m.subs[p.side]}/5. Escolha quem entra no lugar dele.</p>
+    h+=`<div class="card" style="border-color:#d33"><h2>🚑 ${p.name} (${ip?SPN(ip)+" "+ip.ov:"?"}) se lesionou!</h2><p class="mut">${p.club} · ${p.n} jogo${p.n>1?"s":""} fora. Substituições: ${m.subs[p.side]}/5. Escolha quem entra no lugar dele.</p>
     ${can?bn.map(q=>`<div class="pl"><span class="pc"><span class="pos">${SPN(q)}</span></span><span class="nm">${q.name}</span><span class="rt"><b class="ovc">${q.ov}</b><button class="s p" onclick="liveInjSub(${p.mi},'${p.side}',${p.outId},${q.id})">Entrar</button></span></div>`).join(""):`<p class="mut">Sem substituições disponíveis: o time segue com um a menos.</p>`}
     <div class="row" style="margin-top:8px"><button class="p" onclick="liveCont()">Continuar sem substituir</button></div></div>`;
   }else if(p){
