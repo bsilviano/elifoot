@@ -38,6 +38,7 @@ tr.me{background:var(--hl);font-weight:700}
 .campo{position:relative;height:430px;border-radius:10px;border:2px solid #fff8;background:repeating-linear-gradient(0deg,#2e8b3d 0 43px,#287a35 43px 86px);display:flex;flex-direction:column;justify-content:space-around;padding:8px 4px;overflow:hidden}
 .campo:before{content:"";position:absolute;left:0;right:0;top:50%;border-top:2px solid #fff8}
 .campo:after{content:"";position:absolute;left:50%;top:50%;width:70px;height:70px;margin:-35px 0 0 -35px;border:2px solid #fff8;border-radius:50%}
+.lin.dup{justify-content:center;gap:14%}
 .lin{display:flex;justify-content:space-around;align-items:center;position:relative;z-index:1}
 .jog{display:flex;flex-direction:column;align-items:center;width:20%;min-width:0}
 .jog i{font-style:normal;font-weight:800;font-size:13px;width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid #fff;box-shadow:0 1px 4px #0008}
@@ -55,7 +56,7 @@ tr.me{background:var(--hl);font-weight:700}
 const PREFIX="elifoot:save:";
 let S=null,tab="jogo",msg="",mf={pos:"",q:"",min:0},viewKey=null;
 const $=id=>document.getElementById(id);
-const VERSAO=8;
+const VERSAO=9;
 const moneyFull=n=>(n<0?"-":"")+"R$ "+Math.round(Math.abs(n)).toLocaleString("pt-BR");
 const money=moneyFull;
 const U=()=>S.teams[S.user];
@@ -183,7 +184,7 @@ function lineupCard(u){
   const rows=[a1,a2,m1,m2,st.filter(p=>p.pos==="DEF"),st.filter(p=>p.pos==="GK")];
   for(const g of rows){if(!g.length)continue;
     g.sort((a,b)=>(SPO[SPN(a)]-SPO[SPN(b)])||a.name.localeCompare(b.name));
-    h+=`<div class="lin">`+g.map(p=>`<div class="jog"><i style="background:${col};color:${tx}">${p.ov}</i><span>${p.name}</span><small>${SPN(p)}</small></div>`).join("")+`</div>`}
+    h+=`<div class="lin${g.length===2&&g[0].pos==="ATT"?" dup":""}">`+g.map(p=>`<div class="jog"><i style="background:${col};color:${tx}">${p.ov}</i><span>${p.name}</span><small>${SPN(p)}</small></div>`).join("")+`</div>`}
   h+=`</div>`;
   if(res.length)h+=`<p class="mut" style="margin:8px 0 0">Banco: ${res.map(p=>`${p.name} (${SPN(p)} ${p.ov})`).join(", ")}</p>`;
   return h+`<p><button class="s" onclick="setTab('elenco')">Mudar escalação</button></p></div>`;
