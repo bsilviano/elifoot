@@ -19,7 +19,7 @@ h2{margin:0 0 8px;font-size:16px}
 button,select,input{font:inherit;color:var(--tx);background:var(--btn);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
 button.p{background:var(--ac);color:var(--onac);font-weight:700;border:0}
 button.s{padding:6px 10px;font-size:13px}
-button.d{background:#4a1f1f}
+button.d{background:var(--dbg,#4a1f1f)}
 nav{position:fixed;bottom:0;left:0;right:0;z-index:20;display:flex;background:var(--hd);padding-bottom:env(safe-area-inset-bottom)}
 nav button{flex:1;border:0;border-radius:0;background:none;padding:14px 2px;font-size:11px;color:var(--hdt)}
 nav button.on{color:#fff;font-weight:700;border-top:3px solid var(--ac)}
@@ -50,13 +50,13 @@ tr.me{background:var(--hl);font-weight:700}
 <header><div class="hl"><span id="crest"></span><b id="hT">Meu Elifoot</b></div><div class="hr"><span id="flag"></span><span id="hS"></span></div></header>
 <main id="app"></main>
 <nav id="nav"></nav>
-<script src="clubs.js?v=47"></script>
-<script src="game.js?v=47"></script>
+<script src="clubs.js?v=49"></script>
+<script src="game.js?v=49"></script>
 <script>
 const PREFIX="elifoot:save:";
 let S=null,tab="jogo",msg="",mf={pos:"",q:"",min:1,max:null,afford:true,ord:"ovr",dir:-1},viewKey=null;
 const $=id=>document.getElementById(id);
-const VERSAO=47;
+const VERSAO=49;
 const moneyFull=n=>(n<0?"-":"")+"R$ "+Math.round(Math.abs(n)).toLocaleString("pt-BR");
 const money=moneyFull;
 const U=()=>S.teams[S.user];
@@ -158,11 +158,16 @@ function themeFor(name){const h=baseColor(name,1);
  const c=[1,3,5].map(i=>parseInt(h.substr(i,2),16)),K=[0,0,0],W=[255,255,255];
  return{bg:hx(mixc(c,K,.82)),card:hx(mixc(c,K,.72)),line:hx(mixc(c,K,.55)),hd:hx(mixc(c,K,.4)),btn:hx(mixc(c,K,.6)),hl:hx(mixc(c,K,.5)),ac:hx(mixc(c,W,.45)),hdt:hx(mixc(c,W,.75)),mut:hx(mixc(c,W,.6)),onac:hx(mixc(c,K,.85))}}
 function applyTheme(name){const r=document.documentElement.style;if(!name){["--bg","--card","--line","--hd","--btn","--hl","--ac","--hdt","--mut","--onac"].forEach(k=>r.removeProperty(k));document.querySelector('meta[name=theme-color]').content="#0b3d1e";return}
- const t=themeFor(name);r.setProperty("--bg",t.bg);r.setProperty("--card",t.card);r.setProperty("--line",t.line);r.setProperty("--hd",t.hd);r.setProperty("--btn",t.btn);r.setProperty("--hl",t.hl);r.setProperty("--ac",t.ac);r.setProperty("--hdt",t.hdt);r.setProperty("--mut",t.mut);r.setProperty("--onac",t.onac);document.querySelector('meta[name=theme-color]').content=t.hd}
+ const t=themeFor(name);r.setProperty("--bg",t.bg);r.setProperty("--card",t.card);r.setProperty("--line",t.line);r.setProperty("--hd",t.hd);r.setProperty("--btn",t.btn);r.setProperty("--hl",t.hl);r.setProperty("--ac",t.ac);r.setProperty("--hdt",t.hdt);r.setProperty("--mut",t.mut);r.setProperty("--onac",t.onac);document.querySelector('meta[name=theme-color]').content=t.hd;
+ ["--tx","--bad","--warn","--dbg"].forEach(k=>r.removeProperty(k));
+ const L=LIGHT[name];LIGHTON=!!L;if(L){for(const k in L)r.setProperty(k,L[k]);document.querySelector('meta[name=theme-color]').content=L["--hd"]}}
+// temas claros (fundo branco) por clube
+let LIGHTON=false;
+const LIGHT={"Vasco":{"--bg":"#f1f1f1","--card":"#ffffff","--line":"#d4d4d4","--tx":"#161616","--mut":"#666666","--ac":"#161616","--onac":"#ffffff","--hd":"#161616","--hdt":"#d8d8d8","--btn":"#e8e8e8","--hl":"#e2e2e2","--bad":"#c62828","--warn":"#a15c00","--dbg":"#f3c9c9"}};
 
 function lumi(h){const c=[1,3,5].map(i=>parseInt(h.substr(i,2),16));return(0.299*c[0]+0.587*c[1]+0.114*c[2])/255}
-function tcol(name){const h=baseColor(name);if(lumi(h)>=0.32)return h;const c=[1,3,5].map(i=>parseInt(h.substr(i,2),16));return hx(mixc(c,[255,255,255],.55))} // cor do time legível no fundo escuro
-function tbox(name){const c=tcol(name),h=baseColor(name);return `<span class="tb" style="background:${h};border:2px solid ${c};color:${lumi(h)>0.6?"#111":"#fff"}">${name}</span>`}
+function tcol(name){const h=baseColor(name);if(LIGHTON)return lumi(h)>0.7?"#555555":h;if(lumi(h)>=0.32)return h;const c=[1,3,5].map(i=>parseInt(h.substr(i,2),16));return hx(mixc(c,[255,255,255],.55))} // cor do time legível no fundo escuro
+function tbox(name){const h=baseColor(name),c=LIGHTON&&lumi(h)>0.7?"#999":tcol(name);return `<span class="tb" style="background:${h};border:2px solid ${c};color:${lumi(h)>0.6?"#111":"#fff"}">${name}</span>`}
 function tline(name,html){return `<div style="color:${tcol(name)};font-size:13px;padding:2px 0">${html}</div>`}
 const FLAGS={
 BRA:'<rect width="30" height="20" fill="#009c3b"/><path d="M15 2 28 10 15 18 2 10z" fill="#ffdf00"/><circle cx="15" cy="10" r="4.2" fill="#002776"/>',
