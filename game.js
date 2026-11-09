@@ -685,10 +685,10 @@
       const t = s.teams[k];
       const best = Math.max(0, ...t.players.filter((q) => q.pos === p.pos).map((q) => q.ov));
       if (p.ov < best - 8) continue;
-      const f = p.ov > best + 2 ? 1.1 + Math.random() * 0.2 : p.ov >= best - 2 ? 0.92 + Math.random() * 0.16 : 0.65 + Math.random() * 0.2;
+      const f = p.ov > best + 2 ? 1.12 + Math.random() * 0.28 : p.ov >= best - 2 ? 1 + Math.random() * 0.15 : 1 + Math.random() * 0.05;
       const cap = CASH[LG[t.lkey].tier - 1] * 0.7;
       const bid = Math.round(Math.min(p.value * f, cap, p.value * 1.4) / 10000) * 10000;
-      if (bid < 10000) continue;
+      if (bid < p.value || bid < 10000) continue; // lance nunca abaixo do valor de mercado
       bids.push({ tid: t.id, name: t.name, league: LG[t.lkey].name, country: COUNTRIES[t.country].name, bid });
     }
     bids.sort((a, b) => b.bid - a.bid);
