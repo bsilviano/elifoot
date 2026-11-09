@@ -1042,6 +1042,11 @@
       if (bid < p.value || bid < 10000) continue; // lance nunca abaixo do valor de mercado
       bids.push({ tid: t.id, name: t.name, league: LG[t.lkey].name, country: COUNTRIES[t.country].name, bid });
     }
+    if (!bids.length) { // sempre algum clube paga pelo menos o valor mínimo
+      const pool = ids.map((k) => s.teams[k]);
+      const t = pool.filter((x) => CASH[LG[x.lkey].tier - 1] * 0.7 >= p.value)[0] ? shuffle(pool.filter((x) => CASH[LG[x.lkey].tier - 1] * 0.7 >= p.value))[0] : shuffle(pool)[0];
+      if (t) bids.push({ tid: t.id, name: t.name, league: LG[t.lkey].name, country: COUNTRIES[t.country].name, bid: Math.round(p.value) });
+    }
     bids.sort((a, b) => b.bid - a.bid);
     return { pid, name: p.name, pos: p.pos, sp: p.sp, ov: p.ov, value: p.value, bids: bids.slice(0, 8) };
   }
