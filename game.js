@@ -168,6 +168,7 @@
 
   // ---------- criação de competições ----------
   function newComp(s, id, name, ids, after, extra) {
+    if (s.comps[id + "_K"] && s.comps[id + "_K"].done) delete s.comps[id + "_K"]; // mata-mata da temporada anterior
     const c = Object.assign({ id, name, ids, after, tab: {}, rDone: 0, R: 0, ties: null, plan: null, si: 0, done: false, groups: null, order: ids }, extra || {});
     const ctry = c.key && LG[c.key] ? LG[c.key].country : null;
     const cr = ctry ? (ctry === "BRA" ? "BR" : "EN") : /^(EST_|LIB|SUL|BRA|CDB)/.test(id) ? "BR" : "EN";
@@ -453,6 +454,8 @@
   }
   // OVR sem teto: jogadores que estavam travados em 92 (ou 95) voltam a valer o que o valor de mercado real pede
   function migrateOvr(s) {
+    // mata-mata (_K) concluído de temporada anterior que ficou guardado: some quando a competição da nova temporada está em andamento
+    for (const id of Object.keys(s.comps || {})) if (id.endsWith("_K")) { const base = s.comps[id.slice(0, -2)]; if (base && !base.done && s.comps[id].done) delete s.comps[id]; }
     if (s.ovrV) return;
     s.ovrV = 1;
     for (const t of Object.values(s.teams)) {
