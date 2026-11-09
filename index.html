@@ -51,13 +51,13 @@ tr.me{background:color-mix(in srgb,var(--ac) 30%,transparent);font-weight:800}tr
 <header><div class="hl"><span id="crest"></span><b id="hT">Meu Elifoot</b></div><div class="hr"><span id="flag"></span><span id="hS"></span></div></header>
 <main id="app"></main>
 <nav id="nav"></nav>
-<script src="clubs.js?v=116"></script>
-<script src="game.js?v=116"></script>
+<script src="clubs.js?v=117"></script>
+<script src="game.js?v=117"></script>
 <script>
 const PREFIX="elifoot:save:",SAVE1="Elifoot"; // um único save para todos os times
 let artCan=false,S=null,tab="jogo",msg="",mf={pos:"",q:"",any:true,min:1,max:null,afford:true,ord:"ovr",dir:-1},viewKey=null;
 const $=id=>document.getElementById(id);
-const VERSAO=116;
+const VERSAO=117;
 const moneyFull=n=>(n<0?"-":"")+"R$ "+Math.round(Math.abs(n)).toLocaleString("pt-BR");
 const money=moneyFull;
 const U=()=>S.teams[S.user];
@@ -500,7 +500,8 @@ function tbl(c,ids,hl){
 function vTabela(){
   if(HISTV)return vHist();
   let id=viewKey&&S.comps[viewKey]?viewKey:null;
-  if(!id){const mine=Object.values(S.comps).filter(c=>!c.done&&c.ids.includes(S.user));id=(mine.find(c=>c.after==="lg")||mine[0]||Object.values(S.comps)[0]).id}
+  if(!id){const mine=Object.values(S.comps).filter(c=>!c.done&&c.ids.includes(S.user));const all=Object.values(S.comps).filter(c=>c.ids&&c.ids.includes(S.user)&&!c.id.endsWith("_K"));
+    id=(mine.find(c=>c.after==="lg")||mine[0]||all.filter(c=>c.key).pop()||all.pop()||Object.values(S.comps)[0]).id}
   if(id.endsWith("_K")&&S.comps[id.slice(0,-2)])id=id.slice(0,-2);
   const c=S.comps[id],kc=S.comps[id+"_K"],T=kc||c; // copas com fase de grupos/liga + mata-mata aparecem como uma competição só
   let h=`<div class="card"><select onchange="viewKey=this.value;render()" style="width:100%">${compOpts(id)}</select></div>`;
@@ -519,7 +520,8 @@ function vTabela(){
     (T.past||[]).slice().reverse().forEach(p=>{h+=tieCard(p.name,p.ties)});
   }
   if(c.groups){
-    h+=c.groups.map((g,i)=>`<div class="card"><h2>${c.name} — ${kc?"Fase de grupos — ":""}Grupo ${String.fromCharCode(65+i)}</h2>${tbl(c,g)}</div>`).join("");
+    const gi=c.groups.map((g,i)=>i).sort((x,y)=>(c.groups[y].some(t=>mi.includes(t))?1:0)-(c.groups[x].some(t=>mi.includes(t))?1:0)||x-y);
+    h+=gi.map(i=>{const g=c.groups[i];return `<div class="card"><h2>${c.name} — ${kc?"Fase de grupos — ":""}Grupo ${String.fromCharCode(65+i)}${g.some(t=>mi.includes(t))?" ★":""}</h2>${tbl(c,g)}</div>`}).join("");
   }else if(c.R&&!(c.after==="cup")){
     h+=`<div class="card"><h2>${c.name}${kc?" — Fase de liga":""}</h2>${tbl(c,c.ids)}${c.after==="euS"&&c.final?'<p class="mut">Top 8 direto nas oitavas; 9º a 24º no playoff.</p>':""}</div>`;
   }
