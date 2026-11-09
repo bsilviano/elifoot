@@ -55,6 +55,7 @@ tr.me{background:var(--hl);font-weight:700}
 const PREFIX="elifoot:save:";
 let S=null,tab="jogo",msg="",mf={pos:"",q:"",min:0},viewKey=null;
 const $=id=>document.getElementById(id);
+const moneyFull=n=>(n<0?"-":"")+"R$ "+Math.round(Math.abs(n)).toLocaleString("pt-BR");
 const money=n=>(n<0?"-":"")+"R$ "+(Math.abs(n)>=1e6?(Math.abs(n)/1e6).toFixed(2)+" mi":Math.round(Math.abs(n)/1e3)+" mil");
 const U=()=>S.teams[S.user];
 const LGu=()=>Game.LG[U().lkey];
@@ -135,7 +136,7 @@ function render(){fixSP();
   const u=U();applyTheme(u.name);
   if(Game.myClubs(S).length>1)$("hT").innerHTML=`<select onchange="swClub(this.value)" style="background:transparent;color:inherit;font:inherit;font-weight:700;border:0;max-width:210px">${Game.myClubs(S).map(id=>`<option value="${id}" ${id===S.user?"selected":""}>${S.teams[id].name}</option>`).join("")}</select>`;else $("hT").textContent=u.name;
   $("crest").innerHTML=crestSvg(u.name);$("flag").innerHTML=flagSvg(u.country);
-  $("hS").innerHTML=`${Game.COUNTRIES[u.country].name} · ${(Object.values(S.comps).find(c=>c.key===u.lkey)||{name:""}).name||""}\n<span class="cx">Caixa ${money(S.cash)}</span> · ${Game.dateOf(S.T)}`;
+  $("hS").innerHTML=`${Game.COUNTRIES[u.country].name} · ${(Object.values(S.comps).find(c=>c.key===u.lkey)||{name:""}).name||""}\n<span class="cx">Caixa ${moneyFull(S.cash)}</span> · ${Game.dateOf(S.T)}`;
   const tabs=[["jogo","Jogo"],["elenco","Elenco"],["tabela","Tabela"],["mercado","Mercado"],["fin","Mais"]];
   $("nav").innerHTML=tabs.map(([k,n])=>`<button class="${tab===k?"on":""}" onclick="setTab('${k}')">${n}</button>`).join("");
   $("app").innerHTML=({jogo:vJogo,elenco:vElenco,tabela:vTabela,mercado:vMercado,fin:vMais})[tab]();
@@ -266,8 +267,8 @@ function buy(id){const e=Game.buy(S,id);if(e)alert(e);save();render()}
 
 function vMais(){
   const u=U(),w=u.players.reduce((s,p)=>s+p.wage,0);
-  return `<div class="card"><h2>Finanças</h2><p>Caixa: <b>${money(S.cash)}</b><br>Folha por rodada: ${money(w)}<br>Torcida (estimada): ${u.fans} mil<br>Reputação: ${S.rep}/100</p></div>
-  <div class="card"><h2>Meus times</h2>${Game.myClubs(S).map(id=>`<div class="pl ${id===S.user?"in":""}"><span><b>${S.teams[id].name}</b><br><span class="mut">Caixa ${money(id===S.user?S.cash:(S.cashes&&S.cashes[id])||0)}${id===S.user?" · ativo":""}</span></span><span>${id===S.user?"":`<button class="s p" onclick="swClub(${id})">Comandar</button> <button class="s d" onclick="dropClubUI(${id})">Largar</button>`}</span></div>`).join("")}
+  return `<div class="card"><h2>Finanças</h2><p>Caixa: <b>${moneyFull(S.cash)}</b><br>Folha por rodada: ${money(w)}<br>Torcida (estimada): ${u.fans} mil<br>Reputação: ${S.rep}/100</p></div>
+  <div class="card"><h2>Meus times</h2>${Game.myClubs(S).map(id=>`<div class="pl ${id===S.user?"in":""}"><span><b>${S.teams[id].name}</b><br><span class="mut">Caixa ${moneyFull(id===S.user?S.cash:(S.cashes&&S.cashes[id])||0)}${id===S.user?" · ativo":""}</span></span><span>${id===S.user?"":`<button class="s p" onclick="swClub(${id})">Comandar</button> <button class="s d" onclick="dropClubUI(${id})">Largar</button>`}</span></div>`).join("")}
   <div class="row" style="margin-top:8px"><select id="addSel" style="flex:1;min-width:0">${clubOpts()}</select><button class="p" onclick="addClubUI()">Adicionar time</button></div>
   <p class="mut">Cada time tem elenco, escalação e caixa próprios. O jogo avança até a próxima partida do time ativo; os outros times seus jogam com escalação automática se ela ficar inválida e pagam salários e recebem bilheteria. Prêmios e propostas de fim de temporada só valem para o time ativo.</p></div>
   <div class="card"><h2>Save e elencos</h2><p class="mut">Salvamento automático com o nome do time (${u.name}).</p>
