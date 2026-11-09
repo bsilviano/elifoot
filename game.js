@@ -443,14 +443,16 @@
     for (const [k, e] of Object.entries(s.scorers || {})) if (!seen.has(k)) out.push({ n: e.n, c: e.c, g: e.g, real: 0, jogo: e.g, mine: Object.values(s.teams).some((t) => t.name === e.c && mine(t.id)) });
     return out.sort((a, b) => b.g - a.g).slice(0, n || 30);
   }
-  function processRound(s, rd, res, silent) {
+  function processRound(s, rd, res, silent, pre) {
     const c = s.comps[rd.c];
     if (!c) return;
+    let fi = -1;
     for (const [h, a, k] of rd.fx) {
+      fi++;
       const H = s.teams[h], A = s.teams[a];
       if (!silent && h === s.user) { /* escalação do usuário ativo */ } else if (!silent && isMine(s, h)) fixLineup(H); else H.lineup = autoLineup(H);
       if (!silent && a === s.user) { /* escalação do usuário ativo */ } else if (!silent && isMine(s, a)) fixLineup(A); else A.lineup = autoLineup(A);
-      const r = simMatch(H, A);
+      const r = pre ? pre[fi] : simMatch(H, A);
       trackGoals(s, H, r.sh); trackGoals(s, A, r.sa);
       if (rd.k === "tab") {
         const th = c.tab[h], ta = c.tab[a];
@@ -702,10 +704,13 @@
     return null;
   }
   // Renda do jogo: público x preço do ingresso; mandante fica com 70% e visitante com 30%.
-  function gateOf(s, hid) {
+  // O público varia com a torcida, o porte do adversário e o acaso.
+  function gateOf(s, hid, aid) {
     const t = s.teams[hid], cap = getStad(t);
     const tier = t.lkey && LG[t.lkey] ? LG[t.lkey].tier : 3;
-    const att = Math.round(Math.min(cap, t.fans * 1000 * 0.12 * rnd(0.85, 1.15)));
+    const opp = aid != null && s.teams[aid] ? s.teams[aid] : null;
+    const oppF = opp ? clamp(0.75 + 0.3 * Math.min(opp.fans / Math.max(t.fans, 1), 2), 0.75, 1.3) : 1;
+    const att = Math.round(Math.min(cap, t.fans * 1000 * 0.12 * rnd(0.65, 1.3) * oppF));
     const price = [50, 30, 15][tier - 1];
     const rev = att * price;
     const home = Math.round(rev * 0.7);
@@ -720,6 +725,23 @@
     }
     return null;
   }
+  // Fecha uma rodada: tabela/copas (processRound) + finanças dos meus clubes.
+  function settleRd(s, rd, res, pre) {
+    processRound(s, rd, res, false, pre);
+    const credit = (id, x, wage) => {
+      if (id === s.user) { res.gate += x; res.wages += wage; return; }
+      s.cashes = s.cashes || {};
+      s.cashes[id] = (s.cashes[id] || 0) + x - wage;
+    };
+    rd.fx.forEach(([h, a], fi) => {
+      if (!isMine(s, h) && !isMine(s, a)) return;
+      const gt = (pre && pre[fi] && pre[fi].gate) || gateOf(s, h, a);
+      res.gates = res.gates || [];
+      res.gates.push({ home: s.teams[h].name, away: s.teams[a].name, att: gt.att, cap: gt.cap, rev: gt.rev, homeShare: gt.home, awayShare: gt.away, homeMine: isMine(s, h), awayMine: isMine(s, a) });
+      if (isMine(s, h)) credit(h, gt.home, s.teams[h].players.reduce((x, p) => x + p.wage, 0));
+      if (isMine(s, a)) credit(a, gt.away, s.teams[a].players.reduce((x, p) => x + p.wage, 0));
+    });
+  }
   function playRound(s) {
     const u = s.teams[s.user];
     const res = { reports: [], notes: [], wages: 0, gate: 0, skipped: 0, fixed: fixLineup(u) };
@@ -729,24 +751,148 @@
       const rd = s.q.shift();
       s.T = rd.T; ageCheck(s);
       const anyMine = rd.fx.some((m) => isMine(s, m[0]) || isMine(s, m[1]));
-      processRound(s, rd, res, false);
-      const credit = (id, x, wage) => {
-        if (id === s.user) { res.gate += x; res.wages += wage; return; }
-        s.cashes = s.cashes || {};
-        s.cashes[id] = (s.cashes[id] || 0) + x - wage;
-      };
-      for (const [h, a] of rd.fx) {
-        if (!isMine(s, h) && !isMine(s, a)) continue;
-        const gt = gateOf(s, h);
-        res.gates = res.gates || [];
-        res.gates.push({ home: s.teams[h].name, away: s.teams[a].name, att: gt.att, cap: gt.cap, rev: gt.rev, homeShare: gt.home, awayShare: gt.away, homeMine: isMine(s, h), awayMine: isMine(s, a) });
-        if (isMine(s, h)) credit(h, gt.home, s.teams[h].players.reduce((x, p) => x + p.wage, 0));
-        if (isMine(s, a)) credit(a, gt.away, s.teams[a].players.reduce((x, p) => x + p.wage, 0));
-      }
+      settleRd(s, rd, res, null);
       if (anyMine) break;
       res.skipped++;
       if (s.offers.length > nOffers) break;
     }
+    s.cash += res.gate - res.wages;
+    res.date = dateOf(s.T);
+    return res;
+  }
+
+  // ---- Jogo ao vivo: todos os confrontos da rodada avançam minuto a minuto ----
+  const SUBS_MAX = 5;
+  function liveRates(m) {
+    const rh = ratingsL(m.on.h), ra = ratingsL(m.on.a);
+    const nh = m.on.h.length, na = m.on.a.length;
+    const tf = (t) => (t.tactic === "Ofensiva" ? [1.06, 0.94] : t.tactic === "Defensiva" ? [0.94, 1.06] : [1, 1]);
+    const [ah, dh] = tf(m.H), [aa, da] = tf(m.A);
+    let xh = clamp(1.3 * Math.exp((rh.A * ah - ra.D * da + 3) / 22), 0.15, 5);
+    let xa = clamp(1.1 * Math.exp((ra.A * aa - rh.D * dh - 3) / 22), 0.15, 5);
+    xh *= Math.pow(nh / 11, 1.3) * Math.pow(11 / Math.max(na, 1), 0.5);
+    xa *= Math.pow(na / 11, 1.3) * Math.pow(11 / Math.max(nh, 1), 0.5);
+    m.px = { h: xh / 90, a: xa / 90 };
+  }
+  function createLive(s, rd) {
+    const c = s.comps[rd.c];
+    const live = { rd, T: rd.T, date: dateOf(rd.T), comp: c ? c.name + (rd.n ? " · " + rd.n : "") : "", minute: 0, pending: [], done: false, matches: [] };
+    rd.fx.forEach(([h, a, k], i) => {
+      const H = s.teams[h], A = s.teams[a];
+      for (const [t, id] of [[H, h], [A, a]]) { if (isMine(s, id)) fixLineup(t); else t.lineup = autoLineup(t); }
+      const m = { i, hid: h, aid: a, H, A, gh: 0, ga: 0, sh: [], sa: [], evh: [], eva: [], ev: [], subs: { h: 0, a: 0 }, mine: { h: isMine(s, h), a: isMine(s, a) } };
+      m.on = { h: lineupPlayers(H).slice(), a: lineupPlayers(A).slice() };
+      const bench = (t) => t.players.filter((p) => avail(p) && !t.lineup.includes(p.id)).sort((x, y) => y.ov - x.ov);
+      m.bench = { h: bench(H), a: bench(A) };
+      m.gate = gateOf(s, h, a);
+      live.matches.push(m);
+    });
+    if (!rd.dec) { // quem estava fora cumpre mais um jogo de suspensão/lesão
+      for (const m of live.matches) for (const t of [m.H, m.A]) for (const p of t.players) { if (p.sus > 0) p.sus--; if (p.inj > 0) p.inj--; }
+      rd.dec = 1;
+    }
+    live.matches.forEach(liveRates);
+    return live;
+  }
+  function startRound(s) {
+    const u = s.teams[s.user];
+    const res = { reports: [], notes: [], wages: 0, gate: 0, skipped: 0, fixed: fixLineup(u) };
+    const nOffers = s.offers.length;
+    while (s.q.length) {
+      const rd = s.q[0];
+      if (rd.fx.some((m) => isMine(s, m[0]) || isMine(s, m[1]))) { s.T = rd.T; ageCheck(s); return { res, live: createLive(s, rd) }; }
+      s.q.shift(); s.T = rd.T; ageCheck(s);
+      processRound(s, rd, res, false); res.skipped++;
+      if (s.offers.length > nOffers) break;
+    }
+    res.date = dateOf(s.T);
+    return { res, live: null };
+  }
+  function wpickP(list, wf) {
+    const tot = list.reduce((x, p) => x + wf(p), 0);
+    let r = Math.random() * tot;
+    for (const p of list) { r -= wf(p); if (r <= 0) return p; }
+    return list[list.length - 1];
+  }
+  function autoReorg(m, side) { // sem goleiro em campo: o auxiliar troca o pior jogador de linha pelo goleiro reserva
+    if (m.on[side].some((p) => p.pos === "GK") || m.subs[side] >= SUBS_MAX) return false;
+    const gk = m.bench[side].find((p) => p.pos === "GK");
+    if (!gk || !m.on[side].length) return false;
+    const out = m.on[side].slice().sort((a, b) => a.ov - b.ov)[0];
+    return swapPlayers(m, side, out.id, gk.id, "auto");
+  }
+  function swapPlayers(m, side, outId, inId, why) {
+    const oi = m.on[side].findIndex((p) => p.id === outId), bi = m.bench[side].findIndex((p) => p.id === inId);
+    if (oi < 0 || bi < 0 || m.subs[side] >= SUBS_MAX) return false;
+    const pout = m.on[side][oi], pin = m.bench[side][bi];
+    m.on[side][oi] = pin; m.bench[side].splice(bi, 1); m.subs[side]++;
+    m.ev.push({ min: m.min || 0, type: "sub", side, name: pin.name, out: pout.name, club: (side === "h" ? m.H : m.A).name, why });
+    liveRates(m);
+    return true;
+  }
+  function liveSub(live, mi, side, outId, inId) {
+    const m = live.matches[mi]; m.min = live.minute;
+    return swapPlayers(m, side, outId, inId, "user");
+  }
+  function liveMinute(s, live, m) {
+    const mn = live.minute; m.min = mn;
+    for (const side of ["h", "a"]) {
+      const team = side === "h" ? m.H : m.A, evs = side === "h" ? m.evh : m.eva;
+      // gols
+      if (m.on[side].length && Math.random() < m.px[side]) {
+        const p = wpickP(m.on[side], (q) => ({ ATT: 3, MID: 1.5, DEF: 0.4, GK: 0.01 }[q.pos] * q.ov));
+        if (side === "h") { m.gh++; m.sh.push(p.name); } else { m.ga++; m.sa.push(p.name); }
+        m.ev.push({ min: mn, type: "goal", side, name: p.name, club: team.name });
+      }
+      // expulsão
+      if (m.on[side].length > 8 && Math.random() < 0.05 / 90) {
+        const p = wpickP(m.on[side], (q) => ({ GK: 0.2, DEF: 1.4, MID: 1, ATT: 0.7 }[q.pos]));
+        m.on[side].splice(m.on[side].indexOf(p), 1);
+        p.sus = pick([1, 1, 1, 1, 1, 2, 2, 3, 4]); p.yc = 0;
+        evs.push({ type: "red", name: p.name, n: p.sus });
+        m.ev.push({ min: mn, type: "red", side, name: p.name, n: p.sus, club: team.name });
+        liveRates(m);
+        if (isMine(s, team.id)) live.pending.push({ mi: m.i, side, name: p.name, club: team.name });
+        else autoReorg(m, side);
+      }
+      // lesão (substituição automática por reserva do mesmo setor)
+      if (m.on[side].length > 8 && Math.random() < 0.19 / 90) {
+        const p = m.on[side][ri(0, m.on[side].length - 1)];
+        const r = Math.random();
+        p.inj = r < 0.5 ? ri(1, 2) : r < 0.8 ? ri(3, 5) : r < 0.96 ? ri(6, 12) : ri(13, 30);
+        evs.push({ type: "inj", name: p.name, n: p.inj });
+        m.ev.push({ min: mn, type: "inj", side, name: p.name, n: p.inj, club: team.name });
+        const b = m.bench[side].find((q) => q.pos === p.pos);
+        if (b && m.subs[side] < SUBS_MAX) swapPlayers(m, side, p.id, b.id, "lesao");
+        else { m.on[side].splice(m.on[side].indexOf(p), 1); liveRates(m); autoReorg(m, side); }
+      }
+      // cartão amarelo (3º amarelo = suspenso na próxima rodada)
+      if (m.on[side].length && Math.random() < 1.5 / 90) {
+        const p = wpickP(m.on[side], (q) => ({ GK: 0.1, DEF: 1.4, MID: 1.3, ATT: 0.9 }[q.pos]));
+        p.yc = (p.yc || 0) + 1;
+        const third = p.yc >= 3;
+        m.ev.push({ min: mn, type: "yellow", side, name: p.name, club: team.name, third });
+        if (third) { p.yc = 0; p.sus = 1; evs.push({ type: "yc3", name: p.name, n: 1 }); }
+      }
+    }
+  }
+  function liveStep(s, live, n) {
+    for (let k = 0; k < n && !live.done && !live.pending.length; k++) {
+      live.minute++;
+      for (const m of live.matches) liveMinute(s, live, m);
+      if (live.minute >= 90) live.done = true;
+    }
+  }
+  function liveResolve(live) { // fecha a tela de expulsão: o auxiliar garante um goleiro em campo
+    const p = live.pending.shift();
+    if (p) autoReorg(live.matches[p.mi], p.side);
+  }
+  function liveFinish(s, live, res) {
+    const pre = live.matches.map((m) => ({ gh: m.gh, ga: m.ga, sh: m.sh, sa: m.sa, evh: m.evh, eva: m.eva, gate: m.gate }));
+    const ix = s.q.indexOf(live.rd);
+    if (ix >= 0) s.q.splice(ix, 1);
+    s.T = live.rd.T; ageCheck(s);
+    settleRd(s, live.rd, res, pre);
     s.cash += res.gate - res.wages;
     res.date = dateOf(s.T);
     return res;
@@ -950,6 +1096,6 @@
     if (s.cashes) delete s.cashes[id];
     return null;
   }
-  const api = { getStad, stadCost, upgradeStadium, topScorers, yearOf, bestFormation, avail, nextRoundClubs, myClubs, addClub, switchClub, dropClub, STATES, CONT, COUNTRIES, LEAGUES, LG, FORMATIONS, TACTICS, newGame, autoLineup, ratings, playRound, acceptOffer, market, buy, sell, auction, sellTo, applyUpdate, resetPid, lineupPlayers, fixLineup, nextUserRound, sortTab, dateOf, userComps, userMatches };
+  const api = { startRound, liveStep, liveSub, liveResolve, liveFinish, autoReorg, getStad, stadCost, upgradeStadium, topScorers, yearOf, bestFormation, avail, nextRoundClubs, myClubs, addClub, switchClub, dropClub, STATES, CONT, COUNTRIES, LEAGUES, LG, FORMATIONS, TACTICS, newGame, autoLineup, ratings, playRound, acceptOffer, market, buy, sell, auction, sellTo, applyUpdate, resetPid, lineupPlayers, fixLineup, nextUserRound, sortTab, dateOf, userComps, userMatches };
   if (typeof module !== "undefined") module.exports = api; else root.Game = api;
 })(typeof window !== "undefined" ? window : globalThis);

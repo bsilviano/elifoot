@@ -50,13 +50,13 @@ tr.me{background:var(--hl);font-weight:700}
 <header><div class="hl"><span id="crest"></span><b id="hT">Meu Elifoot</b></div><div class="hr"><span id="flag"></span><span id="hS"></span></div></header>
 <main id="app"></main>
 <nav id="nav"></nav>
-<script src="clubs.js?v=21"></script>
-<script src="game.js?v=21"></script>
+<script src="clubs.js?v=22"></script>
+<script src="game.js?v=22"></script>
 <script>
 const PREFIX="elifoot:save:";
 let S=null,tab="jogo",msg="",mf={pos:"",q:"",min:1,max:null,afford:true,ord:"ovr",dir:-1},viewKey=null;
 const $=id=>document.getElementById(id);
-const VERSAO=21;
+const VERSAO=22;
 const moneyFull=n=>(n<0?"-":"")+"R$ "+Math.round(Math.abs(n)).toLocaleString("pt-BR");
 const money=moneyFull;
 const U=()=>S.teams[S.user];
@@ -140,6 +140,7 @@ function fixSP(){
   S.spv=1;S.lv5=1;save()}
 function render(){fixSP();
   if(!S)return start();
+  if(LIVE){$("nav").style.display="none";return liveRender()}
   const u=U();applyTheme(u.name);
   if(Game.myClubs(S).length>1)$("hT").innerHTML=`<select onchange="swClub(this.value)" style="background:transparent;color:inherit;font:inherit;font-weight:700;border:0;max-width:210px">${Game.myClubs(S).map(id=>`<option value="${id}" ${id===S.user?"selected":""}>${S.teams[id].name}</option>`).join("")}</select>`;else $("hT").textContent=u.name;
   $("crest").innerHTML=crestSvg(u.name);$("flag").innerHTML=flagSvg(u.country);
@@ -209,7 +210,12 @@ function confShow(){if(S.user!==CONF.q[CONF.i])Game.switchClub(S,CONF.q[CONF.i])
 function confNext(){if(CONF.i<CONF.q.length-1){CONF.i++;confShow()}else{CONF=null;doPlay()}}
 function confCancel(){CONF=null;render()}
 function doPlay(){
-  const r=Game.playRound(S);
+  const x=Game.startRound(S);
+  if(!x.live){showSummary(x.res);return}
+  LIVE={live:x.live,res:x.res};LSPD=900;$("nav").style.display="none";liveRender();liveRun()
+}
+function showSummary(r){
+  $("nav").style.display="";
   let t=`<h2>${r.date}</h2>`;
   r.reports.forEach(m=>{t+=`<p class="mut">${m.comp}</p><div class="big">${m.home} ${m.gh} x ${m.ga} ${m.away}</div><p class="mut">${m.home}: ${sc(m.sh)}<br>${m.away}: ${sc(m.sa)}</p>`});
   if(r.wages)t+=`<p>Salários: <span class="bad">-${money(r.wages)}</span>${r.gate?` · Bilheteria: <span class="good">+${money(r.gate)}</span>`:""}</p>`;
@@ -218,6 +224,63 @@ function doPlay(){
   if(r.fixed)t+=`<p class="mut">Escalação inválida: o auxiliar escalou o time automaticamente.</p>`;
   if(r.skipped)t+=`<p class="mut">${r.skipped} rodada(s) sem jogo seu foram simuladas.</p>`;
   msg=t+`<p class="mut">💾 Jogo salvo automaticamente.</p>`;save();render();
+}
+
+
+let LIVE=null,LTM=null,LSPD=900;
+function liveRun(){clearInterval(LTM);LTM=null;if(!LIVE||LIVE.live.done||LIVE.live.pending.length||LSPD===0)return;
+  LTM=setInterval(()=>{const l=LIVE.live;Game.liveStep(S,l,1);liveRender();if(l.done||l.pending.length||!LSPD){clearInterval(LTM);LTM=null}},LSPD)}
+function liveSpeed(v){LSPD=v;if(v===-1){const l=LIVE.live;while(!l.done&&!l.pending.length)Game.liveStep(S,l,1);liveRender();return}liveRun()}
+const LI={goal:"⚽",red:"🟥",inj:"🚑",yellow:"🟨",sub:"🔁"};
+function liveEv(e){
+  const m=e.min+"'";
+  if(e.type==="goal")return `${m} ⚽ <b>GOL</b> ${e.name} <span class="mut">(${e.club})</span>`;
+  if(e.type==="red")return `${m} 🟥 <b>Expulso</b> ${e.name} <span class="mut">(${e.club}) · ${e.n} jogo${e.n>1?"s":""} de suspensão</span>`;
+  if(e.type==="inj")return `${m} 🚑 Lesão: ${e.name} <span class="mut">(${e.club}) · ${e.n} jogo${e.n>1?"s":""}</span>`;
+  if(e.type==="yellow")return `${m} 🟨 ${e.name} <span class="mut">(${e.club})${e.third?" · 3º amarelo, suspenso":""}</span>`;
+  return `${m} 🔁 Entra ${e.name}, sai ${e.out} <span class="mut">(${e.club})</span>`;
+}
+function liveHtml(){
+  const l=LIVE.live,p=l.pending[0];
+  let h=`<div class="card"><h2>${l.comp}</h2><p class="mut">${l.date}</p><div class="big">⏱ ${l.minute}'${l.done?" · Fim de jogo":""}</div>`;
+  if(!l.done&&!p)h+=`<div class="row"><button class="${LSPD===900?"p":""}" onclick="liveSpeed(900)">▶ Normal</button><button class="${LSPD===250?"p":""}" onclick="liveSpeed(250)">⏩ Rápido</button><button onclick="liveSpeed(-1)">⏭ Ir ao fim</button></div>`;
+  h+=`</div>`;
+  if(p){
+    const m=l.matches[p.mi],T=p.side==="h"?m.H:m.A;
+    h+=`<div class="card" style="border-color:#d33"><h2>🟥 ${p.name} foi expulso!</h2><p class="mut">${p.club} está com ${m.on[p.side].length} em campo. Substituições: ${m.subs[p.side]}/5. Troque um jogador ou reorganize o time.</p>
+    <p><b>Em campo</b>${LSEL?` <span class="mut">escolha quem sai</span>`:""}</p>${m.on[p.side].map(q=>`<div class="pl"><span><span class="pos">${SPN(q)}</span>${q.name}</span><span><b>${q.ov}</b>${LSEL?` <button class="s d" onclick="liveSubUI(${p.mi},'${p.side}',${q.id})">Sai</button>`:""}</span></div>`).join("")}
+    <p><b>Banco</b> <span class="mut">(toque em Entrar e escolha quem sai)</span></p>
+    ${m.bench[p.side].length&&m.subs[p.side]<5?m.bench[p.side].map(q=>`<div class="pl"><span><span class="pos">${SPN(q)}</span>${q.name}</span><span><b>${q.ov}</b> <button class="s p" onclick="LSEL=${q.id};liveRender()">${LSEL===q.id?"Selecionado":"Entrar"}</button></span></div>`).join(""):`<p class="mut">Sem substituições disponíveis.</p>`}
+    <div class="row" style="margin-top:8px"><button onclick="liveAuto()">Reorganizar automaticamente</button><button class="p" onclick="liveCont()">Continuar o jogo</button></div></div>`;
+  }
+  for(const m of l.matches){
+    const mine=m.mine.h||m.mine.a;
+    h+=`<div class="card" ${mine?'style="border-color:var(--ac)"':""}><div class="big">${m.H.name} ${m.gh} x ${m.ga} ${m.A.name}</div>`;
+    if(mine)h+=`<p class="mut">🏟️ Público ${m.gate.att.toLocaleString("pt-BR")} de ${m.gate.cap.toLocaleString("pt-BR")} · ingresso ${money(m.gate.price)}</p>`;
+    h+=m.ev.length?m.ev.map(e=>`<div style="font-size:13px;padding:2px 0">${liveEv(e)}</div>`).join(""):`<p class="mut">Sem lances ainda.</p>`;
+    h+=`</div>`;
+  }
+  if(l.done)h+=`<div class="card"><button class="p" style="width:100%" onclick="liveEnd()">Encerrar rodada</button></div>`;
+  return h;
+}
+let _lp=null,LSEL=null;
+function liveRender(){
+  if(!LIVE)return;
+  const sy=window.scrollY,sel=document.getElementById("liveSel");
+  $("app").innerHTML=liveHtml();
+  if(LIVE.live.pending.length&&_lp!==LIVE.live.pending[0]){_lp=LIVE.live.pending[0];window.scrollTo(0,0)}else window.scrollTo(0,sy);
+}
+function liveSubUI(mi,side,outId){
+  const l=LIVE.live;
+  if(!Game.liveSub(l,mi,side,outId,LSEL))alert("Substituição inválida.");
+  LSEL=null;liveRender()
+}
+function liveAuto(){const l=LIVE.live,p=l.pending[0];if(!p)return;const m=l.matches[p.mi];Game.autoReorg(m,p.side);liveRender()}
+function liveCont(){Game.liveResolve(LIVE.live);liveRender();liveRun()}
+function liveEnd(){
+  clearInterval(LTM);const L=LIVE;LIVE=null;_lp=null;
+  Game.liveFinish(S,L.live,L.res);
+  showSummary(L.res)
 }
 
 function vElenco(){
@@ -305,8 +368,7 @@ function vMais(){
   <p class="mut">Cada time tem elenco, escalação e caixa próprios. O jogo avança até a próxima partida do time ativo; os outros times seus jogam com escalação automática se ela ficar inválida e pagam salários e recebem bilheteria. Prêmios e propostas de fim de temporada só valem para o time ativo.</p></div>
   <div class="card"><h2>Save e elencos</h2><p class="mut">Salvamento automático com o nome do time (${u.name}).</p>
   <div class="row"><button onclick="exportSave()">Exportar save</button><button onclick="start()">Trocar de save / novo jogo</button></div>
-  <p><button class="p" onclick="update(false)">Atualizar elencos (elencos.json)</button></p>
-  <p class="mut">Atualiza todos os times, exceto o seu. O seu elenco nunca é alterado enquanto você for o técnico; jogadores que você vendeu ficam no clube comprador.</p>${msg?`<p>${msg}</p>`:""}</div>`;
+  <p class="mut">Os elencos são atualizados automaticamente ao abrir o jogo. Todos os times são atualizados, exceto o seu. O seu elenco nunca é alterado enquanto você for o técnico; jogadores que você vendeu ficam no clube comprador.</p>${msg?`<p>${msg}</p>`:""}</div>`;
 }
 async function update(auto){
   try{const r=await fetch("elencos.json?"+Date.now());if(!r.ok)throw 0;const d=await r.json();
