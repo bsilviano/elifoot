@@ -51,13 +51,13 @@ tr.me{background:color-mix(in srgb,var(--ac) 30%,transparent);font-weight:800}tr
 <header><div class="hl"><span id="crest"></span><b id="hT">Meu Elifoot</b></div><div class="hr"><span id="flag"></span><span id="hS"></span></div></header>
 <main id="app"></main>
 <nav id="nav"></nav>
-<script src="clubs.js?v=108"></script>
-<script src="game.js?v=108"></script>
+<script src="clubs.js?v=109"></script>
+<script src="game.js?v=109"></script>
 <script>
 const PREFIX="elifoot:save:",SAVE1="Elifoot"; // um único save para todos os times
 let artCan=false,S=null,tab="jogo",msg="",mf={pos:"",q:"",any:true,min:1,max:null,afford:true,ord:"ovr",dir:-1},viewKey=null;
 const $=id=>document.getElementById(id);
-const VERSAO=108;
+const VERSAO=109;
 const moneyFull=n=>(n<0?"-":"")+"R$ "+Math.round(Math.abs(n)).toLocaleString("pt-BR");
 const money=moneyFull;
 const U=()=>S.teams[S.user];
@@ -315,11 +315,12 @@ function showSummary(r){
   if(r.fixed)t+=`<p class="mut">Escalação inválida: o auxiliar escalou o time automaticamente.</p>`;
   if(r.skipped)t+=`<p class="mut">${r.skipped} rodada(s) sem jogo seu foram simuladas.</p>`;
   {const mine=r.reports.filter(m=>m.home===U().name||m.away===U().name);const rp=mine[mine.length-1]||r.reports[r.reports.length-1];SUMC=rp?rp.cid:null}
+  {const un=U().name;SUMLOST=r.reports.some(m=>m.home===un?m.gh<m.ga:m.away===un&&m.ga<m.gh)}
   save();msg="";summGo(); // sem tela de resumo: vai direto para a classificação
 }
-let SUMM=null,SUMT=null,SUMN=0,SUMC=null;
+let SUMM=null,SUMT=null,SUMN=0,SUMC=null,SUMLOST=false;
 function summRender(){if(!SUMM)return;$("nav").style.display="none";$("app").innerHTML=`<div class="card">${SUMM}</div><div class="card"><p class="mut">Indo para a classificação em ${SUMN}s</p><button class="p" style="width:100%" onclick="summGo()">Ir agora para a classificação</button></div>`;window.scrollTo(0,0)}
-function summGo(){clearInterval(SUMT);SUMM=null;try{if(Game.myClubs(S).length>1){const nr=Game.nextRoundClubs(S);if(nr&&!nr.clubs.includes(S.user)){Game.switchClub(S,nr.clubs[0]);save()}}}catch(e){}$("nav").style.display="";viewKey=SUMC&&S.comps[SUMC]?SUMC:null;SUMC=null;HISTV=false;tab="tabela";render()}
+function summGo(){clearInterval(SUMT);SUMM=null;try{if(Game.myClubs(S).length>1){const nr=Game.nextRoundClubs(S);if(nr&&!SUMLOST&&!nr.clubs.includes(S.user)){Game.switchClub(S,nr.clubs[0]);save()}}}catch(e){}$("nav").style.display="";viewKey=SUMC&&S.comps[SUMC]?SUMC:null;SUMC=null;SUMLOST=false;HISTV=false;tab="tabela";render()}
 
 
 let LIVE=null,LTM=null,LSPD=900,LEND=null;
