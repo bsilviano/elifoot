@@ -50,13 +50,13 @@ tr.me{background:var(--hl);font-weight:700}
 <header><div class="hl"><span id="crest"></span><b id="hT">Meu Elifoot</b></div><div class="hr"><span id="flag"></span><span id="hS"></span></div></header>
 <main id="app"></main>
 <nav id="nav"></nav>
-<script src="clubs.js?v=20"></script>
-<script src="game.js?v=20"></script>
+<script src="clubs.js?v=21"></script>
+<script src="game.js?v=21"></script>
 <script>
 const PREFIX="elifoot:save:";
 let S=null,tab="jogo",msg="",mf={pos:"",q:"",min:1,max:null,afford:true,ord:"ovr",dir:-1},viewKey=null;
 const $=id=>document.getElementById(id);
-const VERSAO=20;
+const VERSAO=21;
 const moneyFull=n=>(n<0?"-":"")+"R$ "+Math.round(Math.abs(n)).toLocaleString("pt-BR");
 const money=moneyFull;
 const U=()=>S.teams[S.user];
@@ -196,6 +196,7 @@ function lineupCard(u){
 }
 function accept(tid){const e=Game.acceptOffer(S,tid);if(e){alert(e);return}viewKey=null;msg=`<p class="good">Você agora comanda o ${U().name}. O jogo continua no mesmo save.</p>`;save();render()}
 function playBest(){const u=U();u.fAuto=true;autoBest(u);save();play()}
+function buildStad(){const e=Game.upgradeStadium(S);if(e){alert(e);return}save();render()}
 function bestF(){const u=U(),b=Game.bestFormation(u);u.formation=b.f;u.lineup=b.ids;msg=`Melhor formação: <b>${b.f}</b> (OVR ${b.ovr.toFixed(1)}${b.miss?`, ${b.miss} jogador(es) fora da posição exata`:""}). Lesionados e suspensos não entram.`;save();render()}
 function setF(f){const u=U();u.fAuto=false;u.formation=f;u.lineup=Game.autoLineup(u,f);save();render()}
 const sc=a=>a.length?a.join(", "):"–";
@@ -212,6 +213,7 @@ function doPlay(){
   let t=`<h2>${r.date}</h2>`;
   r.reports.forEach(m=>{t+=`<p class="mut">${m.comp}</p><div class="big">${m.home} ${m.gh} x ${m.ga} ${m.away}</div><p class="mut">${m.home}: ${sc(m.sh)}<br>${m.away}: ${sc(m.sa)}</p>`});
   if(r.wages)t+=`<p>Salários: <span class="bad">-${money(r.wages)}</span>${r.gate?` · Bilheteria: <span class="good">+${money(r.gate)}</span>`:""}</p>`;
+  (r.gates||[]).forEach(x=>t+=`<p class="mut">🏟️ ${x.home} x ${x.away}: público ${x.att.toLocaleString("pt-BR")} de ${x.cap.toLocaleString("pt-BR")} · renda ${money(x.rev)} (mandante 70%: ${money(x.homeShare)} · visitante 30%: ${money(x.awayShare)})</p>`);
   r.notes.forEach(x=>t+=`<p>${x}</p>`);
   if(r.fixed)t+=`<p class="mut">Escalação inválida: o auxiliar escalou o time automaticamente.</p>`;
   if(r.skipped)t+=`<p class="mut">${r.skipped} rodada(s) sem jogo seu foram simuladas.</p>`;
@@ -297,6 +299,7 @@ function buy(id){const e=Game.buy(S,id);if(e)alert(e);save();render()}
 function vMais(){
   const u=U(),w=u.players.reduce((s,p)=>s+p.wage,0);
   return `<div class="card"><h2>Finanças</h2><p>Caixa: <b>${moneyFull(S.cash)}</b><br>Folha por rodada: ${money(w)}<br>Torcida (estimada): ${u.fans} mil<br>Reputação: ${S.rep}/100</p></div>
+  <div class="card"><h2>Estádio</h2>${(()=>{const cap=Game.getStad(u),max=cap>=100000;return `<p>Capacidade: <b>${cap.toLocaleString("pt-BR")}</b> lugares${max?" (máximo)":""}<br><span class="mut">Mínimo 10.000 · máximo 100.000 · amplia de 10.000 em 10.000. Custo: capacidade atual × 10. A renda do jogo vai para o caixa: mandante 70%, visitante 30%. O público depende da torcida (${u.fans} mil).</span></p>${max?"":`<p><button class="p" onclick="buildStad()">Ampliar para ${(cap+10000).toLocaleString("pt-BR")} lugares (${moneyFull(Game.stadCost(u))})</button></p>`}`})()}</div>
   <div class="card"><h2>Meus times</h2>${Game.myClubs(S).map(id=>`<div class="pl ${id===S.user?"in":""}"><span><b>${S.teams[id].name}</b><br><span class="mut">Caixa ${moneyFull(id===S.user?S.cash:(S.cashes&&S.cashes[id])||0)}${id===S.user?" · ativo":""}</span></span><span>${id===S.user?"":`<button class="s p" onclick="swClub(${id})">Comandar</button> <button class="s d" onclick="dropClubUI(${id})">Largar</button>`}</span></div>`).join("")}
   <div class="row" style="margin-top:8px"><select id="addSel" style="flex:1;min-width:0">${clubOpts()}</select><button class="p" onclick="addClubUI()">Adicionar time</button></div>
   <p class="mut">Cada time tem elenco, escalação e caixa próprios. O jogo avança até a próxima partida do time ativo; os outros times seus jogam com escalação automática se ela ficar inválida e pagam salários e recebem bilheteria. Prêmios e propostas de fim de temporada só valem para o time ativo.</p></div>

@@ -685,6 +685,32 @@
     return null;
   }
 
+  // Estádio: capacidade real (stad) entre 10 mil e 100 mil; amplia de 10 em 10 mil por (capacidade atual x 10) reais.
+  const STAD_MIN = 10000, STAD_MAX = 100000, STAD_STEP = 10000;
+  function getStad(t) {
+    if (t.stad) return Math.max(STAD_MIN, Math.min(STAD_MAX, t.stad));
+    const tier = t.lkey && LG[t.lkey] ? LG[t.lkey].tier : 3;
+    return tier === 1 ? 30000 : tier === 2 ? 18000 : STAD_MIN;
+  }
+  function stadCost(t) { return getStad(t) * 10; }
+  function upgradeStadium(s) {
+    const t = s.teams[s.user], cap = getStad(t);
+    if (cap >= STAD_MAX) return "O estádio já está no tamanho máximo (100.000 lugares).";
+    const cost = stadCost(t);
+    if (s.cash < cost) return "Dinheiro insuficiente para ampliar o estádio.";
+    s.cash -= cost; t.stad = Math.min(STAD_MAX, cap + STAD_STEP); t.stadUp = 1;
+    return null;
+  }
+  // Renda do jogo: público x preço do ingresso; mandante fica com 70% e visitante com 30%.
+  function gateOf(s, hid) {
+    const t = s.teams[hid], cap = getStad(t);
+    const tier = t.lkey && LG[t.lkey] ? LG[t.lkey].tier : 3;
+    const att = Math.round(Math.min(cap, t.fans * 1000 * 0.12 * rnd(0.85, 1.15)));
+    const price = [50, 30, 15][tier - 1];
+    const rev = att * price;
+    const home = Math.round(rev * 0.7);
+    return { att, cap, price, rev, home, away: rev - home };
+  }
   // Clubes meus que jogam na próxima rodada que envolve algum deles.
   function nextRoundClubs(s) {
     for (const rd of s.q) {
@@ -702,20 +728,20 @@
     while (s.q.length && guard++ < 5000) {
       const rd = s.q.shift();
       s.T = rd.T; ageCheck(s);
-      const mine = rd.fx.find((m) => m[0] === s.user || m[1] === s.user);
       const anyMine = rd.fx.some((m) => isMine(s, m[0]) || isMine(s, m[1]));
       processRound(s, rd, res, false);
-      for (const id of s.clubs || []) {
-        if (id === s.user) continue;
-        const m2 = rd.fx.find((m) => m[0] === id || m[1] === id);
-        if (!m2) continue;
-        const t2 = s.teams[id];
+      const credit = (id, x, wage) => {
+        if (id === s.user) { res.gate += x; res.wages += wage; return; }
         s.cashes = s.cashes || {};
-        s.cashes[id] = (s.cashes[id] || 0) - t2.players.reduce((x, p) => x + p.wage, 0) + (m2[0] === id ? Math.round(t2.fans * 180 * rnd(0.85, 1.15)) : 0);
-      }
-      if (mine) {
-        res.wages += u.players.reduce((x, p) => x + p.wage, 0);
-        if (mine[0] === s.user) res.gate += Math.round(u.fans * 180 * rnd(0.85, 1.15));
+        s.cashes[id] = (s.cashes[id] || 0) + x - wage;
+      };
+      for (const [h, a] of rd.fx) {
+        if (!isMine(s, h) && !isMine(s, a)) continue;
+        const gt = gateOf(s, h);
+        res.gates = res.gates || [];
+        res.gates.push({ home: s.teams[h].name, away: s.teams[a].name, att: gt.att, cap: gt.cap, rev: gt.rev, homeShare: gt.home, awayShare: gt.away, homeMine: isMine(s, h), awayMine: isMine(s, a) });
+        if (isMine(s, h)) credit(h, gt.home, s.teams[h].players.reduce((x, p) => x + p.wage, 0));
+        if (isMine(s, a)) credit(a, gt.away, s.teams[a].players.reduce((x, p) => x + p.wage, 0));
       }
       if (anyMine) break;
       res.skipped++;
@@ -844,6 +870,7 @@
     for (const dt of data.teams || []) {
       const t = Object.values(s.teams).find((x) => x.name === dt.name);
       if (!t || !isMine(s, t.id)) continue;
+      if (dt.stad && !t.stadUp) t.stad = dt.stad;
       const cgs = {}; for (const q of dt.players || []) if (q.cg) cgs[key(q.name)] = q.cg;
       for (const p of t.players) if (cgs[key(p.name)]) p.cg = cgs[key(p.name)];
     }
@@ -861,6 +888,7 @@
         const value = q.value || valueOf(ov, age);
         ps.push({ id: PID++, name: q.name, pos: q.pos, sp: q.sp, cg: q.cg || 0, ov, age, value, wage: Math.round(value / 900) });
       }
+      if (dt.stad && !t.stadUp) t.stad = dt.stad;
       t.players = ps; t.lineup = autoLineup(t); n++;
     }
     // jogadores que eu vendi continuam no clube comprador, a menos que o elenco real já os traga em algum clube
@@ -922,6 +950,6 @@
     if (s.cashes) delete s.cashes[id];
     return null;
   }
-  const api = { topScorers, yearOf, bestFormation, avail, nextRoundClubs, myClubs, addClub, switchClub, dropClub, STATES, CONT, COUNTRIES, LEAGUES, LG, FORMATIONS, TACTICS, newGame, autoLineup, ratings, playRound, acceptOffer, market, buy, sell, auction, sellTo, applyUpdate, resetPid, lineupPlayers, fixLineup, nextUserRound, sortTab, dateOf, userComps, userMatches };
+  const api = { getStad, stadCost, upgradeStadium, topScorers, yearOf, bestFormation, avail, nextRoundClubs, myClubs, addClub, switchClub, dropClub, STATES, CONT, COUNTRIES, LEAGUES, LG, FORMATIONS, TACTICS, newGame, autoLineup, ratings, playRound, acceptOffer, market, buy, sell, auction, sellTo, applyUpdate, resetPid, lineupPlayers, fixLineup, nextUserRound, sortTab, dateOf, userComps, userMatches };
   if (typeof module !== "undefined") module.exports = api; else root.Game = api;
 })(typeof window !== "undefined" ? window : globalThis);
