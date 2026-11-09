@@ -843,13 +843,28 @@
   }
   // Renda do jogo: público x preço do ingresso; mandante fica com 70% e visitante com 30%.
   // O público varia com a torcida, o porte do adversário e o acaso.
-  function gateOf(s, hid, aid) {
+  // Preço médio do ingresso (R$) por competição. Série A: ticket médio real do Brasileirão 2026 (R$ 52,64, Trivela/Pluri);
+  // demais valores são estimativas de ordem de grandeza a partir do que os campeonatos cobram na vida real.
+  const TICKET = { BRA1: 52, BRA2: 28, BRA3: 20, ARG1: 60, ARG2: 25, GER1: 200, GER2: 90, ENG1: 330, ENG2: 120, ESP1: 190, ESP2: 70, POR1: 110, POR2: 40, ITA1: 190, ITA2: 70, FRA1: 160, FRA2: 55,
+    UCL: 500, UEL: 300, UECL: 200, LIB: 110, SUL: 70, MUN: 350, CDB: 70, EST: 35 };
+  function ticketPrice(c, t) {
+    const id = c && c.id ? String(c.id).replace(/_K$/, "") : "";
+    if (c && c.key && TICKET[c.key]) return TICKET[c.key];
+    if (TICKET[id]) return TICKET[id];
+    if (id.indexOf("EST_") === 0) return TICKET.EST;
+    if (id.indexOf("ARG1") === 0) return TICKET.ARG1;
+    if (id.indexOf("BRA3") === 0) return TICKET.BRA3;
+    if (id.indexOf("ARG2") === 0) return TICKET.ARG2;
+    const tier = t.lkey && LG[t.lkey] ? LG[t.lkey].tier : 3;
+    return [50, 30, 15][tier - 1] || 15;
+  }
+  function gateOf(s, hid, aid, c) {
     const t = s.teams[hid], cap = getStad(t);
     const tier = t.lkey && LG[t.lkey] ? LG[t.lkey].tier : 3;
     const opp = aid != null && s.teams[aid] ? s.teams[aid] : null;
     const oppF = opp ? clamp(0.75 + 0.3 * Math.min(opp.fans / Math.max(t.fans, 1), 2), 0.75, 1.3) : 1;
     const att = Math.round(Math.min(cap, t.fans * 1000 * 0.12 * rnd(0.65, 1.3) * oppF));
-    const price = [50, 30, 15][tier - 1];
+    const price = ticketPrice(c, t);
     const rev = att * price;
     return { att, cap, price, rev, home: rev, away: 0 }; // toda a renda é do mandante
   }
@@ -869,6 +884,7 @@
     s.ledger.push({ T: s.T, id, d, v: Math.round(v) });
     if (s.ledger.length > 4000) s.ledger.splice(0, s.ledger.length - 4000);
   }
+  const STAD_MAINT = 50; // R$ por lugar por mês
   const monthIdx = (T) => { const d = new Date(Date.UTC(START_YEAR, 0, 1) + Math.round(T * 7) * 864e5); return d.getUTCFullYear() * 12 + d.getUTCMonth(); };
   const MESES = ["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
   // salários são pagos uma vez por mês (soma dos salários por rodada × 52/12)
@@ -882,6 +898,9 @@
         if (id === s.user) s.cash -= amt; else { s.cashes = s.cashes || {}; s.cashes[id] = (s.cashes[id] || 0) - amt; }
         s.ledger = s.ledger || [];
         s.ledger.push({ T, id, d: `Salários de ${MESES[s.payM % 12]}/${Math.floor(s.payM / 12)}`, v: -amt });
+        const cap = getStad(s.teams[id]), man = cap * STAD_MAINT; // manutenção proporcional ao tamanho do estádio
+        if (id === s.user) s.cash -= man; else s.cashes[id] = (s.cashes[id] || 0) - man;
+        s.ledger.push({ T, id, d: `Manutenção do estádio (${cap.toLocaleString("pt-BR")} lugares)`, v: -man });
       }
     }
   }
@@ -896,7 +915,7 @@
     };
     rd.fx.forEach(([h, a], fi) => {
       if (!isMine(s, h) && !isMine(s, a)) return;
-      const gt = (pre && pre[fi] && pre[fi].gate) || gateOf(s, h, a);
+      const gt = (pre && pre[fi] && pre[fi].gate) || gateOf(s, h, a, s.comps[rd.c]);
       res.gates = res.gates || [];
       res.gates.push({ home: s.teams[h].name, away: s.teams[a].name, att: gt.att, cap: gt.cap, rev: gt.rev, homeShare: gt.home, awayShare: gt.away, homeMine: isMine(s, h), awayMine: isMine(s, a) });
       if (isMine(s, h)) { credit(h, gt.home, 0); s.ledger = s.ledger || []; s.ledger.push({ T: rd.T, id: h, d: `Renda: ${s.teams[h].name} x ${s.teams[a].name} (público ${gt.att.toLocaleString("pt-BR")})`, v: Math.round(gt.home) }); }
@@ -946,7 +965,7 @@
       m.on = { h: lineupPlayers(H).slice(), a: lineupPlayers(A).slice() };
       const bench = (t) => t.players.filter((p) => avail(p) && !t.lineup.includes(p.id)).sort((x, y) => y.ov - x.ov);
       m.bench = { h: bench(H), a: bench(A) };
-      m.gate = gateOf(s, h, a);
+      m.gate = gateOf(s, h, a, c);
       live.matches.push(m);
     });
     if (!rd.dec) { // quem estava fora cumpre mais um jogo de suspensão/lesão
