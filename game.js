@@ -292,6 +292,26 @@
     c.plan = plan([["1ª fase", 1, [5]], ["2ª fase", 1, [9]], ["Oitavas", 2, [22, 24]], ["Quartas", 2, [29.5, 31.5]], ["Semifinal", 2, [36, 38]], ["Final", 2, [44, 45]]], B);
     startStage(s, c, pairBW(ids));
     createSouthCups(s, Y);
+    if (Y >= 2029 && (Y - 2029) % 4 === 0) createClubWorldCup(s, Y);
+  }
+  // Mundial de Clubes (a cada 4 anos a partir de 2029): 32 clubes, 8 grupos de 4, oitavas, quartas, semi e final em jogo único.
+  function createClubWorldCup(s, Y) {
+    const B = 52 * (Y - START_YEAR), def = CONT.MUN;
+    const champs = (cup) => { const out = []; s.honors.filter((h) => h.cup.indexOf(cup) === 0).sort((a, b) => b.year - a.year).forEach((h) => { const t = Object.values(s.teams).find((x) => x.name === h.club); if (t && !out.includes(t.id)) out.push(t.id); }); return out.slice(0, 4); };
+    const take = (first, pool, n) => { const out = first.slice(0, n); byStrength(s, pool).forEach((id) => { if (out.length < n && !out.includes(id)) out.push(id); }); return out; };
+    def.extras.forEach((n) => { // saves antigos ainda não têm esses clubes
+      if (Object.values(s.teams).some((t) => t.name === n)) return;
+      const nid = Math.max(...Object.keys(s.teams).map(Number)) + 1;
+      mkTeam(s, nid, n, "EXT", null, def.ovr + rnd(-3, 3), { local: true, extra: true, fans: ri(200, 800) });
+    });
+    const eu = take(champs(CONT.UCL.name), s.comps.UCL ? s.comps.UCL.ids : qualifiers(s, CONT.UCL), 12);
+    const sa = take(champs(CONT.LIB.name), s.comps.LIB ? s.comps.LIB.ids : qualifiers(s, CONT.LIB), 6);
+    const ids = byStrength(s, eu.concat(sa, def.extras.map((n) => teamByName(s, n))));
+    const groups = drawGroups(s, ids, 8);
+    const c = newComp(s, "MUN", def.name + " " + Y, ids, "gr", { order: ids, prize: def.prize, cont: true, groups });
+    addRounds(s, c, groupRounds(groups).slice(0, 3), [48.1, 49.1, 50.1].map((x) => B + x));
+    c.plan = plan([["Oitavas", 1, [50.8]], ["Quartas", 1, [51.2]], ["Semifinal", 1, [51.5]], ["Final", 1, [51.8]]], B);
+    s.q.sort((a, b) => a.T - b.T);
   }
   function createArgentina(s, Y) {
     const B = 52 * (Y - START_YEAR);

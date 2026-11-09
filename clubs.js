@@ -65,6 +65,11 @@
       extras: ["Peñarol","Nacional-URU","Colo-Colo","Universidad Católica","Atlético Nacional","Junior","Independiente Santa Fe","LDU Quito","Barcelona SC","Independiente del Valle","Olimpia","Cerro Porteño","Libertad","Bolívar","The Strongest","Alianza Lima","Universitario","Sporting Cristal","Deportivo Táchira"] },
     SUL: { name: "Sul-Americana", kind: "groups", ovr: 52, prize: 400000, slots: [["BRA1",8,13],["ARG1",7,12]],
       extras: ["Defensor Sporting","Liverpool-URU","Danubio","Universidad de Chile","Palestino","Huachipato","Cobresal","Millonarios","América de Cali","Deportes Tolima","Once Caldas","Emelec","Deportivo Cuenca","Aucas","Guaraní","Nacional-PAR","Sportivo Luqueño","Blooming","Melgar","Cienciano"] }
+    ,
+    // Mundial de Clubes (a cada 4 anos, formato FIFA 2025: 32 clubes, 8 grupos de 4, mata-mata de jogo único).
+    // 12 europeus + 6 sul-americanos vêm dos campeões continentais; os demais são clubes fixos de outras confederações.
+    MUN: { name: "Mundial de Clubes", kind: "groups", ovr: 60, prize: 5000000, slots: [],
+      extras: ["Al Ahly","Wydad Casablanca","Espérance Tunis","Mamelodi Sundowns","Al Hilal","Urawa Reds","Ulsan HD","Al Ain","Monterrey","Seattle Sounders","Pachuca","León","Auckland City","Inter Miami"] }
   };
   const data = { COUNTRIES, LEAGUES, CUPS, STATES, CONT };
   if (typeof module !== "undefined") module.exports = data; else root.ClubData = data;
