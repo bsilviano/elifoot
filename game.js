@@ -54,9 +54,12 @@
     const ids = [];
     for (const pos in need) {
       const pool = team.players.filter((p) => p.pos === pos).sort((a, b) => b.ov - a.ov);
-      let slots = null;
-      if (pos === "DEF") slots = need.DEF === 3 ? ["ZAG", "ZAG", "ZAG"] : need.DEF === 4 ? ["LE", "ZAG", "ZAG", "LD"] : ["LE", "ZAG", "ZAG", "ZAG", "LD"];
-      if (pos === "ATT" && need.ATT === 3) slots = ["PE", "CA", "PD"];
+      const SL = {
+        DEF: { 3: ["ZAG", "ZAG", "ZAG"], 4: ["LE", "ZAG", "ZAG", "LD"], 5: ["LE", "ZAG", "ZAG", "ZAG", "LD"] },
+        MID: { 3: ["VOL", "MC", "MC"], 4: ["ME", "MC", "MC", "MD"], 5: ["ME", "VOL", "MC", "MC", "MD"] },
+        ATT: { 1: ["CA"], 2: ["CA", "CA"], 3: ["PE", "CA", "PD"] },
+      };
+      const slots = (SL[pos] && SL[pos][need[pos]]) || null;
       if (slots) {
         const used = new Set();
         for (const sp of slots) { const c = pool.find((p) => !used.has(p.id) && p.sp === sp); if (c) { used.add(c.id); ids.push(c.id); } }

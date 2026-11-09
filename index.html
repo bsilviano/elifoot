@@ -55,7 +55,7 @@ tr.me{background:var(--hl);font-weight:700}
 const PREFIX="elifoot:save:";
 let S=null,tab="jogo",msg="",mf={pos:"",q:"",min:0},viewKey=null;
 const $=id=>document.getElementById(id);
-const VERSAO=4;
+const VERSAO=5;
 const moneyFull=n=>(n<0?"-":"")+"R$ "+Math.round(Math.abs(n)).toLocaleString("pt-BR");
 const money=moneyFull;
 const U=()=>S.teams[S.user];
@@ -122,6 +122,7 @@ function exportSave(){const a=document.createElement("a");a.href=URL.createObjec
 
 function setTab(t){tab=t;msg="";render()}
 function fixSP(){
+  if(S&&S.spv&&!S.lv5){Game.myClubs(S).forEach(id=>{S.teams[id].lineup=Game.autoLineup(S.teams[id])});S.lv5=1;save()}
   if(!S||S.spv||!SPMAP)return;
   const alt={GK:["GOL"],DEF:["ZAG","LD","ZAG","LE"],MID:["VOL","MC","ME","MD","MC"],ATT:["CA","PE","PD"]};
   for(const t of Object.values(S.teams)){let ch=0;
@@ -131,7 +132,7 @@ function fixSP(){
       else if(!p.sp||!p.spv2){const o=alt[p.pos]||["MC"];p.sp=o[p.id%o.length];ch=1}
       p.spv2=1}
     if(ch)t.lineup=Game.autoLineup(t)}
-  S.spv=1;save()}
+  S.spv=1;S.lv5=1;save()}
 function render(){fixSP();
   if(!S)return start();
   const u=U();applyTheme(u.name);
