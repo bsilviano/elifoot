@@ -50,13 +50,13 @@ tr.me{background:var(--hl);font-weight:700}
 <header><div class="hl"><span id="crest"></span><b id="hT">Meu Elifoot</b></div><div class="hr"><span id="flag"></span><span id="hS"></span></div></header>
 <main id="app"></main>
 <nav id="nav"></nav>
-<script src="clubs.js?v=28"></script>
-<script src="game.js?v=28"></script>
+<script src="clubs.js?v=29"></script>
+<script src="game.js?v=29"></script>
 <script>
 const PREFIX="elifoot:save:";
 let S=null,tab="jogo",msg="",mf={pos:"",q:"",min:1,max:null,afford:true,ord:"ovr",dir:-1},viewKey=null;
 const $=id=>document.getElementById(id);
-const VERSAO=28;
+const VERSAO=29;
 const moneyFull=n=>(n<0?"-":"")+"R$ "+Math.round(Math.abs(n)).toLocaleString("pt-BR");
 const money=moneyFull;
 const U=()=>S.teams[S.user];
@@ -263,7 +263,7 @@ function confCancel(){CONF=null;render()}
 function doPlay(){
   const x=Game.startRound(S);
   if(!x.live){showSummary(x.res);return}
-  LIVE={live:x.live,res:x.res};LSPD=900;$("nav").style.display="none";liveRender();liveRun()
+  LIVE={live:x.live,res:x.res};try{const v=+localStorage.getItem("elifoot:spd");LSPD=[900,250,-1].includes(v)?v:900}catch(e){LSPD=900};$("nav").style.display="none";liveRender();liveRun()
 }
 function showSummary(r){
   $("nav").style.display="";
@@ -285,8 +285,9 @@ function summGo(){clearInterval(SUMT);SUMM=null;$("nav").style.display="";viewKe
 let LIVE=null,LTM=null,LSPD=900,LEND=null;
 function liveAutoEnd(){if(LIVE&&LIVE.live.done&&!LIVE.live.pending.length&&!LEND){clearInterval(LTM);LEND=setTimeout(()=>{LEND=null;if(LIVE&&LIVE.live.done)liveEnd()},1500)}}
 function liveRun(){clearInterval(LTM);LTM=null;if(!LIVE||LIVE.live.done||LIVE.live.pending.length||LSPD===0)return;
+  if(LSPD===-1){const l=LIVE.live;while(!l.done&&!l.pending.length)Game.liveStep(S,l,1);liveRender();liveAutoEnd();return}
   LTM=setInterval(()=>{const l=LIVE.live;Game.liveStep(S,l,1);liveRender();liveAutoEnd();if(l.done||l.pending.length||!LSPD){clearInterval(LTM);LTM=null}},LSPD)}
-function liveSpeed(v){LSPD=v;if(v===-1){const l=LIVE.live;while(!l.done&&!l.pending.length)Game.liveStep(S,l,1);liveRender();liveAutoEnd();return}liveRun()}
+function liveSpeed(v){LSPD=v;try{localStorage.setItem("elifoot:spd",v)}catch(e){}liveRun();liveRender()}
 const LI={goal:"⚽",red:"🟥",inj:"🚑",yellow:"🟨",sub:"🔁"};
 function liveEv(e){
   const m=e.min+"'";
@@ -299,7 +300,7 @@ function liveEv(e){
 function liveHtml(){
   const l=LIVE.live,p=l.pending[0];
   let h=`<div class="card"><h2>${l.comp}</h2><p class="mut">${l.date}</p><div class="big">⏱ ${l.minute}'${l.done?" · Fim de jogo":""}</div>`;
-  if(!l.done&&!p)h+=`<div class="row"><button class="${LSPD===900?"p":""}" onclick="liveSpeed(900)">▶ Normal</button><button class="${LSPD===250?"p":""}" onclick="liveSpeed(250)">⏩ Rápido</button><button onclick="liveSpeed(-1)">⏭ Ir ao fim</button></div>`;
+  if(!l.done&&!p)h+=`<div class="row"><button class="${LSPD===900?"p":""}" onclick="liveSpeed(900)">▶ Normal</button><button class="${LSPD===250?"p":""}" onclick="liveSpeed(250)">⏩ Rápido</button><button class="${LSPD===-1?"p":""}" onclick="liveSpeed(-1)">⏭ Ir ao fim</button></div>`;
   h+=`</div>`;
   if(p){
     const m=l.matches[p.mi],T=p.side==="h"?m.H:m.A;
