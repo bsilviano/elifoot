@@ -55,7 +55,7 @@ tr.me{background:var(--hl);font-weight:700}
 const PREFIX="elifoot:save:";
 let S=null,tab="jogo",msg="",mf={pos:"",q:"",min:0},viewKey=null;
 const $=id=>document.getElementById(id);
-const VERSAO=2;
+const VERSAO=3;
 const moneyFull=n=>(n<0?"-":"")+"R$ "+Math.round(Math.abs(n)).toLocaleString("pt-BR");
 const money=moneyFull;
 const U=()=>S.teams[S.user];
@@ -156,9 +156,7 @@ function vJogo(){
   if(n){
     h+=`<div class="big">${n.home.name} x ${n.away.name}</div><p class="mut" style="text-align:center">${n.date} · ${n.comp}<br>Seu OVR: ${Game.ratings(u).ovr.toFixed(1)} · Adversário: ${Game.ratings(n.home===u?n.away:n.home).ovr.toFixed(1)}</p>`;
   }else h+=`<p>Sem jogos agendados. Clique para avançar o calendário.</p>`;
-  h+=`<div class="row"><select onchange="setF(this.value)">${Object.keys(Game.FORMATIONS).map(f=>`<option ${u.formation===f?"selected":""}>${f}</option>`).join("")}</select>
-  <select onchange="U().tactic=this.value;save()">${Game.TACTICS.map(t=>`<option ${u.tactic===t?"selected":""}>${t}</option>`).join("")}</select></div>
-  ${CONF?`<p class="mut">Escalação ${CONF.i+1} de ${CONF.q.length}: ajuste o time e confirme.</p><p><button class="p" onclick="confNext()">${CONF.i<CONF.q.length-1?"Confirmar e ir para o próximo time":"Confirmar e jogar a rodada"}</button> <button class="s" onclick="confCancel()">Cancelar</button></p>`:`<p><button class="p" onclick="play()">Jogar</button></p>`}</div>`+lineupCard(u)+(msg?`<div class="card">${msg}</div>`:"");
+  h+=`</div>`+lineupCard(u)+(msg?`<div class="card">${msg}</div>`:"");
   return h;
 }
 const SPN=p=>p.sp||({GK:"GOL",DEF:"ZAG",MID:"MC",ATT:"CA"})[p.pos];
@@ -171,7 +169,8 @@ function lineupCard(u){
   const col=(TEAM_COLORS[u.name]||themeFor(u.name).ac);
   const l=[1,3,5].map(i=>parseInt(col.substr(i,2),16)),tx=(0.3*l[0]+0.59*l[1]+0.11*l[2])>150?"#111":"#fff";
   const short=n=>{const w=n.split(" ");return w.length>1?w[w.length-1]:n};
-  let h=`<div class="card"><h2>Sua escalação · ${u.formation||""}</h2>`;
+  const ctl=`<div class="row" style="align-items:center;margin:0 0 10px"><select onchange="setF(this.value)">${Object.keys(Game.FORMATIONS).map(f=>`<option ${u.formation===f?"selected":""}>${f}</option>`).join("")}</select>${CONF?`<button class="p" onclick="confNext()">${CONF.i<CONF.q.length-1?"Confirmar e próximo time":"Confirmar e jogar"}</button><button class="s" onclick="confCancel()">Cancelar</button>`:`<button class="p" onclick="play()">Jogar</button>`}</div>${CONF?`<p class="mut" style="margin:0 0 8px">Escalação ${CONF.i+1} de ${CONF.q.length}: ajuste o time e confirme.</p>`:""}`;
+  let h=`<div class="card"><h2>Sua escalação</h2>${ctl}`;
   if(!st.length)return h+`<p class="mut">Nenhum titular escalado. Toque em Auto na aba Elenco.</p><p><button class="s" onclick="setTab('elenco')">Mudar escalação</button></p></div>`;
   h+=`<div class="campo">`;
   for(const k of ["ATT","MID","DEF","GK"]){const g=st.filter(p=>p.pos===k).sort((a,b)=>(SPO[SPN(a)]-SPO[SPN(b)])||a.name.localeCompare(b.name));
