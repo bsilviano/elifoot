@@ -536,7 +536,7 @@
       if (c.si >= c.plan.length) {
         c.champion = alive[0];
         s.honors.push({ year: yearOf(s.T), cup: c.name, club: s.teams[alive[0]].name });
-        if (!silent) res.notes.push(`<b>${c.name}</b>: campeão ${s.teams[alive[0]].name}`);
+        if (!silent) { const ft = c.ties.find((t) => t.w === alive[0]); res.notes.push(`<b>${c.name}</b>: campeão ${s.teams[alive[0]].name}` + (ft && ft.pens ? ` — final empatada em ${ft.agg[0]} x ${ft.agg[1]} no agregado; decidida nos pênaltis${ft.pk ? ` (${ft.pk[0]} x ${ft.pk[1]})` : ""}` : "")); }
         finishComp(s, c, res, silent, true);
       } else startStage(s, c, c.pairs ? c.pairs(alive) : pairBW(alive));
     }
