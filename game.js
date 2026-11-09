@@ -394,7 +394,7 @@
       if (!silent && (t.a === s.user || t.b === s.user)) {
         const won = t.w === s.user;
         res.notes.push(`<b>${c.name} · ${c.stage}</b>: ${s.teams[t.a].name} ${ga} x ${gb} ${s.teams[t.b].name}${t.pens ? " (pênaltis)" : ""} — ${won ? "você avança!" : "você foi eliminado."}`);
-        if (won && c.prize) { s.cash += c.prize; res.notes.push(`Premiação: +R$ ${(c.prize / 1e6).toFixed(2)} mi`); }
+        if (won && c.prize) { s.cash += c.prize; res.notes.push(`Premiação: +R$ ${Math.round(c.prize).toLocaleString("pt-BR")}`); }
       }
     }
     if (!c.closed && c.ties.every((t) => t.w !== null)) {
@@ -539,7 +539,7 @@
     let rep = s.rep + (expPos - pos) * 0.9 + (pos === 1 ? 4 : 0);
     s.honors.filter((h) => h.year === yearOf(s.T) && h.club === s.teams[s.user].name).forEach(() => (rep += 3));
     s.rep = clamp(Math.round(rep), 0, 100);
-    res.notes.push(`<h2>Fim de campeonato: ${c.name}</h2>Você terminou em ${pos}º (esperado: ${expPos}º). Prêmio: +R$ ${(prize / 1e6).toFixed(2)} mi. Reputação: ${s.rep}/100.`);
+    res.notes.push(`<h2>Fim de campeonato: ${c.name}</h2>Você terminou em ${pos}º (esperado: ${expPos}º). Prêmio: +R$ ${Math.round(prize).toLocaleString("pt-BR")}. Reputação: ${s.rep}/100.`);
     const target = 48 + s.rep * 0.30;
     offersAround(s, target, 3, null, res);
   }
