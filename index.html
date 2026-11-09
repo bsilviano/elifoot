@@ -51,13 +51,13 @@ tr.me{background:color-mix(in srgb,var(--ac) 30%,transparent);font-weight:800}tr
 <header><div class="hl"><span id="crest"></span><b id="hT">Meu Elifoot</b></div><div class="hr"><span id="flag"></span><span id="hS"></span></div></header>
 <main id="app"></main>
 <nav id="nav"></nav>
-<script src="clubs.js?v=117"></script>
-<script src="game.js?v=117"></script>
+<script src="clubs.js?v=118"></script>
+<script src="game.js?v=118"></script>
 <script>
 const PREFIX="elifoot:save:",SAVE1="Elifoot"; // um único save para todos os times
 let artCan=false,S=null,tab="jogo",msg="",mf={pos:"",q:"",any:true,min:1,max:null,afford:true,ord:"ovr",dir:-1},viewKey=null;
 const $=id=>document.getElementById(id);
-const VERSAO=117;
+const VERSAO=118;
 const moneyFull=n=>(n<0?"-":"")+"R$ "+Math.round(Math.abs(n)).toLocaleString("pt-BR");
 const money=moneyFull;
 const U=()=>S.teams[S.user];
@@ -320,7 +320,7 @@ function showSummary(r){
 }
 let SUMM=null,SUMT=null,SUMN=0,SUMC=null,SUMLOST=false,SUMWIN=false;
 function summRender(){if(!SUMM)return;$("nav").style.display="none";$("app").innerHTML=`<div class="card">${SUMM}</div><div class="card"><p class="mut">Indo para a classificação em ${SUMN}s</p><button class="p" style="width:100%" onclick="summGo()">Ir agora para a classificação</button></div>`;window.scrollTo(0,0)}
-function summGo(){clearInterval(SUMT);SUMM=null;try{if(Game.myClubs(S).length>1){const nr=Game.nextRoundClubs(S);if(nr&&!SUMLOST&&!(SUMWIN&&stadOk())&&!nr.clubs.includes(S.user)){Game.switchClub(S,nr.clubs[0]);save()}}}catch(e){}$("nav").style.display="";viewKey=SUMC&&S.comps[SUMC]?SUMC:null;const toMais=SUMWIN&&stadOk();SUMC=null;SUMLOST=false;SUMWIN=false;HISTV=false;FINH=false;tab=toMais?"fin":"tabela";render()}
+function summGo(){clearInterval(SUMT);SUMM=null;let entered=false;try{if(Game.myClubs(S).length>1){const nr=Game.nextRoundClubs(S);if(nr&&!SUMLOST&&!nr.clubs.includes(S.user)){Game.switchClub(S,nr.clubs[0]);entered=true;save()}}}catch(e){}$("nav").style.display="";viewKey=SUMC&&S.comps[SUMC]?SUMC:null;const toMais=entered&&stadOk(),lost=SUMLOST;SUMC=null;SUMLOST=false;SUMWIN=false;HISTV=false;FINH=false;tab=toMais?"fin":lost?"mercado":"tabela";render()}
 function stadOk(){try{const t=U();return Game.getStad(t)<100000&&S.cash>=Game.stadCost(t)}catch(e){return false}}
 
 
@@ -564,7 +564,9 @@ function vMercado(){
   const all=Game.market(S),maxOvr=all.reduce((m,p)=>Math.max(m,p.ov),1),mx=mf.max==null?maxOvr:mf.max;
   let l=all.filter(p=>(!mf.pos||SPN(p)===mf.pos)&&(mf.any||(p.ov>=mf.min&&p.ov<=mx))&&(!mf.afford||Math.round(p.value*1.15)<=S.cash)&&(!mf.q||(p.name+p.team).toLowerCase().includes(mf.q.toLowerCase())));
   l.sort((a,b)=>mf.ord==="valor"?(mf.dir*(a.value-b.value)||mf.dir*(a.ov-b.ov)||a.age-b.age||a.name.localeCompare(b.name)):(mf.dir*(a.ov-b.ov)||a.value-b.value||a.age-b.age||a.name.localeCompare(b.name)));const n=l.length;l=l.slice(0,40);
-  return posResumo(U())+`<div class="card"><h2>Mercado</h2><div class="row">
+  const wp=U().players.length?U().players.reduce((a,p)=>p.ov<a.ov?p:a):null;
+  const piorCard=wp?`<div class="card" style="padding:8px 10px;display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:13px"><span><span class="mut">📉 Meu pior jogador</span><br><b>${wp.name}</b> · ${SPN(wp)} · OVR ${wp.ov}</span><button class="s d" onclick="sell(${wp.id})">Vender</button></div>`:"";
+  return posResumo(U())+piorCard+`<div class="card"><h2>Mercado</h2><div class="row">
   <select onchange="mf.pos=this.value;render()"><option value="">Todas</option>${["GOL","LD","LE","ZAG","VOL","ME","MD","MC","PD","PE","CA"].map(p=>`<option ${mf.pos===p?"selected":""}>${p}</option>`).join("")}</select>
   <label class="mut" style="display:flex;align-items:center;gap:4px"><input type="checkbox" ${mf.any?"checked":""} onchange="mf.any=this.checked;render()"> OVR qualquer</label>
   <label class="mut" style="display:flex;align-items:center;gap:4px;${mf.any?"opacity:.45":""}">OVR <input type="number" ${mf.any?"disabled":""} min="1" max="${maxOvr}" value="${mf.min}" onchange="mf.min=Math.max(1,+this.value||1);render()" style="width:58px"> a <input type="number" min="1" max="${maxOvr}" value="${mx}" onchange="mf.max=this.value===""?null:+this.value;render()" style="width:58px" ${mf.any?"disabled":""}></label>
