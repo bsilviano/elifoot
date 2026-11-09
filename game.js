@@ -158,7 +158,9 @@
   function sortTab(ids, tab) {
     return ids.slice().sort((a, b) => {
       const x = tab[a], y = tab[b];
-      return y.pts - x.pts || (y.gf - y.ga) - (x.gf - x.ga) || y.gf - x.gf;
+      // critério de desempate da competição: Brasil/Libertadores/Sul-Americana/estaduais = vitórias, saldo, gols pró; demais = saldo, gols pró, vitórias
+      if (x.cr === "BR") return y.pts - x.pts || y.w - x.w || (y.gf - y.ga) - (x.gf - x.ga) || y.gf - x.gf;
+      return y.pts - x.pts || (y.gf - y.ga) - (x.gf - x.ga) || y.gf - x.gf || y.w - x.w;
     });
   }
   const ovrOf = (s, id) => ratings(s.teams[id]).ovr;
@@ -167,7 +169,9 @@
   // ---------- criação de competições ----------
   function newComp(s, id, name, ids, after, extra) {
     const c = Object.assign({ id, name, ids, after, tab: {}, rDone: 0, R: 0, ties: null, plan: null, si: 0, done: false, groups: null, order: ids }, extra || {});
-    if (!extra || !extra.tab) ids.forEach((i) => (c.tab[i] = emptyRow()));
+    const ctry = c.key && LG[c.key] ? LG[c.key].country : null;
+    const cr = ctry ? (ctry === "BRA" ? "BR" : "EN") : /^(EST_|LIB|SUL|BRA|CDB)/.test(id) ? "BR" : "EN";
+    if (!extra || !extra.tab) ids.forEach((i) => (c.tab[i] = Object.assign(emptyRow(), { cr })));
     s.comps[id] = c;
     return c;
   }
