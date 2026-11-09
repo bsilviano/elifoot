@@ -486,6 +486,7 @@
         const lab = { red: "🟥 expulso", yc3: "🟨 suspenso (3º amarelo)", inj: "🚑 lesionado" };
         for (const [tm, evs] of [[H, r.evh], [A, r.eva]]) if (isMine(s, tm.id)) for (const e of evs) res.notes.push(`${lab[e.type]}: ${e.name} (${tm.name}), fora por ${e.n} jogo${e.n > 1 ? "s" : ""}.`);
       }
+      if (!silent && (H.id === s.user || A.id === s.user)) { s.offG = (s.offG || 0) + 1; if (s.offG % 10 === 0) s.offDue = true; }
       for (const tm of [H, A]) if (isMine(s, tm.id)) {
         s.hist = s.hist || {}; const hl = (s.hist[tm.id] = s.hist[tm.id] || []);
         hl.push({ y: yearOf(rd.T), T: rd.T, date: dateOf(rd.T), comp: c.name + (rd.n ? " \u00b7 " + rd.n : ""), h: H.name, a: A.name, gh: r.gh, ga: r.ga, home: tm === H });
@@ -493,9 +494,9 @@
       }
       if (!silent && (isMine(s, h) || isMine(s, a))) res.reports.push({ comp: c.name + (rd.n ? " · " + rd.n : ""), date: dateOf(rd.T), home: H.name, away: A.name, ...r });
     }
+    if (s.offDue && !silent) { s.offDue = false; periodicOffers(s, res); }
     if (rd.k === "tab") {
       c.rDone++;
-      if (!silent && (c.after === "lg" || c.after === "arG") && c.ids.includes(s.user) && c.rDone === Math.round(c.R / 2)) midSeasonOffers(s, c, res);
       if (c.rDone >= c.R) finishComp(s, c, res, silent);
     } else koCheck(s, c, res, silent);
   }
@@ -656,8 +657,6 @@
     s.honors.filter((h) => h.year === yearOf(s.T) && h.club === s.teams[s.user].name).forEach(() => (rep += 3));
     s.rep = clamp(Math.round(rep), 0, 100);
     res.notes.push(`<h2>Fim de campeonato: ${c.name}</h2>Você terminou em ${pos}º (esperado: ${expPos}º). Prêmio: +R$ ${Math.round(prize).toLocaleString("pt-BR")}. Reputação: ${s.rep}/100.`);
-    const target = 48 + s.rep * 0.30;
-    offersAround(s, target, 3, null, res);
   }
   function offersAround(s, target, n, why, res) {
     const have = new Set((s.offers || []).map((o) => o.tid));
@@ -666,15 +665,19 @@
     s.offers = (s.offers || []).concat(add);
     if (add.length) res.notes.push(`<span class="warn">Você recebeu ${add.length} convite(s) de clube. Veja no topo.</span>`);
   }
-  // fim do 1º turno / início do 2º (metade do campeonato)
-  function midSeasonOffers(s, c, res) {
-    const tab = sortTab(c.ids, c.tab), pos = tab.indexOf(s.user) + 1;
-    const exp = byStrength(s, c.ids).indexOf(s.user) + 1, diff = exp - pos, u = s.teams[s.user];
-    let target;
-    if (diff >= 3) target = ratings(u).ovr + 1.5 + Math.min(diff, 8) * 0.5;
-    else if (diff <= -4) target = ratings(u).ovr - 2.5;
-    else return;
-    offersAround(s, target, 2, diff >= 3 ? `Fim do 1º turno: você está em ${pos}º, acima do esperado (${exp}º).` : `Fim do 1º turno: você está em ${pos}º, abaixo do esperado (${exp}º).`, res);
+  // Propostas de outros clubes: a cada 10 jogos do time ativo (substituem as anteriores não aceitas).
+  function periodicOffers(s, res) {
+    const u = s.teams[s.user];
+    const c = Object.values(s.comps).find((x) => (x.after === "lg" || x.after === "arG") && !x.done && x.tab && x.ids.includes(s.user));
+    let diff = 0, why = "A cada 10 jogos chegam propostas de outros clubes.";
+    if (c && c.tab[s.user] && c.tab[s.user].p > 0) {
+      const tab = sortTab(c.ids, c.tab), pos = tab.indexOf(s.user) + 1, exp = byStrength(s, c.ids).indexOf(s.user) + 1;
+      diff = exp - pos;
+      why = `Após 10 jogos: você está em ${pos}º (esperado: ${exp}º).`;
+    }
+    const target = ratings(u).ovr + clamp(diff * 0.5, -3, 4) + (s.rep - 50) * 0.03;
+    s.offers = [];
+    offersAround(s, target, 3, why, res);
   }
   function checkRollover(s, country, res, silent) {
     const tiers = LEAGUES.filter((l) => l.country === country).sort((a, b) => a.tier - b.tier);
