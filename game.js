@@ -977,6 +977,25 @@
     if (ok && p && p.kind === "inj" && p.outId === outId) live.pending.shift();
     return ok;
   }
+  // chance de converter um pênalti: qualidade do batedor menos a do goleiro adversário
+  function penProb(m, side, k) {
+    const gk = m.on[side === "h" ? "a" : "h"].find((q) => q.pos === "GK");
+    return clamp(0.76 + (k.ov - 70) * 0.004 - (gk ? (gk.ov - 70) * 0.002 : 0), 0.5, 0.92);
+  }
+  function penKick(m, side, k, mn) {
+    const team = side === "h" ? m.H : m.A, ok = Math.random() < penProb(m, side, k);
+    if (ok) { if (side === "h") { m.gh++; m.sh.push(k.name); } else { m.ga++; m.sa.push(k.name); } }
+    m.ev.push({ min: mn, type: "pen", side, name: k.name, club: team.name, ok });
+    return ok;
+  }
+  function liveTakePen(live, mi, side, kid) {
+    const p = live.pending[0];
+    if (!p || p.kind !== "pen" || p.mi !== mi || p.side !== side) return false;
+    const m = live.matches[mi], k = m.on[side].find((q) => q.id === kid);
+    if (!k) return false;
+    live.pending.shift(); penKick(m, side, k, p.min);
+    return true;
+  }
   function liveMinute(s, live, m) {
     const mn = live.minute; m.min = mn;
     for (const side of ["h", "a"]) {
@@ -986,6 +1005,12 @@
         const p = wpickP(m.on[side], (q) => ({ ATT: 3, MID: 1.5, DEF: 0.4, GK: 0.01 }[q.pos] * q.ov));
         if (side === "h") { m.gh++; m.sh.push(p.name); } else { m.ga++; m.sa.push(p.name); }
         m.ev.push({ min: mn, type: "goal", side, name: p.name, club: team.name });
+      }
+      // pênalti (o técnico escolhe o batedor no próprio time; os outros times usam o melhor batedor)
+      if (m.on[side].length > 8 && Math.random() < 0.14 / 90) {
+        m.ev.push({ min: mn, type: "penwin", side, name: "", club: team.name });
+        if (isMine(s, team.id)) live.pending.push({ kind: "pen", mi: m.i, side, club: team.name, min: mn });
+        else { const k = m.on[side].filter((q) => q.pos !== "GK").sort((x, y) => y.ov - x.ov)[0]; if (k) penKick(m, side, k, mn); }
       }
       // expulsão
       if (m.on[side].length > 8 && Math.random() < 0.05 / 90) {
@@ -1066,6 +1091,7 @@
     const p = live.pending.shift();
     if (!p) return;
     const m = live.matches[p.mi];
+    if (p.kind === "pen") { const k = m.on[p.side].filter((q) => q.pos !== "GK").sort((x, y) => y.ov - x.ov)[0]; if (k) penKick(m, p.side, k, p.min); return; }
     if (p.kind === "inj") {
       const i = m.on[p.side].findIndex((q) => q.id === p.outId);
       if (i >= 0) { m.on[p.side].splice(i, 1); liveRates(m); }
@@ -1320,6 +1346,6 @@
     if (s.cashes) delete s.cashes[id];
     return null;
   }
-  const api = { clubCash, yearOf, startRound, liveStep, liveSub, liveResolve, liveFinish, autoReorg, getStad, stadCost, upgradeStadium, topScorers, lookup, yearOf, bestFormation, avail, nextRoundClubs, myClubs, addClub, switchClub, dropClub, STATES, CONT, COUNTRIES, LEAGUES, LG, FORMATIONS, TACTICS, newGame, autoLineup, ratings, playRound, acceptOffer, market, buy, sell, auction, sellTo, applyUpdate, resetPid, lineupPlayers, fixLineup, nextUserRound, sortTab, dateOf, userComps, userMatches };
+  const api = { clubCash, yearOf, startRound, liveStep, liveSub, liveTakePen, penProb, liveResolve, liveFinish, autoReorg, getStad, stadCost, upgradeStadium, topScorers, lookup, yearOf, bestFormation, avail, nextRoundClubs, myClubs, addClub, switchClub, dropClub, STATES, CONT, COUNTRIES, LEAGUES, LG, FORMATIONS, TACTICS, newGame, autoLineup, ratings, playRound, acceptOffer, market, buy, sell, auction, sellTo, applyUpdate, resetPid, lineupPlayers, fixLineup, nextUserRound, sortTab, dateOf, userComps, userMatches };
   if (typeof module !== "undefined") module.exports = api; else root.Game = api;
 })(typeof window !== "undefined" ? window : globalThis);

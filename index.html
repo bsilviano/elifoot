@@ -50,13 +50,13 @@ tr.me{background:color-mix(in srgb,var(--ac) 30%,transparent);font-weight:800}tr
 <header><div class="hl"><span id="crest"></span><b id="hT">Meu Elifoot</b></div><div class="hr"><span id="flag"></span><span id="hS"></span></div></header>
 <main id="app"></main>
 <nav id="nav"></nav>
-<script src="clubs.js?v=86"></script>
-<script src="game.js?v=86"></script>
+<script src="clubs.js?v=87"></script>
+<script src="game.js?v=87"></script>
 <script>
 const PREFIX="elifoot:save:",SAVE1="Elifoot"; // um único save para todos os times
 let artCan=false,S=null,tab="jogo",msg="",mf={pos:"",q:"",any:true,min:1,max:null,afford:true,ord:"ovr",dir:-1},viewKey=null;
 const $=id=>document.getElementById(id);
-const VERSAO=86;
+const VERSAO=87;
 const moneyFull=n=>(n<0?"-":"")+"R$ "+Math.round(Math.abs(n)).toLocaleString("pt-BR");
 const money=moneyFull;
 const U=()=>S.teams[S.user];
@@ -344,6 +344,8 @@ function liveEv(e){
   const m=e.min+"'";let t;
   const nm=pn(e.name,e.club);
   if(e.type==="goal")t=`${m} ⚽ <b>GOL</b> ${nm}`;
+  else if(e.type==="penwin")t=`${m} 🎯 Pênalti para o ${e.club}!`;
+  else if(e.type==="pen")t=e.ok?`${m} ⚽ <b>GOL DE PÊNALTI</b> ${nm}`:`${m} ❌ <b>Pênalti perdido</b> ${nm}`;
   else if(e.type==="red")t=`${m} 🟥 <b>Expulso</b> ${nm} · ${e.n} jogo${e.n>1?"s":""} de suspensão`;
   else if(e.type==="inj")t=`${m} 🚑 Lesão: ${nm} · ${e.n} jogo${e.n>1?"s":""}`;
   else if(e.type==="yellow")t=`${m} 🟨 ${nm}${e.third?" · 3º amarelo, suspenso":""}`;
@@ -360,6 +362,11 @@ function liveHtml(){
     h+=`<div class="card" style="border-color:#d33"><h2>🚑 ${p.name} (${ip?SPN(ip)+" "+ip.ov:"?"}) se lesionou!</h2><p class="mut">${p.club} · ${p.n} jogo${p.n>1?"s":""} fora. Substituições: ${m.subs[p.side]}/5. Escolha quem entra no lugar dele.</p>
     ${can?bn.map(q=>`<div class="pl"><span class="pc"><span class="pos">${SPN(q)}</span></span><span class="nm">${q.name}</span><span class="rt"><b class="ovc">${q.ov}</b><button class="s p" onclick="liveInjSub(${p.mi},'${p.side}',${p.outId},${q.id})">Entrar</button></span></div>`).join(""):`<p class="mut">Sem substituições disponíveis: o time segue com um a menos.</p>`}
     <div class="row" style="margin-top:8px"><button class="p" onclick="liveCont()">Continuar sem substituir</button></div></div>`;
+  }else if(p&&p.kind==="pen"){
+    const m=l.matches[p.mi];
+    h+=`<div class="card" style="border-color:var(--ac)"><h2>🎯 Pênalti para o ${p.club}!</h2><p class="mut">${p.min}' · Escolha quem vai bater. A chance considera o OVR do batedor e do goleiro adversário.</p>
+    ${m.on[p.side].slice().sort((x,y)=>SPR[SPN(x)]-SPR[SPN(y)]||y.ov-x.ov).map(q=>`<div class="pl"><span class="pc"><span class="pos">${SPN(q)}</span></span><span class="nm">${q.name}</span><span class="rt"><b class="ovc">${q.ov}</b> <span class="mut">${Math.round(Game.penProb(m,p.side,q)*100)}%</span><button class="s p" onclick="livePen(${p.mi},'${p.side}',${q.id})">Bater</button></span></div>`).join("")}
+    <div class="row" style="margin-top:8px"><button class="p" onclick="liveCont()">Deixar o auxiliar escolher</button></div></div>`;
   }else if(p){
     const m=l.matches[p.mi]
     h+=`<div class="card" style="border-color:#d33"><h2>🟥 ${p.name} foi expulso!</h2><p class="mut">${p.club} está com ${m.on[p.side].length} em campo. Substituições: ${m.subs[p.side]}/5. Troque um jogador ou reorganize o time.</p>
@@ -395,6 +402,7 @@ function liveSubUI(mi,side,outId){
 }
 function liveInjSub(mi,side,outId,inId){if(!Game.liveSub(LIVE.live,mi,side,outId,inId)){alert("Substituição inválida.");return}liveRender();liveAutoEnd();liveRun()}
 function liveAuto(){const l=LIVE.live,p=l.pending[0];if(!p)return;const m=l.matches[p.mi];Game.autoReorg(m,p.side);liveRender()}
+function livePen(mi,side,id){if(!Game.liveTakePen(LIVE.live,mi,side,id)){alert("Escolha inválida.");return}liveRender();liveAutoEnd();liveRun()}
 function liveCont(){Game.liveResolve(LIVE.live);liveRender();liveAutoEnd();liveRun()}
 function liveEnd(){
   clearInterval(LTM);const L=LIVE;LIVE=null;_lp=null;
