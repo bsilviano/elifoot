@@ -1112,7 +1112,6 @@
     if (!f || isMine(s, f.t.id)) return "Jogador indisponível.";
     const price = Math.round(f.p.value * 1.15);
     if (s.cash < price) return "Dinheiro insuficiente.";
-    if (u.players.length >= 30) return "Elenco cheio (máx. 30).";
     s.cash -= price;
     f.t.players.splice(f.i, 1);
     u.players.push(f.p);
