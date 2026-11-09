@@ -1200,20 +1200,27 @@
       for (const id of all) if (isMineG(s, id)) { for (const l of tiers) D[l.key] = D[l.key].filter((x) => x !== id); D[curOf[id]].push(id); used.add(id); }
       const pool = [...all].filter((id) => !used.has(id));
       const str = (id) => ratings(s.teams[id]).ovr;
-      const worst = (key) => { // último colocado que não é meu; com temporada em andamento vale a classificação
-        const c = comp[key], cand = D[key].filter((id) => !isMineG(s, id));
-        const rows = cand.filter((id) => c.tab[id]);
-        if (c.rDone > 0 && rows.length) { const t = sortTab(rows, c.tab); return t[t.length - 1]; }
+      // "pior colocado" = pior posição na tabela final REAL da temporada anterior (dl.previous[key] = nomes da 1ª à última posição)
+      const pidx = (key, id) => { const p = dl.previous && dl.previous[key]; return p ? p.indexOf(s.teams[id].name) : -1; };
+      const worst = (key) => {
+        const cand = D[key].filter((id) => !isMineG(s, id));
+        const st = cand.filter((id) => pidx(key, id) >= 0);
+        if (st.length) return st.sort((a, b) => pidx(key, b) - pidx(key, a))[0];
         return cand.slice().sort((a, b) => str(a) - str(b))[0];
       };
-      const best = (arr) => arr.filter((id) => !isMineG(s, id)).sort((a, b) => str(b) - str(a))[0];
+      const best = (arr, key) => {
+        const cand = arr.filter((id) => !isMineG(s, id));
+        const st = key ? cand.filter((id) => pidx(key, id) >= 0) : [];
+        if (st.length) return st.sort((a, b) => pidx(key, a) - pidx(key, b))[0];
+        return cand.sort((a, b) => str(b) - str(a))[0];
+      };
       tiers.forEach((l, i) => {
         const k = l.key, last = i === tiers.length - 1;
         while (D[k].length > n[k]) { const w = worst(k); if (w == null) break; D[k] = D[k].filter((x) => x !== w); if (!last) D[tiers[i + 1].key].push(w); else pool.push(w); }
         while (D[k].length < n[k]) {
-          const src = !last ? best(D[tiers[i + 1].key]) : null;
+          const src = !last ? best(D[tiers[i + 1].key], tiers[i + 1].key) : null;
           if (src != null) { D[tiers[i + 1].key] = D[tiers[i + 1].key].filter((x) => x !== src); D[k].push(src); continue; }
-          const p = best(pool); if (p == null) break; pool.splice(pool.indexOf(p), 1); D[k].push(p);
+          const p = best(pool, null); if (p == null) break; pool.splice(pool.indexOf(p), 1); D[k].push(p);
         }
       });
       const flat = tiers.flatMap((l) => D[l.key]);
