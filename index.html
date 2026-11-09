@@ -50,13 +50,13 @@ tr.me{background:color-mix(in srgb,var(--ac) 30%,transparent);font-weight:800}tr
 <header><div class="hl"><span id="crest"></span><b id="hT">Meu Elifoot</b></div><div class="hr"><span id="flag"></span><span id="hS"></span></div></header>
 <main id="app"></main>
 <nav id="nav"></nav>
-<script src="clubs.js?v=75"></script>
-<script src="game.js?v=75"></script>
+<script src="clubs.js?v=76"></script>
+<script src="game.js?v=76"></script>
 <script>
 const PREFIX="elifoot:save:",SAVE1="Elifoot"; // um único save para todos os times
 let S=null,tab="jogo",msg="",mf={pos:"",q:"",min:1,max:null,afford:true,ord:"ovr",dir:-1},viewKey=null;
 const $=id=>document.getElementById(id);
-const VERSAO=75;
+const VERSAO=76;
 const moneyFull=n=>(n<0?"-":"")+"R$ "+Math.round(Math.abs(n)).toLocaleString("pt-BR");
 const money=moneyFull;
 const U=()=>S.teams[S.user];
@@ -394,8 +394,8 @@ function vElenco(){
   const u=U(),set=new Set(u.lineup);
   const order={GK:0,DEF:1,MID:2,ATT:3};
   const ps=u.players.slice().sort((a,b)=>SPR[SPN(a)]-SPR[SPN(b)]||b.ov-a.ov);
-  const cnt={};u.players.forEach(p=>{const k=SPN(p);cnt[k]=(cnt[k]||0)+1});
-  const ln=(t,ks)=>`<div style="display:grid;grid-template-columns:52px repeat(4,1fr);font-size:13px;padding:2px 0;text-align:center"><span class="mut" style="text-align:left">${t}</span>${ks.map(k=>`<span><span class="mut">${k}</span> <b>${cnt[k]||0}</b></span>`).join("")}</div>`;
+  const cnt={},out={};u.players.forEach(p=>{const k=SPN(p);if(Game.avail(p))cnt[k]=(cnt[k]||0)+1;else out[k]=(out[k]||0)+1});
+  const ln=(t,ks)=>`<div style="display:grid;grid-template-columns:52px repeat(4,1fr);font-size:13px;padding:2px 0;text-align:center"><span class="mut" style="text-align:left">${t}</span>${ks.map(k=>`<span><span class="mut">${k}</span> <b>${cnt[k]||0}</b> <span class="mut">(${out[k]||0})</span></span>`).join("")}</div>`;
   const resumo=`<div class="card" style="padding:8px 10px">${ln("Defesa",["GOL","LD","ZAG","LE"])}${ln("Meio",["VOL","ME","MC","MD"])}${ln("Ataque",["PD","PE","CA"])}<div class="mut" style="text-align:center;font-size:11px;margin-top:2px">${u.players.length} jogadores</div>${destaques(u)}</div>`;
   return aucCard()+resumo+`<div class="card"><h2>Escalação (${u.lineup.length}/11)</h2>
   <div class="row"><button class="s" onclick="U().lineup=Game.autoLineup(U());save();render()">Auto</button><span class="mut">Toque para titular/reserva</span></div></div>
