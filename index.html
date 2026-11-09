@@ -50,13 +50,13 @@ tr.me{background:var(--hl);font-weight:700}
 <header><div class="hl"><span id="crest"></span><b id="hT">Meu Elifoot</b></div><div class="hr"><span id="flag"></span><span id="hS"></span></div></header>
 <main id="app"></main>
 <nav id="nav"></nav>
-<script src="clubs.js?v=33"></script>
-<script src="game.js?v=33"></script>
+<script src="clubs.js?v=34"></script>
+<script src="game.js?v=34"></script>
 <script>
 const PREFIX="elifoot:save:";
 let S=null,tab="jogo",msg="",mf={pos:"",q:"",min:1,max:null,afford:true,ord:"ovr",dir:-1},viewKey=null;
 const $=id=>document.getElementById(id);
-const VERSAO=33;
+const VERSAO=34;
 const moneyFull=n=>(n<0?"-":"")+"R$ "+Math.round(Math.abs(n)).toLocaleString("pt-BR");
 const money=moneyFull;
 const U=()=>S.teams[S.user];
@@ -122,7 +122,7 @@ function listSaves(){const r=[];for(let i=0;i<localStorage.length;i++){const k=l
 function loadSave(name){try{S=JSON.parse(localStorage.getItem(PREFIX+name));Game.resetPid(S);viewKey=null;tab="jogo";msg="";localStorage.setItem("elifoot:last",name);render()}catch(e){console.error(e);if(S&&typeof Game.bestFormation!=="function"){alert("Versão antiga do jogo em cache. Recarregue a página (Ctrl+F5) e abra o save de novo.")}else alert("Erro ao abrir o save: "+(e&&e.message||e))}}
 function delSave(name){if(confirm("Apagar o save de "+name+"?")){localStorage.removeItem(PREFIX+name);syncDelete(name);start()}}
 
-function clubOpts(){let sel="";const opts=Game.COUNTRIES;for(const c in opts){const ls=Game.LEAGUES.filter(l=>l.country===c);sel+=`<optgroup label="${opts[c].name}">`+ls.map(l=>l.clubs.map(n=>`<option value="${n}">${n} (${l.name})</option>`).join("")).join("")+`</optgroup>`}return sel}
+function clubOpts(){let sel="";const mineN=S?Game.myClubs(S).map(i=>S.teams[i].name):[];const opts=Game.COUNTRIES;for(const c in opts){const ls=Game.LEAGUES.filter(l=>l.country===c);sel+=`<optgroup label="${opts[c].name}">`+ls.map(l=>l.clubs.map(n=>`<option value="${n}"${n==="Vasco"&&!mineN.includes("Vasco")?" selected":""}>${n} (${l.name})</option>`).join("")).join("")+`</optgroup>`}return sel}
 function tidByName(n){return +Object.keys(S.teams).find(k=>S.teams[k].name===n)}
 function swClub(id){const e=Game.switchClub(S,id);if(e)alert(e);viewKey=null;tab="jogo";msg="";save();render()}
 function addClubUI(){const n=$("addSel").value,id=tidByName(n);if(!id&&id!==0){alert("Time não encontrado.");return}const e=Game.addClub(S,id);if(e){alert(e);return}msg=`Agora você também comanda ${n}. Use "Comandar" para trocar de time.`;save();render()}
