@@ -50,13 +50,13 @@ tr.me{background:color-mix(in srgb,var(--ac) 30%,transparent);font-weight:800}tr
 <header><div class="hl"><span id="crest"></span><b id="hT">Meu Elifoot</b></div><div class="hr"><span id="flag"></span><span id="hS"></span></div></header>
 <main id="app"></main>
 <nav id="nav"></nav>
-<script src="clubs.js?v=100"></script>
-<script src="game.js?v=100"></script>
+<script src="clubs.js?v=101"></script>
+<script src="game.js?v=101"></script>
 <script>
 const PREFIX="elifoot:save:",SAVE1="Elifoot"; // um único save para todos os times
 let artCan=false,S=null,tab="jogo",msg="",mf={pos:"",q:"",any:true,min:1,max:null,afford:true,ord:"ovr",dir:-1},viewKey=null;
 const $=id=>document.getElementById(id);
-const VERSAO=100;
+const VERSAO=101;
 const moneyFull=n=>(n<0?"-":"")+"R$ "+Math.round(Math.abs(n)).toLocaleString("pt-BR");
 const money=moneyFull;
 const U=()=>S.teams[S.user];
@@ -103,8 +103,9 @@ async function syncPull(force){
     if(force||ts>loc||!localStorage.getItem(PREFIX+name)){if(!force&&loc&&localStorage.getItem(PREFIX+name)&&!confirm(`A nuvem tem um save "${name}" mais novo (${new Date(ts).toLocaleString("pt-BR")}) que o deste aparelho (${new Date(loc).toLocaleString("pt-BR")}). OK = baixar e substituir o daqui. Cancelar = manter o daqui.`))continue;localStorage.setItem(PREFIX+name,await ungz(txt.slice(i+1)));localStorage.setItem(TSK+name,ts);if(!localStorage.getItem("elifoot:last"))localStorage.setItem("elifoot:last",name);got++}
   }
   for(const n of listSaves())if(!seen.has(n))await syncPush(n);
-  syncSt("☁️ Sincronizado ("+new Date().toLocaleTimeString("pt-BR")+")");return got;
+  newest();syncSt("☁️ Sincronizado ("+new Date().toLocaleTimeString("pt-BR")+")");return got;
 }
+function newest(){let b=null,bt=-1;for(const n of listSaves()){const t=+localStorage.getItem(TSK+n)||0;if(t>bt){bt=t;b=n}}if(b)localStorage.setItem("elifoot:last",b);return b}
 async function syncOn(){
   const t=$("gtok").value.trim();if(!t){alert("Cole o token.");return}
   gset({token:t});
@@ -112,8 +113,8 @@ async function syncOn(){
   catch(e){localStorage.removeItem(GK);alert("Não consegui ativar: "+e.message+". Confira se o token tem permissão de gist.")}
 }
 function syncOff(){if(confirm("Desativar a sincronização neste aparelho? Os saves ficam aqui e na nuvem."))localStorage.removeItem(GK),render()}
-async function syncNow(){try{const nm=S.saveName,n=await syncPull();if(n){loadSave(nm);syncSt("☁️ Save mais novo baixado da nuvem.")}else{await syncPush(nm);render()}}catch(e){syncSt("Falha: "+e.message)}}
-async function syncForce(){if(!confirm("Baixar da nuvem e SUBSTITUIR o save deste aparelho?"))return;try{const nm=S?S.saveName:localStorage.getItem("elifoot:last");await syncPull(true);if(nm&&localStorage.getItem(PREFIX+nm))loadSave(nm);else render()}catch(e){syncSt("Falha: "+e.message)}}
+async function syncNow(){try{const nm=S.saveName,n=await syncPull();if(n){loadSave(localStorage.getItem("elifoot:last")||nm);syncSt("☁️ Save mais novo baixado da nuvem.")}else{await syncPush(nm);render()}}catch(e){syncSt("Falha: "+e.message)}}
+async function syncForce(){if(!confirm("Baixar da nuvem e SUBSTITUIR o save deste aparelho?"))return;try{await syncPull(true);const nm=localStorage.getItem("elifoot:last");if(nm&&localStorage.getItem(PREFIX+nm))loadSave(nm);else render()}catch(e){syncSt("Falha: "+e.message)}}
 function syncCard(){
   const c=gcfg();
   if(c)return `<div class="card"><h2>Sincronização</h2><p class="mut" id="syncSt">${SYNCST||"☁️ Ativada neste aparelho."}</p><p class="mut">Cada save é enviado à nuvem ao salvar e baixado ao abrir o jogo. Vale o mais recente. Não jogue nos dois aparelhos ao mesmo tempo.</p><div class="row"><button class="p" onclick="syncNow()">Sincronizar agora</button><button class="s" onclick="syncForce()">Baixar da nuvem</button><button class="s d" onclick="syncOff()">Desativar</button></div></div>`;
