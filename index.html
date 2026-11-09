@@ -71,10 +71,12 @@ function start(){
   }
   $("app").innerHTML=`<div class="card"><h2>Continuar</h2>${saves.length?saves.map(n=>`<div class="pl"><span>${n}</span><span><button class="s p" onclick="loadSave('${n.replace(/'/g,"\\'")}')">Abrir</button> <button class="s d" onclick="delSave('${n.replace(/'/g,"\\'")}')">X</button></span></div>`).join(""):'<p class="mut">Nenhum save ainda.</p>'}</div>
   <div class="card"><h2>Novo jogo</h2><p class="mut">8 países, 2 a 3 divisões cada, copas continentais. Elencos do protótipo são <b>estimados</b>, não reais. Se já existir save com o nome do time escolhido, ele é sobrescrito.</p>
-  <div class="row"><select id="clubSel" style="flex:1;min-width:0">${sel}</select><button class="p" onclick="go()">Começar</button></div></div>
+  <div class="row"><select id="clubSel" style="flex:1;min-width:0">${sel}</select><button class="p" onclick="go()">Começar</button></div>
+  <div class="row" style="margin-top:8px"><button onclick="goRandom()" style="flex:1">🎲 Começar com um time aleatório</button></div></div>
   <div class="card"><label class="mut">Importar save (.json)</label><br><input type="file" accept=".json" onchange="importSave(event)"></div>`;
   $("nav").innerHTML="";$("hT").textContent="Meu Elifoot";$("hS").textContent="";
 }
+function goRandom(){const o=$("clubSel").options;$("clubSel").selectedIndex=Math.floor(Math.random()*o.length);go()}
 function go(){S=Game.newGame($("clubSel").value);viewKey=null;tab="jogo";msg="";save();render()}
 function importSave(e){const f=e.target.files[0];if(!f)return;f.text().then(t=>{S=JSON.parse(t);Game.resetPid(S);save();render()})}
 function exportSave(){const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify(S)],{type:"application/json"}));a.download="elifoot-"+U().name+".json";a.click()}
