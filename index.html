@@ -50,13 +50,13 @@ tr.me{background:var(--hl);font-weight:700}
 <header><div class="hl"><span id="crest"></span><b id="hT">Meu Elifoot</b></div><div class="hr"><span id="flag"></span><span id="hS"></span></div></header>
 <main id="app"></main>
 <nav id="nav"></nav>
-<script src="clubs.js"></script>
-<script src="game.js"></script>
+<script src="clubs.js?v=12"></script>
+<script src="game.js?v=12"></script>
 <script>
 const PREFIX="elifoot:save:";
 let S=null,tab="jogo",msg="",mf={pos:"",q:"",min:0},viewKey=null;
 const $=id=>document.getElementById(id);
-const VERSAO=11;
+const VERSAO=12;
 const moneyFull=n=>(n<0?"-":"")+"R$ "+Math.round(Math.abs(n)).toLocaleString("pt-BR");
 const money=moneyFull;
 const U=()=>S.teams[S.user];
@@ -68,7 +68,7 @@ function save(){
   catch(e){alert("Sem espaço no aparelho para salvar. Apague saves antigos na tela inicial.")}
 }
 function listSaves(){const r=[];for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k.startsWith(PREFIX))r.push(k.slice(PREFIX.length))}return r.sort()}
-function loadSave(name){try{S=JSON.parse(localStorage.getItem(PREFIX+name));Game.resetPid(S);viewKey=null;tab="jogo";msg="";localStorage.setItem("elifoot:last",name);render()}catch(e){alert("Save corrompido.")}}
+function loadSave(name){try{S=JSON.parse(localStorage.getItem(PREFIX+name));Game.resetPid(S);viewKey=null;tab="jogo";msg="";localStorage.setItem("elifoot:last",name);render()}catch(e){console.error(e);if(S&&typeof Game.bestFormation!=="function"){alert("Versão antiga do jogo em cache. Recarregue a página (Ctrl+F5) e abra o save de novo.")}else alert("Erro ao abrir o save: "+(e&&e.message||e))}}
 function delSave(name){if(confirm("Apagar o save de "+name+"?")){localStorage.removeItem(PREFIX+name);start()}}
 
 function clubOpts(){let sel="";const opts=Game.COUNTRIES;for(const c in opts){const ls=Game.LEAGUES.filter(l=>l.country===c);sel+=`<optgroup label="${opts[c].name}">`+ls.map(l=>l.clubs.map(n=>`<option value="${n}">${n} (${l.name})</option>`).join("")).join("")+`</optgroup>`}return sel}
