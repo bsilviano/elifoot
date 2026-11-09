@@ -50,13 +50,13 @@ tr.me{background:var(--hl);font-weight:700}
 <header><div class="hl"><span id="crest"></span><b id="hT">Meu Elifoot</b></div><div class="hr"><span id="flag"></span><span id="hS"></span></div></header>
 <main id="app"></main>
 <nav id="nav"></nav>
-<script src="clubs.js?v=13"></script>
-<script src="game.js?v=13"></script>
+<script src="clubs.js?v=14"></script>
+<script src="game.js?v=14"></script>
 <script>
 const PREFIX="elifoot:save:";
 let S=null,tab="jogo",msg="",mf={pos:"",q:"",min:0},viewKey=null;
 const $=id=>document.getElementById(id);
-const VERSAO=13;
+const VERSAO=14;
 const moneyFull=n=>(n<0?"-":"")+"R$ "+Math.round(Math.abs(n)).toLocaleString("pt-BR");
 const money=moneyFull;
 const U=()=>S.teams[S.user];
@@ -64,7 +64,7 @@ const LGu=()=>Game.LG[U().lkey];
 
 // ---- salvamento automático com o nome do time (mesmo nome = sobrescreve) ----
 function save(){
-  try{localStorage.setItem(PREFIX+U().name,JSON.stringify(S));localStorage.setItem("elifoot:last",U().name)}
+  try{if(!S.saveName)S.saveName=U().name;localStorage.setItem(PREFIX+S.saveName,JSON.stringify(S));localStorage.setItem("elifoot:last",S.saveName)}
   catch(e){alert("Sem espaço no aparelho para salvar. Apague saves antigos na tela inicial.")}
 }
 function listSaves(){const r=[];for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k.startsWith(PREFIX))r.push(k.slice(PREFIX.length))}return r.sort()}
@@ -213,7 +213,7 @@ function doPlay(){
   r.notes.forEach(x=>t+=`<p>${x}</p>`);
   if(r.fixed)t+=`<p class="mut">Escalação inválida: o auxiliar escalou o time automaticamente.</p>`;
   if(r.skipped)t+=`<p class="mut">${r.skipped} rodada(s) sem jogo seu foram simuladas.</p>`;
-  msg=t;save();render();
+  msg=t+`<p class="mut">💾 Jogo salvo automaticamente.</p>`;save();render();
 }
 
 function vElenco(){
