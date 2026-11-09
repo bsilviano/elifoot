@@ -67,7 +67,7 @@ function start(){
   let sel="";
   for(const c in opts){
     const ls=Game.LEAGUES.filter(l=>l.country===c);
-    sel+=`<optgroup label="${opts[c].name}">`+ls.map(l=>l.clubs.map(n=>`<option value="${n}">${n} (${l.name})</option>`).join("")).join("")+`</optgroup>`;
+    sel+=`<optgroup label="${opts[c].name}">`+ls.map(l=>l.clubs.map(n=>`<option value="${n}"${n==="Vasco"?" selected":""}>${n} (${l.name})</option>`).join("")).join("")+`</optgroup>`;
   }
   $("app").innerHTML=`<div class="card"><h2>Continuar</h2>${saves.length?saves.map(n=>`<div class="pl"><span>${n}</span><span><button class="s p" onclick="loadSave('${n.replace(/'/g,"\\'")}')">Abrir</button> <button class="s d" onclick="delSave('${n.replace(/'/g,"\\'")}')">X</button></span></div>`).join(""):'<p class="mut">Nenhum save ainda.</p>'}</div>
   <div class="card"><h2>Novo jogo</h2><p class="mut">8 países, 2 a 3 divisões cada, copas continentais. Elencos do protótipo são <b>estimados</b>, não reais. Se já existir save com o nome do time escolhido, ele é sobrescrito.</p>
