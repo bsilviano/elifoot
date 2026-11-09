@@ -1174,6 +1174,71 @@
     return res;
   }
 
+
+  // Listas reais de times por divisão (ligas.json): vale para o save em andamento no dia do primeiro jogo real do campeonato.
+  // Meus times continuam na divisão em que estão; se sobrar time numa liga, o pior colocado (que não é meu) cai para a de baixo.
+  function applyLeagues(s, data) {
+    const report = [];
+    if (!data || !data.leagues) return report;
+    s.ligasAp = s.ligasAp || {};
+    const byName = {}; Object.values(s.teams).forEach((t) => (byName[t.name] = t.id));
+    for (const country of Object.keys(data.leagues)) {
+      const dl = data.leagues[country];
+      if (!dl || !dl.tiers || !COUNTRIES[country] || s.season[country] !== dl.year || s.ligasAp[country] === dl.year) continue;
+      const tiers = LEAGUES.filter((l) => l.country === country).sort((a, b) => a.tier - b.tier);
+      if (!tiers.every((l) => dl.tiers[l.key] && s.lg[l.key])) continue;
+      const comp = {};
+      for (const l of tiers) comp[l.key] = Object.values(s.comps).find((c) => c.key === l.key && !c.done && c.tab && c.ids);
+      if (!tiers.every((l) => comp[l.key])) continue;
+      const cur = {}, n = {}, all = new Set();
+      tiers.forEach((l) => { cur[l.key] = s.lg[l.key].slice(); n[l.key] = cur[l.key].length; cur[l.key].forEach((id) => all.add(id)); });
+      const curOf = {}; tiers.forEach((l) => cur[l.key].forEach((id) => (curOf[id] = l.key)));
+      const D = {}, used = new Set();
+      for (const l of tiers) D[l.key] = [];
+      for (const l of tiers) for (const nm of dl.tiers[l.key]) { const id = byName[nm]; if (id != null && all.has(id) && !used.has(id)) { used.add(id); D[l.key].push(id); } }
+      // meus times ficam onde estão
+      for (const id of all) if (isMineG(s, id)) { for (const l of tiers) D[l.key] = D[l.key].filter((x) => x !== id); D[curOf[id]].push(id); used.add(id); }
+      const pool = [...all].filter((id) => !used.has(id));
+      const str = (id) => ratings(s.teams[id]).ovr;
+      const worst = (key) => { // último colocado que não é meu; com temporada em andamento vale a classificação
+        const c = comp[key], cand = D[key].filter((id) => !isMineG(s, id));
+        const rows = cand.filter((id) => c.tab[id]);
+        if (c.rDone > 0 && rows.length) { const t = sortTab(rows, c.tab); return t[t.length - 1]; }
+        return cand.slice().sort((a, b) => str(a) - str(b))[0];
+      };
+      const best = (arr) => arr.filter((id) => !isMineG(s, id)).sort((a, b) => str(b) - str(a))[0];
+      tiers.forEach((l, i) => {
+        const k = l.key, last = i === tiers.length - 1;
+        while (D[k].length > n[k]) { const w = worst(k); if (w == null) break; D[k] = D[k].filter((x) => x !== w); if (!last) D[tiers[i + 1].key].push(w); else pool.push(w); }
+        while (D[k].length < n[k]) {
+          const src = !last ? best(D[tiers[i + 1].key]) : null;
+          if (src != null) { D[tiers[i + 1].key] = D[tiers[i + 1].key].filter((x) => x !== src); D[k].push(src); continue; }
+          const p = best(pool); if (p == null) break; pool.splice(pool.indexOf(p), 1); D[k].push(p);
+        }
+      });
+      const flat = tiers.flatMap((l) => D[l.key]);
+      if (pool.length || flat.length !== all.size || new Set(flat).size !== flat.length || tiers.some((l) => D[l.key].length !== n[l.key])) { report.push({ country, error: "listas incompatíveis, nada foi alterado" }); continue; }
+      const moves = [];
+      for (const l of tiers) {
+        const k = l.key, c = comp[k];
+        const rem = cur[k].filter((id) => !D[k].includes(id)).sort((a, b) => str(b) - str(a));
+        const add = D[k].filter((id) => !cur[k].includes(id)).sort((a, b) => str(b) - str(a));
+        const map = {}; rem.forEach((r, j) => (map[r] = add[j]));
+        if (!rem.length) continue;
+        const rp = (id) => (map[id] != null ? map[id] : id);
+        c.ids = c.ids.map(rp); if (c.order) c.order = c.order.map(rp);
+        const tab = {}; Object.keys(c.tab).forEach((id) => (tab[rp(+id)] = c.tab[id])); c.tab = tab;
+        if (c.groups) c.groups = c.groups.map((g) => g.map(rp));
+        for (const rd of s.q) if (rd.c === c.id) rd.fx = rd.fx.map((m) => [rp(m[0]), rp(m[1])].concat(m.slice(2)));
+        rem.forEach((r, j) => moves.push(`${s.teams[add[j]].name} entra na ${l.name}, ${s.teams[r].name} sai`));
+      }
+      for (const l of tiers) { s.lg[l.key] = D[l.key]; D[l.key].forEach((id) => (s.teams[id].lkey = l.key)); }
+      s.ligasAp[country] = dl.year;
+      report.push({ country, moves });
+    }
+    return report;
+  }
+
   function acceptOffer(s, tid) {
     const o = s.offers.find((x) => x.tid === tid);
     if (!o) return "Convite inválido.";
@@ -1427,6 +1492,6 @@
     if (s.cashes) delete s.cashes[id];
     return null;
   }
-  const api = { clubCash, yearOf, startRound, liveStep, liveSub, liveTakePen, penProb, liveResolve, liveFinish, autoReorg, getStad, stadCost, upgradeStadium, topScorers, lookup, yearOf, bestFormation, avail, nextRoundClubs, myClubs, addClub, switchClub, dropClub, STATES, CONT, COUNTRIES, LEAGUES, LG, FORMATIONS, TACTICS, newGame, autoLineup, ratings, playRound, acceptOffer, market, buy, sell, auction, sellTo, applyUpdate, resetPid, migrateOvr, lineupPlayers, fixLineup, nextUserRound, sortTab, dateOf, userComps, userMatches };
+  const api = { applyLeagues, clubCash, yearOf, startRound, liveStep, liveSub, liveTakePen, penProb, liveResolve, liveFinish, autoReorg, getStad, stadCost, upgradeStadium, topScorers, lookup, yearOf, bestFormation, avail, nextRoundClubs, myClubs, addClub, switchClub, dropClub, STATES, CONT, COUNTRIES, LEAGUES, LG, FORMATIONS, TACTICS, newGame, autoLineup, ratings, playRound, acceptOffer, market, buy, sell, auction, sellTo, applyUpdate, resetPid, migrateOvr, lineupPlayers, fixLineup, nextUserRound, sortTab, dateOf, userComps, userMatches };
   if (typeof module !== "undefined") module.exports = api; else root.Game = api;
 })(typeof window !== "undefined" ? window : globalThis);
