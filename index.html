@@ -51,13 +51,13 @@ tr.me{background:color-mix(in srgb,var(--ac) 30%,transparent);font-weight:800}tr
 <header><div class="hl"><span id="crest"></span><b id="hT">Meu Elifoot</b></div><div class="hr"><span id="flag"></span><span id="hS"></span></div></header>
 <main id="app"></main>
 <nav id="nav"></nav>
-<script src="clubs.js?v=107"></script>
-<script src="game.js?v=107"></script>
+<script src="clubs.js?v=108"></script>
+<script src="game.js?v=108"></script>
 <script>
 const PREFIX="elifoot:save:",SAVE1="Elifoot"; // um único save para todos os times
 let artCan=false,S=null,tab="jogo",msg="",mf={pos:"",q:"",any:true,min:1,max:null,afford:true,ord:"ovr",dir:-1},viewKey=null;
 const $=id=>document.getElementById(id);
-const VERSAO=107;
+const VERSAO=108;
 const moneyFull=n=>(n<0?"-":"")+"R$ "+Math.round(Math.abs(n)).toLocaleString("pt-BR");
 const money=moneyFull;
 const U=()=>S.teams[S.user];
@@ -427,7 +427,7 @@ function vElenco(){
   const resumo=posResumo(u,destaques(u));
   return aucCard()+resumo+`<div class="card"><h2>Escalação (${u.lineup.length}/11)</h2>
   <div class="row"><button class="s" onclick="U().lineup=Game.autoLineup(U());save();render()">Auto</button><span class="mut">Toque para titular/reserva</span></div></div>
-  <div class="card">${ps.map(p=>`<div class="pl ${set.has(p.id)?"in":""}" onclick="tog(${p.id})"><span class="pc"><span class="pos">${SPN(p)}</span><span class="mut">${p.age}a</span></span><span class="nm">${p.name}${p.inj>0?` <span class="bad">🚑 ${p.inj} jogo${p.inj>1?"s":""}</span>`:""}${p.sus>0?` <span class="bad">🟥 susp. ${p.sus}</span>`:""}${p.yc?` <span class="mut">🟨${p.yc}</span>`:""}</span><span class="rt"><b class="ovc">${p.ov}</b><button class="s d" onclick="event.stopPropagation();sell(${p.id})">Leiloar</button><span class="mut vl" title="Valor mínimo de venda">${money(p.value)}</span></span></div>`).join("")}</div>`;
+  <div class="card">${ps.map(p=>`<div class="pl ${set.has(p.id)?"in":""}" onclick="tog(${p.id})"><span class="pc"><span class="pos">${SPN(p)}</span><span class="mut">${p.age}a</span></span><span class="nm">${p.name}${p.inj>0?` <span class="bad">🚑 ${p.inj} jogo${p.inj>1?"s":""}</span>`:""}${p.sus>0?` <span class="bad">🟥 susp. ${p.sus}</span>`:""}${p.yc?` <span class="mut">🟨${p.yc}</span>`:""}</span><span class="rt"><b class="ovc">${p.ov}</b><button class="s d" onclick="event.stopPropagation();sell(${p.id})">Vender</button><span class="mut vl" title="Valor mínimo de venda">${money(p.value)}</span></span></div>`).join("")}</div>`;
 }
 function destaques(u){
   if(!u.players.length)return"";
@@ -436,11 +436,11 @@ function destaques(u){
   const y=Game.yearOf(S.T);let art=null;
   for(const e of Object.values(S.scorers||{})){if(e.c!==u.name||e.sy!==y||!(e.sg>0))continue;if(!art||e.sg>art.sg)art=e}
   const row=(t,x)=>`<div style="display:flex;justify-content:space-between;gap:8px;font-size:13px;padding:2px 0"><span class="mut">${t}</span><span style="text-align:right">${x}</span></div>`;
-  return `<div style="border-top:1px solid var(--line);margin-top:6px;padding-top:4px">${row("⭐ Melhor jogador",`<b>${best.name}</b> · ${SPN(best)} · OVR ${best.ov}`)}${row("📉 Pior jogador",`<b>${worst.name}</b> · ${SPN(worst)} · OVR ${worst.ov} <button class="s d" onclick="sell(${worst.id})">Leiloar</button>`)}${row("⚽ Artilheiro ("+y+")",art?`<b>${art.n}</b> · ${art.sg} gol${art.sg>1?"s":""}`:'<span class="mut">ninguém marcou ainda</span>')}</div>`;
+  return `<div style="border-top:1px solid var(--line);margin-top:6px;padding-top:4px">${row("⭐ Melhor jogador",`<b>${best.name}</b> · ${SPN(best)} · OVR ${best.ov}`)}${row("📉 Pior jogador",`<b>${worst.name}</b> · ${SPN(worst)} · OVR ${worst.ov} <button class="s d" onclick="sell(${worst.id})">Vender</button>`)}${row("⚽ Artilheiro ("+y+")",art?`<b>${art.n}</b> · ${art.sg} gol${art.sg>1?"s":""}`:'<span class="mut">ninguém marcou ainda</span>')}</div>`;
 }
 function tog(id){const u=U(),i=u.lineup.indexOf(id);u.fAuto=false;const pp=u.players.find(x=>x.id===id);if(pp&&!Game.avail(pp)&&i<0){alert(pp.name+" está "+(pp.sus>0?"suspenso":"lesionado")+".");return}if(i>=0)u.lineup.splice(i,1);else if(u.lineup.length<11)u.lineup.push(id);save();render()}
 let AUC=null;
-function sell(id){if(!confirm("Leiloar este jogador? Vence o maior lance."))return;const a=Game.auction(S,id);if(a.err){alert(a.err);return}
+function sell(id){if(!confirm("Vender este jogador? Vai a leilão e vence o maior lance."))return;const a=Game.auction(S,id);if(a.err){alert(a.err);return}
   if(a.bids.length){const w=a.bids[0];const e=Game.sellTo(S,id,w.tid,w.bid);if(e){alert(e);return}a.sold=w;save()}
   AUC=a;render();window.scrollTo(0,0)}
 function cancelAuc(){AUC=null;render()}
