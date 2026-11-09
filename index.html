@@ -51,13 +51,13 @@ tr.me{background:color-mix(in srgb,var(--ac) 30%,transparent);font-weight:800}tr
 <header><div class="hl"><span id="crest"></span><b id="hT">Meu Elifoot</b></div><div class="hr"><span id="flag"></span><span id="hS"></span></div></header>
 <main id="app"></main>
 <nav id="nav"></nav>
-<script src="clubs.js?v=111"></script>
-<script src="game.js?v=111"></script>
+<script src="clubs.js?v=112"></script>
+<script src="game.js?v=112"></script>
 <script>
 const PREFIX="elifoot:save:",SAVE1="Elifoot"; // um único save para todos os times
 let artCan=false,S=null,tab="jogo",msg="",mf={pos:"",q:"",any:true,min:1,max:null,afford:true,ord:"ovr",dir:-1},viewKey=null;
 const $=id=>document.getElementById(id);
-const VERSAO=111;
+const VERSAO=112;
 const moneyFull=n=>(n<0?"-":"")+"R$ "+Math.round(Math.abs(n)).toLocaleString("pt-BR");
 const money=moneyFull;
 const U=()=>S.teams[S.user];
@@ -461,10 +461,22 @@ function compOpts(cur){
   return `<optgroup label="Seu clube">${mine.map(o).join("")}</optgroup><optgroup label="Outras">${rest.map(o).join("")}</optgroup>`;
 }
 const mineIds=()=>S.free?[]:Game.myClubs(S);
+const ZCOL={LIB:"#2f7de1",UCL:"#2f7de1",SUL:"#f0a020",UEL:"#f0a020",UECL:"#2ab7a9",ACE:"#3ddc84",REB:"#ff6b6b"};
+function zonas(c){
+  if(!c||c.after!=="lg"||!c.key)return null;const lg=Game.LEAGUES.find(l=>l.key===c.key);if(!lg)return null;
+  const n=c.ids.length,z={},leg=[];
+  const add=(a,b,k,lab)=>{b=Math.min(b,n);if(a>b)return;for(let p=a;p<=b;p++)z[p]=ZCOL[k];leg.push([ZCOL[k],a===b?`${a}º`:`${a}º ao ${b}º`,lab])};
+  for(const k of ["LIB","UCL","SUL","UEL","UECL"]){const d=Game.CONT[k];if(!d)continue;for(const [lk,a,b] of d.slots)if(lk===c.key)add(a,b,k,d.name)}
+  const pr=Game.COUNTRIES[lg.country].promo||0;
+  if(lg.tier>1&&pr)add(1,pr,"ACE","Acesso");
+  if(pr&&Game.LEAGUES.some(l=>l.country===lg.country&&l.tier===lg.tier+1))add(n-pr+1,n,"REB","Rebaixamento");
+  return leg.length?{z,leg}:null;
+}
 function tbl(c,ids,hl){
-  const t=Game.sortTab(ids,c.tab);
+  const t=Game.sortTab(ids,c.tab),zn=zonas(c);
   return `<table><tr><th class="l">Time</th><th>P</th><th>J</th><th>V</th><th>E</th><th>D</th><th>SG</th></tr>`+
-  t.map((id,i)=>{const r=c.tab[id];return `<tr class="${mineIds().includes(id)?"me":""}"><td class="l">${i+1}. ${mineIds().includes(id)?"★ ":""}${S.teams[id].name}</td><td>${r.pts}</td><td>${r.p}</td><td>${r.w}</td><td>${r.d}</td><td>${r.l}</td><td>${r.gf-r.ga}</td></tr>`}).join("")+`</table>`;
+  t.map((id,i)=>{const r=c.tab[id],zc=zn&&zn.z[i+1];return `<tr class="${mineIds().includes(id)?"me":""}"><td class="l"${zc?` style="border-left:4px solid ${zc}"`:""}>${i+1}. ${mineIds().includes(id)?"★ ":""}${S.teams[id].name}</td><td>${r.pts}</td><td>${r.p}</td><td>${r.w}</td><td>${r.d}</td><td>${r.l}</td><td>${r.gf-r.ga}</td></tr>`}).join("")+`</table>`
+  +(zn?`<div style="display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12px;margin-top:6px">${zn.leg.map(([col,pos,lab])=>`<span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${col};margin-right:4px"></span>${pos}: ${lab}</span>`).join("")}</div>`:"");
 }
 function vTabela(){
   if(HISTV)return vHist();
