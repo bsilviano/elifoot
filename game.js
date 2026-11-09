@@ -48,33 +48,50 @@
     PID = m + 1;
   }
 
-  function autoLineup(team, formation) {
+  const avail = (p) => !(p.inj > 0) && !(p.sus > 0);
+  const SLOTS = {
+    DEF: { 3: ["ZAG", "ZAG", "ZAG"], 4: ["LE", "ZAG", "ZAG", "LD"], 5: ["LE", "ZAG", "ZAG", "ZAG", "LD"] },
+    MID: { 3: ["VOL", "MC", "MC"], 4: ["ME", "MC", "MC", "MD"], 5: ["ME", "VOL", "MC", "MC", "MD"] },
+    ATT: { 1: ["CA"], 2: ["CA", "CA"], 3: ["PE", "CA", "PD"] },
+  };
+  // Monta o time ideal; "miss" conta quantos jogadores ficaram fora da posição exata.
+  function buildLineup(team, formation) {
     const f = FORMATIONS[formation || team.formation];
     const need = { GK: 1, DEF: f[0], MID: f[1], ATT: f[2] };
-    const ids = [];
+    const ids = []; let miss = 0;
     for (const pos in need) {
-      const pool = team.players.filter((p) => p.pos === pos).sort((a, b) => b.ov - a.ov);
-      const SL = {
-        DEF: { 3: ["ZAG", "ZAG", "ZAG"], 4: ["LE", "ZAG", "ZAG", "LD"], 5: ["LE", "ZAG", "ZAG", "ZAG", "LD"] },
-        MID: { 3: ["VOL", "MC", "MC"], 4: ["ME", "MC", "MC", "MD"], 5: ["ME", "VOL", "MC", "MC", "MD"] },
-        ATT: { 1: ["CA"], 2: ["CA", "CA"], 3: ["PE", "CA", "PD"] },
-      };
-      const slots = (SL[pos] && SL[pos][need[pos]]) || null;
+      const all = team.players.filter((p) => p.pos === pos).sort((a, b) => b.ov - a.ov);
+      const pool = all.filter(avail), out = all.filter((p) => !avail(p));
+      const slots = SLOTS[pos] && SLOTS[pos][need[pos]];
+      const used = new Set();
       if (slots) {
-        const used = new Set();
-        for (const sp of slots) { const c = pool.find((p) => !used.has(p.id) && p.sp === sp); if (c) { used.add(c.id); ids.push(c.id); } }
-        pool.filter((p) => !used.has(p.id)).slice(0, need[pos] - used.size).forEach((p) => ids.push(p.id));
-      } else pool.slice(0, need[pos]).forEach((p) => ids.push(p.id));
+        for (const sp of slots) { const c = pool.find((p) => !used.has(p.id) && p.sp === sp); if (c) { used.add(c.id); } else miss++; }
+      }
+      const pick1 = [...used].map((id) => pool.find((p) => p.id === id));
+      const rest = pool.filter((p) => !used.has(p.id)).concat(out);
+      const chosen = pick1.concat(rest.slice(0, need[pos] - pick1.length));
+      chosen.forEach((p) => ids.push(p.id));
     }
-    return ids;
+    return { ids, miss };
+  }
+  function autoLineup(team, formation) { return buildLineup(team, formation).ids; }
+  function bestFormation(team) {
+    let best = null;
+    for (const f in FORMATIONS) {
+      const { ids, miss } = buildLineup(team, f);
+      const set = new Set(ids), r = ratingsL(team.players.filter((p) => set.has(p.id)));
+      const score = (r.A + r.D) / 2 - miss * 1.5;
+      if (!best || score > best.score) best = { f, ids, score, ovr: r.ovr, miss };
+    }
+    return best;
   }
   function lineupPlayers(team) {
     const set = new Set(team.lineup);
     return team.players.filter((p) => set.has(p.id));
   }
   function avg(ps, d) { return ps.length ? ps.reduce((s, p) => s + p.ov, 0) / ps.length : d; }
-  function ratings(team) {
-    const L = lineupPlayers(team);
+  function ratings(team) { return ratingsL(lineupPlayers(team)); }
+  function ratingsL(L) {
     const by = (pos) => L.filter((p) => p.pos === pos);
     const A = avg(by("ATT"), 35) * 0.55 + avg(by("MID"), 35) * 0.45;
     const D = avg(by("DEF"), 35) * 0.55 + avg(by("GK"), 30) * 0.25 + avg(by("MID"), 35) * 0.2;
@@ -93,17 +110,35 @@
     for (const p of L) { r -= w[p.pos] * p.ov; if (r <= 0) return p.name; }
     return L.length ? L[0].name : "?";
   }
+  // Lesões, cartões amarelos (3 = 1 jogo) e vermelhos (1 a 4 jogos), em taxas próximas às do futebol real.
+  function matchEvents(t) {
+    const ev = [];
+    for (const p of t.players) { if (p.sus > 0) p.sus--; if (p.inj > 0) p.inj--; }
+    for (const p of lineupPlayers(t)) {
+      const wy = { GK: 0.02, DEF: 0.15, MID: 0.15, ATT: 0.09 }[p.pos], wr = { GK: 0.0008, DEF: 0.0055, MID: 0.0045, ATT: 0.0035 }[p.pos];
+      if (Math.random() < wr) { const n = pick([1, 1, 1, 1, 1, 2, 2, 3, 4]); p.sus = n; p.yc = 0; ev.push({ type: "red", name: p.name, n }); continue; }
+      if (Math.random() < wy) { p.yc = (p.yc || 0) + 1; if (p.yc >= 3) { p.yc = 0; p.sus = 1; ev.push({ type: "yc3", name: p.name, n: 1 }); } }
+      if (Math.random() < (p.age > 31 ? 0.022 : 0.017)) {
+        const r = Math.random();
+        const n = r < 0.5 ? ri(1, 2) : r < 0.8 ? ri(3, 5) : r < 0.96 ? ri(6, 12) : ri(13, 30);
+        p.inj = n; ev.push({ type: "inj", name: p.name, n });
+      }
+    }
+    return ev;
+  }
   function simMatch(h, a) {
+    const evh = matchEvents(h), eva = matchEvents(a);
     const rh = ratings(h), ra = ratings(a);
     const tf = (t) => (t.tactic === "Ofensiva" ? [1.06, 0.94] : t.tactic === "Defensiva" ? [0.94, 1.06] : [1, 1]);
     const [ah, dh] = tf(h), [aa, da] = tf(a);
-    const xh = 1.3 * Math.exp((rh.A * ah - ra.D * da + 3) / 22);
-    const xa = 1.1 * Math.exp((ra.A * aa - rh.D * dh - 3) / 22);
+    const redH = evh.some((e) => e.type === "red") ? 1 : 0, redA = eva.some((e) => e.type === "red") ? 1 : 0;
+    const xh = 1.3 * Math.exp((rh.A * ah - ra.D * da + 3) / 22) * (redH ? 0.82 : 1) * (redA ? 1.12 : 1);
+    const xa = 1.1 * Math.exp((ra.A * aa - rh.D * dh - 3) / 22) * (redA ? 0.82 : 1) * (redH ? 1.12 : 1);
     const gh = poisson(clamp(xh, 0.15, 5)), ga = poisson(clamp(xa, 0.15, 5));
     const sh = [], sa = [];
     for (let i = 0; i < gh; i++) sh.push(scorer(h));
     for (let i = 0; i < ga; i++) sa.push(scorer(a));
-    return { gh, ga, sh, sa };
+    return { gh, ga, sh, sa, evh, eva };
   }
 
   function roundRobin(ids) {
@@ -341,10 +376,19 @@
   function userComps(s) { return Object.values(s.comps).filter((c) => !c.done && c.ids.includes(s.user)); }
   function isMine(s, id) { return id === s.user || (s.clubs || []).includes(id); }
   function fixLineup(t) {
-    const ok = t.lineup.length === 11 && t.lineup.every((i) => t.players.some((p) => p.id === i)) &&
+    const ok = () => t.lineup.length === 11 && t.lineup.every((i) => t.players.some((p) => p.id === i && avail(p))) &&
       lineupPlayers(t).filter((p) => p.pos === "GK").length === 1;
-    if (!ok) { t.lineup = autoLineup(t); return true; }
-    return false;
+    if (ok()) return false;
+    // tira indisponíveis e troca por reservas do mesmo setor (mesma posição exata primeiro)
+    const bad = t.lineup.map((id) => t.players.find((p) => p.id === id)).filter((p) => !p || !avail(p));
+    t.lineup = t.lineup.filter((id) => t.players.some((p) => p.id === id && avail(p)));
+    for (const b of bad) {
+      if (!b) continue;
+      const bench = t.players.filter((p) => avail(p) && !t.lineup.includes(p.id) && p.pos === b.pos).sort((x, y) => (y.sp === b.sp) - (x.sp === b.sp) || y.ov - x.ov);
+      if (bench[0]) t.lineup.push(bench[0].id);
+    }
+    if (!ok()) t.lineup = autoLineup(t);
+    return true;
   }
   function ageCheck(s) {
     while (s.T >= (s.aged + 1) * 52) {
@@ -378,6 +422,10 @@
         th.p++; ta.p++; th.gf += r.gh; th.ga += r.ga; ta.gf += r.ga; ta.ga += r.gh;
         if (r.gh > r.ga) { th.w++; th.pts += 3; ta.l++; } else if (r.gh < r.ga) { ta.w++; ta.pts += 3; th.l++; } else { th.d++; ta.d++; th.pts++; ta.pts++; }
       } else c.ties[k].res.push([r.gh, r.ga]);
+      if (!silent) {
+        const lab = { red: "🟥 expulso", yc3: "🟨 suspenso (3º amarelo)", inj: "🚑 lesionado" };
+        for (const [tm, evs] of [[H, r.evh], [A, r.eva]]) if (isMine(s, tm.id)) for (const e of evs) res.notes.push(`${lab[e.type]}: ${e.name} (${tm.name}), fora por ${e.n} jogo${e.n > 1 ? "s" : ""}.`);
+      }
       if (!silent && (isMine(s, h) || isMine(s, a))) res.reports.push({ comp: c.name + (rd.n ? " · " + rd.n : ""), date: dateOf(rd.T), home: H.name, away: A.name, ...r });
     }
     if (rd.k === "tab") {
@@ -832,6 +880,6 @@
     if (s.cashes) delete s.cashes[id];
     return null;
   }
-  const api = { nextRoundClubs, myClubs, addClub, switchClub, dropClub, STATES, CONT, COUNTRIES, LEAGUES, LG, FORMATIONS, TACTICS, newGame, autoLineup, ratings, playRound, acceptOffer, market, buy, sell, auction, sellTo, applyUpdate, resetPid, lineupPlayers, fixLineup, nextUserRound, sortTab, dateOf, userComps, userMatches };
+  const api = { bestFormation, avail, nextRoundClubs, myClubs, addClub, switchClub, dropClub, STATES, CONT, COUNTRIES, LEAGUES, LG, FORMATIONS, TACTICS, newGame, autoLineup, ratings, playRound, acceptOffer, market, buy, sell, auction, sellTo, applyUpdate, resetPid, lineupPlayers, fixLineup, nextUserRound, sortTab, dateOf, userComps, userMatches };
   if (typeof module !== "undefined") module.exports = api; else root.Game = api;
 })(typeof window !== "undefined" ? window : globalThis);
