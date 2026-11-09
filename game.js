@@ -379,7 +379,7 @@
 
   // ---------- processamento de rodadas ----------
   function userComps(s) { return Object.values(s.comps).filter((c) => !c.done && c.ids.includes(s.user)); }
-  function isMine(s, id) { return id === s.user || (s.clubs || []).includes(id); }
+  function isMine(s, id) { if (s.free) return false; return id === s.user || (s.clubs || []).includes(id); }
   const isMineG = isMine;
   function fixLineup(t) {
     const ok = () => t.lineup.length === 11 && t.lineup.every((i) => t.players.some((p) => p.id === i && avail(p))) &&
@@ -1147,12 +1147,17 @@
 
 
   // Vários clubes sob o meu comando: o ativo usa s.cash; os demais guardam o caixa em s.cashes.
-  function myClubs(s) { return s.clubs && s.clubs.length ? s.clubs : [s.user]; }
+  function myClubs(s) { if (s.free) return []; return s.clubs && s.clubs.length ? s.clubs : [s.user]; }
   function addClub(s, id) {
     id = +id;
     if (!s.teams[id]) return "Time inválido.";
     if (myClubs(s).includes(id)) return "Você já comanda este time.";
     if (s.teams[id].local) return "Time indisponível.";
+    if (s.free) { // estava sem clube: assume este
+      s.free = false; s.fired = null; s.offers = []; s.user = id; s.clubs = [id]; s.cashes = {};
+      s.cash = clubCash(s.teams[id]); s.teams[id].lineup = autoLineup(s.teams[id]);
+      return null;
+    }
     s.clubs = myClubs(s).concat(id);
     s.cashes = s.cashes || {};
     s.cashes[id] = clubCash(s.teams[id]);
@@ -1172,8 +1177,17 @@
   }
   function dropClub(s, id) {
     id = +id;
-    if (id === s.user || !myClubs(s).includes(id)) return "Troque para outro time antes de largar este.";
-    s.clubs = s.clubs.filter((x) => x !== id);
+    if (!myClubs(s).includes(id)) return "Você não comanda este time.";
+    if (id === s.user) {
+      const others = myClubs(s).filter((x) => x !== id);
+      if (others.length) switchClub(s, others[0]);
+      else { // largou o último: fica sem clube até adicionar outro
+        s.free = true; s.clubs = []; s.cashes = {}; s.offers = [];
+        s.fired = { club: s.teams[id].name, why: "Você deixou o time." };
+        return null;
+      }
+    }
+    s.clubs = (s.clubs || []).filter((x) => x !== id);
     if (s.cashes) delete s.cashes[id];
     return null;
   }

@@ -50,13 +50,13 @@ tr.me{background:var(--hl);font-weight:700}
 <header><div class="hl"><span id="crest"></span><b id="hT">Meu Elifoot</b></div><div class="hr"><span id="flag"></span><span id="hS"></span></div></header>
 <main id="app"></main>
 <nav id="nav"></nav>
-<script src="clubs.js?v=53"></script>
-<script src="game.js?v=53"></script>
+<script src="clubs.js?v=54"></script>
+<script src="game.js?v=54"></script>
 <script>
 const PREFIX="elifoot:save:",SAVE1="Elifoot"; // um único save para todos os times
 let S=null,tab="jogo",msg="",mf={pos:"",q:"",min:1,max:null,afford:true,ord:"ovr",dir:-1},viewKey=null;
 const $=id=>document.getElementById(id);
-const VERSAO=53;
+const VERSAO=54;
 const moneyFull=n=>(n<0?"-":"")+"R$ "+Math.round(Math.abs(n)).toLocaleString("pt-BR");
 const money=moneyFull;
 const U=()=>S.teams[S.user];
@@ -128,7 +128,7 @@ function clubOpts(){let sel="";const mineN=S?Game.myClubs(S).map(i=>S.teams[i].n
 function tidByName(n){return +Object.keys(S.teams).find(k=>S.teams[k].name===n)}
 function swClub(id){const e=Game.switchClub(S,id);if(e)alert(e);viewKey=null;tab="jogo";msg="";save();render()}
 function addClubUI(){const n=$("addSel").value,id=tidByName(n);if(!id&&id!==0){alert("Time não encontrado.");return}const e=Game.addClub(S,id);if(e){alert(e);return}msg=`Agora você também comanda ${n}. Use "Comandar" para trocar de time.`;save();render()}
-function dropClubUI(id){if(!confirm("Largar este time?"))return;const e=Game.dropClub(S,id);if(e)alert(e);save();render()}
+function dropClubUI(id){const last=Game.myClubs(S).length===1;if(!confirm(last?"Largar o seu único time? Você ficará sem clube e poderá escolher outro depois.":"Largar este time? Ele continua no jogo, controlado pela IA."))return;const e=Game.dropClub(S,id);if(e)alert(e);save();render()}
 function start(){applyTheme(null);
   S=null;
   const saves=listSaves();
@@ -210,8 +210,17 @@ function fixSP(){
       p.spv2=1}
     if(ch)t.lineup=Game.autoLineup(t)}
   S.spv=1;S.lv5=1;save()}
-function render(){fixSP();
+function freeScreen(){
+  applyTheme(null);$("nav").style.display="none";$("hT").textContent="Sem clube";$("hS").textContent="versão "+VERSAO;$("crest").innerHTML="";$("flag").innerHTML="";
+  $("app").innerHTML=`<div class="card"><h2>Você está sem clube</h2><p class="mut">${S.fired?S.fired.why+" ":""}Escolha um time para comandar. Seus times anteriores continuam no jogo, controlados pela IA.</p>
+  <div class="row"><select id="addSel" style="flex:1;min-width:0">${clubOpts()}</select><button class="p" onclick="addClubUI()">Comandar</button></div>
+  <div class="row" style="margin-top:8px"><select id="addCty" style="flex:1;min-width:0"><option value="">Qualquer país</option>${cNames().map(n=>`<option>${n}</option>`).join("")}</select><button onclick="addRandomUI()">🎲 Time aleatório</button></div>${msg?`<p>${msg}</p>`:""}</div>
+  <div class="card"><button onclick="start()">Trocar de save / novo jogo</button></div>`}
+function render(){
+  if(S&&S.free)return freeScreen();
+  fixSP();
   if(!S)return start();
+  if(!LIVE&&!SUMM)$("nav").style.display="";
   if(SUMM)return summRender();
   if(LIVE){$("nav").style.display="none";return liveRender()}
   const u=U();applyTheme(u.name);
@@ -488,7 +497,7 @@ function vMais(){
   const u=U(),w=u.players.reduce((s,p)=>s+p.wage,0);
   return `<div class="card"><h2>Finanças</h2><p>Caixa: <b>${moneyFull(S.cash)}</b><br>Folha por rodada: ${money(w)}<br>Torcida (estimada): ${(u.fans*1000).toLocaleString("pt-BR")}<br>Reputação: ${S.rep}/100</p></div>
   <div class="card"><h2>Estádio</h2>${(()=>{const cap=Game.getStad(u),max=cap>=100000;return `<p>Capacidade: <b>${cap.toLocaleString("pt-BR")}</b> lugares${max?" (máximo)":""}<br><span class="mut">Mínimo 10.000 · máximo 100.000 · amplia de 10.000 em 10.000. Custo: capacidade atual × 100. A renda do jogo vai para o caixa: mandante 70%, visitante 30%. O público depende da torcida (${(u.fans*1000).toLocaleString("pt-BR")}).</span></p>${max?"":`<p><button class="p" onclick="buildStad()">Ampliar para ${(cap+10000).toLocaleString("pt-BR")} lugares (${moneyFull(Game.stadCost(u))})</button></p>`}`})()}</div>
-  <div class="card"><h2>Meus times</h2>${Game.myClubs(S).map(id=>`<div class="pl ${id===S.user?"in":""}"><span><b>${S.teams[id].name}</b> <span class="mut">(${Game.COUNTRIES[S.teams[id].country].name})</span><br><span class="mut">Caixa ${moneyFull(id===S.user?S.cash:(S.cashes&&S.cashes[id])||0)}${id===S.user?" · ativo":""}</span></span><span>${id===S.user?"":`<button class="s p" onclick="swClub(${id})">Comandar</button> <button class="s d" onclick="dropClubUI(${id})">Largar</button>`}</span></div>`).join("")}
+  <div class="card"><h2>Meus times</h2>${Game.myClubs(S).map(id=>`<div class="pl ${id===S.user?"in":""}"><span><b>${S.teams[id].name}</b> <span class="mut">(${Game.COUNTRIES[S.teams[id].country].name})</span><br><span class="mut">Caixa ${moneyFull(id===S.user?S.cash:(S.cashes&&S.cashes[id])||0)}${id===S.user?" · ativo":""}</span></span><span>${id===S.user?"":`<button class="s p" onclick="swClub(${id})">Comandar</button> `}<button class="s d" onclick="dropClubUI(${id})">Largar</button></span></div>`).join("")}
   <div class="row" style="margin-top:8px"><select id="addSel" style="flex:1;min-width:0">${clubOpts()}</select><button class="p" onclick="addClubUI()">Adicionar time</button></div>
   <div class="row" style="margin-top:8px"><select id="addCty" style="flex:1;min-width:0"><option value="">Qualquer país</option>${cNames().map(n=>`<option>${n}</option>`).join("")}</select><button onclick="addRandomUI()">🎲 Time aleatório</button></div>
   <p class="mut">Cada time tem elenco, escalação e caixa próprios. O jogo avança até a próxima partida do time ativo; os outros times seus jogam com escalação automática se ela ficar inválida e pagam salários e recebem bilheteria. Prêmios e propostas de fim de temporada só valem para o time ativo.</p></div>
