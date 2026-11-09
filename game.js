@@ -806,13 +806,19 @@
     for (const rd of s.q) { if (rd.fx.some((m) => m[0] === s.user || m[1] === s.user)) out.push(rd); }
     return out;
   }
+  // "Série A - Rodada 10/38": nome da competição sem o ano + rodada atual/total (mata-mata mostra só a fase)
+  function rodLabel(c, rd) {
+    if (!c) return "";
+    if (rd.k === "tab" && c.R) return `${c.name.replace(/\s+\d{4}(\/\d{2})?$/, "")} - Rodada ${Math.min(c.rDone + 1, c.R)}/${c.R}`;
+    return rd.n || "";
+  }
   function nextUserRound(s) {
     for (const rd of s.q) {
       const m = rd.fx.find((m) => m[0] === s.user || m[1] === s.user);
       if (m) {
         const c = s.comps[rd.c];
         const pos = (id) => { if (rd.k !== "tab" || !c || !c.tab || !c.tab[id] || !c.tab[id].p) return null; const grp = c.groups && c.groups.find((x) => x.includes(id)); return sortTab(grp || c.ids, c.tab).indexOf(id) + 1; };
-        return { hp: pos(m[0]), ap: pos(m[1]), T: rd.T, date: dateOf(rd.T), comp: c ? c.name + (rd.n ? " · " + rd.n : "") : "", home: s.teams[m[0]], away: s.teams[m[1]] }; }
+        return { rodada: rodLabel(c, rd), hp: pos(m[0]), ap: pos(m[1]), T: rd.T, date: dateOf(rd.T), comp: c ? c.name + (rd.n ? " · " + rd.n : "") : "", home: s.teams[m[0]], away: s.teams[m[1]] }; }
     }
     return null;
   }
@@ -906,7 +912,7 @@
   }
   function createLive(s, rd) {
     const c = s.comps[rd.c];
-    const live = { rd, T: rd.T, date: dateOf(rd.T), comp: c ? c.name + (rd.n ? " · " + rd.n : "") : "", rodada: c && rd.k === "tab" && c.R ? `Rodada ${Math.min(c.rDone + 1, c.R)} de ${c.R}` : (rd.n || ""), minute: 0, pending: [], done: false, matches: [] };
+    const live = { rd, T: rd.T, date: dateOf(rd.T), comp: c ? c.name + (rd.n ? " · " + rd.n : "") : "", rodada: rodLabel(c, rd), minute: 0, pending: [], done: false, matches: [] };
     rd.fx.forEach(([h, a, k], i) => {
       const H = s.teams[h], A = s.teams[a];
       for (const [t, id] of [[H, h], [A, a]]) { if (isMine(s, id)) fixLineup(t); else t.lineup = autoLineup(t); }

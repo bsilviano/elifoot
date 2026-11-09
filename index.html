@@ -50,13 +50,13 @@ tr.me{background:color-mix(in srgb,var(--ac) 30%,transparent);font-weight:800}tr
 <header><div class="hl"><span id="crest"></span><b id="hT">Meu Elifoot</b></div><div class="hr"><span id="flag"></span><span id="hS"></span></div></header>
 <main id="app"></main>
 <nav id="nav"></nav>
-<script src="clubs.js?v=79"></script>
-<script src="game.js?v=79"></script>
+<script src="clubs.js?v=80"></script>
+<script src="game.js?v=80"></script>
 <script>
 const PREFIX="elifoot:save:",SAVE1="Elifoot"; // um único save para todos os times
 let S=null,tab="jogo",msg="",mf={pos:"",q:"",any:true,min:1,max:null,afford:true,ord:"ovr",dir:-1},viewKey=null;
 const $=id=>document.getElementById(id);
-const VERSAO=79;
+const VERSAO=80;
 const moneyFull=n=>(n<0?"-":"")+"R$ "+Math.round(Math.abs(n)).toLocaleString("pt-BR");
 const money=moneyFull;
 const U=()=>S.teams[S.user];
@@ -244,7 +244,7 @@ function vJogo(){
   const n=Game.nextUserRound(S);
   h+=`<div class="card" style="padding:8px 12px;margin-bottom:8px">`;
   if(n){
-    h+=`<div style="text-align:center;font-weight:700;font-size:16px">${n.home.name}${n.hp?` (${n.hp}º)`:""} x ${n.away.name}${n.ap?` (${n.ap}º)`:""}</div><p class="mut" style="text-align:center;margin:2px 0 0;font-size:12px">${n.date} · ${n.comp} · OVR ${Game.ratings(u).ovr.toFixed(1)} x ${Game.ratings(n.home===u?n.away:n.home).ovr.toFixed(1)}</p>`;
+    h+=`<div style="text-align:center;font-weight:700;font-size:16px">${n.home.name}${n.hp?` (${n.hp}º)`:""} x ${n.away.name}${n.ap?` (${n.ap}º)`:""}</div><p class="mut" style="text-align:center;margin:2px 0 0;font-size:12px">${n.date} · ${n.rodada&&n.rodada.includes(" - ")?n.rodada:n.comp} · OVR ${Game.ratings(u).ovr.toFixed(1)} x ${Game.ratings(n.home===u?n.away:n.home).ovr.toFixed(1)}</p>`;
   }else h+=`<p style="margin:0">Sem jogos agendados. Clique para avançar o calendário.</p>`;
   h+=`</div>`+lineupCard(u)+(msg?`<div class="card">${msg}</div>`:"");
   return h;
@@ -341,7 +341,7 @@ function liveEv(e){
 }
 function liveHtml(){
   const l=LIVE.live,p=l.pending[0];
-  let h=`<div class="card"><h2>${l.comp}</h2><p class="mut">${l.date}${l.rodada?" · "+l.rodada:""}</p><div class="big">⏱ ${l.minute}'${l.done?" · Fim de jogo":""}</div>`;
+  let h=`<div class="card"><h2>${l.comp}</h2><p class="mut">${l.date}${l.rodada?" · "+(l.rodada.includes(" - ")?l.rodada.split(" - ").pop():l.rodada):""}</p><div class="big">⏱ ${l.minute}'${l.done?" · Fim de jogo":""}</div>`;
   if(!l.done&&!p)h+=`<div class="row"><button class="${LSPD===900?"p":""}" onclick="liveSpeed(900)">▶ Normal</button><button class="${LSPD===250?"p":""}" onclick="liveSpeed(250)">⏩ Rápido</button><button class="${LSPD===-1?"p":""}" onclick="liveSpeed(-1)">⏭ Ir ao fim</button></div>`;
   h+=`</div>`;
   if(p&&p.kind==="inj"){
