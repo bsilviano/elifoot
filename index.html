@@ -51,13 +51,13 @@ tr.me{background:color-mix(in srgb,var(--ac) 30%,transparent);font-weight:800}tr
 <header><div class="hl"><span id="crest"></span><b id="hT">Meu Elifoot</b></div><div class="hr"><span id="flag"></span><span id="hS"></span></div></header>
 <main id="app"></main>
 <nav id="nav"></nav>
-<script src="clubs.js?v=104"></script>
-<script src="game.js?v=104"></script>
+<script src="clubs.js?v=105"></script>
+<script src="game.js?v=105"></script>
 <script>
 const PREFIX="elifoot:save:",SAVE1="Elifoot"; // um único save para todos os times
 let artCan=false,S=null,tab="jogo",msg="",mf={pos:"",q:"",any:true,min:1,max:null,afford:true,ord:"ovr",dir:-1},viewKey=null;
 const $=id=>document.getElementById(id);
-const VERSAO=104;
+const VERSAO=105;
 const moneyFull=n=>(n<0?"-":"")+"R$ "+Math.round(Math.abs(n)).toLocaleString("pt-BR");
 const money=moneyFull;
 const U=()=>S.teams[S.user];
@@ -423,7 +423,7 @@ function posResumo(u,extra){
 function vElenco(){
   const u=U(),set=new Set(u.lineup);
   const order={GK:0,DEF:1,MID:2,ATT:3};
-  const ps=u.players.slice().sort((a,b)=>SPR[SPN(a)]-SPR[SPN(b)]||b.ov-a.ov);
+  const ps=u.players.slice().sort((a,b)=>SPR[SPN(a)]-SPR[SPN(b)]||a.age-b.age||b.ov-a.ov||a.name.localeCompare(b.name,"pt-BR"));
   const resumo=posResumo(u,destaques(u));
   return aucCard()+resumo+`<div class="card"><h2>Escalação (${u.lineup.length}/11)</h2>
   <div class="row"><button class="s" onclick="U().lineup=Game.autoLineup(U());save();render()">Auto</button><span class="mut">Toque para titular/reserva</span></div></div>
