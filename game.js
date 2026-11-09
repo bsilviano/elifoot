@@ -855,7 +855,10 @@
   }
   function liveSub(live, mi, side, outId, inId) {
     const m = live.matches[mi]; m.min = live.minute;
-    return swapPlayers(m, side, outId, inId, "user");
+    const ok = swapPlayers(m, side, outId, inId, "user");
+    const p = live.pending[0];
+    if (ok && p && p.kind === "inj" && p.outId === outId) live.pending.shift();
+    return ok;
   }
   function liveMinute(s, live, m) {
     const mn = live.minute; m.min = mn;
@@ -885,9 +888,13 @@
         p.inj = r < 0.5 ? ri(1, 2) : r < 0.8 ? ri(3, 5) : r < 0.96 ? ri(6, 12) : ri(13, 30);
         evs.push({ type: "inj", name: p.name, n: p.inj });
         m.ev.push({ min: mn, type: "inj", side, name: p.name, n: p.inj, club: team.name });
-        const b = m.bench[side].find((q) => q.pos === p.pos);
-        if (b && m.subs[side] < SUBS_MAX) swapPlayers(m, side, p.id, b.id, "lesao");
-        else { m.on[side].splice(m.on[side].indexOf(p), 1); liveRates(m); autoReorg(m, side); }
+        if (isMine(s, team.id)) { // o técnico decide a substituição (o lesionado sai de campo ao resolver)
+          live.pending.push({ kind: "inj", mi: m.i, side, name: p.name, club: team.name, outId: p.id, n: p.inj });
+        } else {
+          const b = m.bench[side].find((q) => q.pos === p.pos);
+          if (b && m.subs[side] < SUBS_MAX) swapPlayers(m, side, p.id, b.id, "lesao");
+          else { m.on[side].splice(m.on[side].indexOf(p), 1); liveRates(m); autoReorg(m, side); }
+        }
       }
       // cartão amarelo (3º amarelo = suspenso na próxima rodada)
       if (m.on[side].length && Math.random() < 1.5 / 90) {
@@ -906,9 +913,15 @@
       if (live.minute >= 90) live.done = true;
     }
   }
-  function liveResolve(live) { // fecha a tela de expulsão: o auxiliar garante um goleiro em campo
+  function liveResolve(live) { // fecha a tela de expulsão/lesão: o lesionado não substituído sai e o auxiliar garante um goleiro em campo
     const p = live.pending.shift();
-    if (p) autoReorg(live.matches[p.mi], p.side);
+    if (!p) return;
+    const m = live.matches[p.mi];
+    if (p.kind === "inj") {
+      const i = m.on[p.side].findIndex((q) => q.id === p.outId);
+      if (i >= 0) { m.on[p.side].splice(i, 1); liveRates(m); }
+    }
+    autoReorg(m, p.side);
   }
   function liveFinish(s, live, res) {
     const pre = live.matches.map((m) => ({ gh: m.gh, ga: m.ga, sh: m.sh, sa: m.sa, evh: m.evh, eva: m.eva, gate: m.gate }));
