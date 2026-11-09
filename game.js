@@ -690,9 +690,9 @@
   // Estádio: capacidade real (stad) entre 10 mil e 100 mil; amplia de 10 em 10 mil por (capacidade atual x 10) reais.
   const STAD_MIN = 10000, STAD_MAX = 100000, STAD_STEP = 10000;
   function getStad(t) {
-    if (t.stad) return Math.max(STAD_MIN, Math.min(STAD_MAX, t.stad));
     const tier = t.lkey && LG[t.lkey] ? LG[t.lkey].tier : 3;
-    return tier === 1 ? 30000 : tier === 2 ? 18000 : STAD_MIN;
+    const raw = t.stad || (tier === 1 ? 30000 : tier === 2 ? 20000 : STAD_MIN);
+    return Math.max(STAD_MIN, Math.min(STAD_MAX, Math.round(raw / STAD_STEP) * STAD_STEP));
   }
   function stadCost(t) { return getStad(t) * 10; }
   function upgradeStadium(s) {
