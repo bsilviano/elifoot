@@ -50,13 +50,13 @@ tr.me{background:color-mix(in srgb,var(--ac) 30%,transparent);font-weight:800}tr
 <header><div class="hl"><span id="crest"></span><b id="hT">Meu Elifoot</b></div><div class="hr"><span id="flag"></span><span id="hS"></span></div></header>
 <main id="app"></main>
 <nav id="nav"></nav>
-<script src="clubs.js?v=78"></script>
-<script src="game.js?v=78"></script>
+<script src="clubs.js?v=79"></script>
+<script src="game.js?v=79"></script>
 <script>
 const PREFIX="elifoot:save:",SAVE1="Elifoot"; // um único save para todos os times
-let S=null,tab="jogo",msg="",mf={pos:"",q:"",min:1,max:null,afford:true,ord:"ovr",dir:-1},viewKey=null;
+let S=null,tab="jogo",msg="",mf={pos:"",q:"",any:true,min:1,max:null,afford:true,ord:"ovr",dir:-1},viewKey=null;
 const $=id=>document.getElementById(id);
-const VERSAO=78;
+const VERSAO=79;
 const moneyFull=n=>(n<0?"-":"")+"R$ "+Math.round(Math.abs(n)).toLocaleString("pt-BR");
 const money=moneyFull;
 const U=()=>S.teams[S.user];
@@ -488,11 +488,12 @@ function vArt(){
 }
 function vMercado(){
   const all=Game.market(S),maxOvr=all.reduce((m,p)=>Math.max(m,p.ov),1),mx=mf.max==null?maxOvr:mf.max;
-  let l=all.filter(p=>(!mf.pos||SPN(p)===mf.pos)&&p.ov>=mf.min&&p.ov<=mx&&(!mf.afford||Math.round(p.value*1.15)<=S.cash)&&(!mf.q||(p.name+p.team).toLowerCase().includes(mf.q.toLowerCase())));
+  let l=all.filter(p=>(!mf.pos||SPN(p)===mf.pos)&&(mf.any||(p.ov>=mf.min&&p.ov<=mx))&&(!mf.afford||Math.round(p.value*1.15)<=S.cash)&&(!mf.q||(p.name+p.team).toLowerCase().includes(mf.q.toLowerCase())));
   l.sort((a,b)=>mf.ord==="valor"?(mf.dir*(a.value-b.value)||mf.dir*(a.ov-b.ov)||a.age-b.age||a.name.localeCompare(b.name)):(mf.dir*(a.ov-b.ov)||a.value-b.value||a.age-b.age||a.name.localeCompare(b.name)));const n=l.length;l=l.slice(0,40);
   return `<div class="card"><h2>Mercado</h2><div class="row">
   <select onchange="mf.pos=this.value;render()"><option value="">Todas</option>${["GOL","LD","LE","ZAG","VOL","ME","MD","MC","PD","PE","CA"].map(p=>`<option ${mf.pos===p?"selected":""}>${p}</option>`).join("")}</select>
-  <label class="mut" style="display:flex;align-items:center;gap:4px">OVR <input type="number" min="1" max="${maxOvr}" value="${mf.min}" onchange="mf.min=Math.max(1,+this.value||1);render()" style="width:58px"> a <input type="number" min="1" max="${maxOvr}" value="${mx}" onchange="mf.max=this.value===""?null:+this.value;render()" style="width:58px"></label>
+  <label class="mut" style="display:flex;align-items:center;gap:4px"><input type="checkbox" ${mf.any?"checked":""} onchange="mf.any=this.checked;render()"> OVR qualquer</label>
+  <label class="mut" style="display:flex;align-items:center;gap:4px;${mf.any?"opacity:.45":""}">OVR <input type="number" ${mf.any?"disabled":""} min="1" max="${maxOvr}" value="${mf.min}" onchange="mf.min=Math.max(1,+this.value||1);render()" style="width:58px"> a <input type="number" min="1" max="${maxOvr}" value="${mx}" onchange="mf.max=this.value===""?null:+this.value;render()" style="width:58px" ${mf.any?"disabled":""}></label>
   <label class="mut" style="display:flex;align-items:center;gap:6px;flex-basis:100%"><input type="checkbox" ${mf.afford?"checked":""} onchange="mf.afford=this.checked;render()"> Só jogadores que cabem no meu caixa (${money(S.cash)})</label>
   <select onchange="mf.ord=this.value;render()"><option value="ovr" ${mf.ord==="ovr"?"selected":""}>Ordenar por OVR</option><option value="valor" ${mf.ord==="valor"?"selected":""}>Ordenar por valor</option></select>
   <select onchange="mf.dir=+this.value;render()"><option value="-1" ${mf.dir<0?"selected":""}>Decrescente</option><option value="1" ${mf.dir>0?"selected":""}>Crescente</option></select>
