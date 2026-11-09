@@ -50,13 +50,13 @@ tr.me{background:color-mix(in srgb,var(--ac) 30%,transparent);font-weight:800}tr
 <header><div class="hl"><span id="crest"></span><b id="hT">Meu Elifoot</b></div><div class="hr"><span id="flag"></span><span id="hS"></span></div></header>
 <main id="app"></main>
 <nav id="nav"></nav>
-<script src="clubs.js?v=83"></script>
-<script src="game.js?v=83"></script>
+<script src="clubs.js?v=84"></script>
+<script src="game.js?v=84"></script>
 <script>
 const PREFIX="elifoot:save:",SAVE1="Elifoot"; // um único save para todos os times
 let artCan=false,S=null,tab="jogo",msg="",mf={pos:"",q:"",any:true,min:1,max:null,afford:true,ord:"ovr",dir:-1},viewKey=null;
 const $=id=>document.getElementById(id);
-const VERSAO=83;
+const VERSAO=84;
 const moneyFull=n=>(n<0?"-":"")+"R$ "+Math.round(Math.abs(n)).toLocaleString("pt-BR");
 const money=moneyFull;
 const U=()=>S.teams[S.user];
@@ -438,9 +438,9 @@ function aucCard(){
 }
 
 function compOpts(cur){
-  const cs=Object.values(S.comps).filter(c=>!c.id.endsWith("_K")||true);
+  const cs=Object.values(S.comps).filter(c=>!(c.id.endsWith("_K")&&S.comps[c.id.slice(0,-2)]));
   const mine=cs.filter(c=>c.ids.includes(S.user)),rest=cs.filter(c=>!c.ids.includes(S.user));
-  const o=c=>`<option value="${c.id}" ${c.id===cur?"selected":""}>${c.name}${c.done?" ✓":""}</option>`;
+  const o=c=>`<option value="${c.id}" ${c.id===cur?"selected":""}>${c.name}${(S.comps[c.id+"_K"]||c).done?" ✓":""}</option>`;
   return `<optgroup label="Seu clube">${mine.map(o).join("")}</optgroup><optgroup label="Outras">${rest.map(o).join("")}</optgroup>`;
 }
 const mineIds=()=>S.free?[]:Game.myClubs(S);
@@ -453,22 +453,23 @@ function vTabela(){
   if(HISTV)return vHist();
   let id=viewKey&&S.comps[viewKey]?viewKey:null;
   if(!id){const mine=Object.values(S.comps).filter(c=>!c.done&&c.ids.includes(S.user));id=(mine.find(c=>c.after==="lg")||mine[0]||Object.values(S.comps)[0]).id}
-  const c=S.comps[id];
+  if(id.endsWith("_K")&&S.comps[id.slice(0,-2)])id=id.slice(0,-2);
+  const c=S.comps[id],kc=S.comps[id+"_K"],T=kc||c; // copas com fase de grupos/liga + mata-mata aparecem como uma competição só
   let h=`<div class="card"><select onchange="viewKey=this.value;render()" style="width:100%">${compOpts(id)}</select></div>`;
   const mi=mineIds();
   const tieCard=(nm,ties)=>`<div class="card"><h2>${c.name} — ${nm}</h2>`+ties.map(t=>{
     const a=S.teams[t.a].name,b=S.teams[t.b].name,res=t.res.map(r=>r.join("x")).join(" / "),m=mi.includes(t.a)||mi.includes(t.b);
     return `<div class="pl"><span class="${m?"good":""}" style="${m?"font-weight:800":""}">${a} × ${b}</span><span class="mut">${res||"a jogar"}${t.w!==null?` → <b>${S.teams[t.w].name}</b>${t.pens?(t.pk?` (pên. ${t.pk[0]}x${t.pk[1]})`:" (pên.)"):""}`:""}</span></div>`}).join("")+`</div>`;
   // fase mais atual primeiro: campeão, fase atual, fases anteriores (da mais recente à mais antiga) e por último a fase de grupos
-  if(c.ties){
-    if(c.champion)h+=`<div class="card">Campeão: <b>${S.teams[c.champion].name}</b></div>`;
-    h+=tieCard(c.stage,c.ties);
-    (c.past||[]).slice().reverse().forEach(p=>{h+=tieCard(p.name,p.ties)});
+  if(T.ties){
+    if(T.champion)h+=`<div class="card">Campeão: <b>${S.teams[T.champion].name}</b></div>`;
+    h+=tieCard(T.stage,T.ties);
+    (T.past||[]).slice().reverse().forEach(p=>{h+=tieCard(p.name,p.ties)});
   }
   if(c.groups){
-    h+=c.groups.map((g,i)=>`<div class="card"><h2>${c.name} — Grupo ${String.fromCharCode(65+i)}</h2>${tbl(c,g)}</div>`).join("");
+    h+=c.groups.map((g,i)=>`<div class="card"><h2>${c.name} — ${kc?"Fase de grupos — ":""}Grupo ${String.fromCharCode(65+i)}</h2>${tbl(c,g)}</div>`).join("");
   }else if(c.R&&!(c.after==="cup")){
-    h+=`<div class="card"><h2>${c.name}</h2>${tbl(c,c.ids)}${c.after==="euS"&&c.final?'<p class="mut">Top 8 direto nas oitavas; 9º a 24º no playoff.</p>':""}</div>`;
+    h+=`<div class="card"><h2>${c.name}${kc?" — Fase de liga":""}</h2>${tbl(c,c.ids)}${c.after==="euS"&&c.final?'<p class="mut">Top 8 direto nas oitavas; 9º a 24º no playoff.</p>':""}</div>`;
   }
   return h+`<div class="card"><button class="p" style="width:100%" onclick="HISTV=true;HY=null;render()">📅 Histórico e próximos jogos</button></div>`;
 }
