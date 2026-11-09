@@ -328,7 +328,12 @@
     s.teams[id] = t;
     return t;
   }
-  function clubCash(t) { return t.local ? 1000000 : CASH[LG[t.lkey].tier - 1]; }
+  // Poder de compra: 10% do valor de mercado do elenco do clube (dados reais do Transfermarkt quando atualizados).
+  function clubCash(t) {
+    if (t.local) return 1000000;
+    const tot = t.players.reduce((x, p) => x + (p.value || 0), 0);
+    return Math.max(500000, Math.round((tot * 0.1) / 10000) * 10000);
+  }
   function repFor(ovr) { return clamp(Math.round((ovr - 48) * 3.5), 5, 95); }
 
   function newGame(clubName) {
@@ -375,6 +380,7 @@
   // ---------- processamento de rodadas ----------
   function userComps(s) { return Object.values(s.comps).filter((c) => !c.done && c.ids.includes(s.user)); }
   function isMine(s, id) { return id === s.user || (s.clubs || []).includes(id); }
+  const isMineG = isMine;
   function fixLineup(t) {
     const ok = () => t.lineup.length === 11 && t.lineup.every((i) => t.players.some((p) => p.id === i && avail(p))) &&
       lineupPlayers(t).filter((p) => p.pos === "GK").length === 1;
@@ -661,7 +667,7 @@
   function offersAround(s, target, n, why, res) {
     const have = new Set((s.offers || []).map((o) => o.tid));
     const cands = shuffle(Object.values(s.teams).filter((t) => t.id !== s.user && !t.local && !have.has(t.id) && Math.abs(ratings(t).ovr - target) <= 2.5)).slice(0, n);
-    const add = cands.map((t) => ({ tid: t.id, name: t.name, league: LG[t.lkey].name, country: COUNTRIES[t.country].name, ovr: Math.round(ratings(t).ovr * 10) / 10, cash: CASH[LG[t.lkey].tier - 1], why }));
+    const add = cands.map((t) => ({ tid: t.id, name: t.name, league: LG[t.lkey].name, country: COUNTRIES[t.country].name, ovr: Math.round(ratings(t).ovr * 10) / 10, cash: clubCash(t), why }));
     s.offers = (s.offers || []).concat(add);
     if (add.length) res.notes.push(`<span class="warn">Você recebeu ${add.length} convite(s) de clube. Veja no topo.</span>`);
   }
@@ -679,7 +685,7 @@
     const target = ratings(old).ovr - 1.5 + (s.rep - 50) * 0.03;
     const cands = Object.values(s.teams).filter((t) => t.id !== s.user && !t.local)
       .sort((a, b) => Math.abs(ratings(a).ovr - target) - Math.abs(ratings(b).ovr - target)).slice(0, 30);
-    s.offers = shuffle(cands).slice(0, 5).map((t) => ({ tid: t.id, name: t.name, league: LG[t.lkey].name, country: COUNTRIES[t.country].name, ovr: Math.round(ratings(t).ovr * 10) / 10, cash: CASH[LG[t.lkey].tier - 1], why: "Oportunidade após a demissão." }));
+    s.offers = shuffle(cands).slice(0, 5).map((t) => ({ tid: t.id, name: t.name, league: LG[t.lkey].name, country: COUNTRIES[t.country].name, ovr: Math.round(ratings(t).ovr * 10) / 10, cash: clubCash(t), why: "Oportunidade após a demissão." }));
     s.fired = { club: old.name, why };
     res.notes.push(`<span class="bad">🚫 Você foi demitido do ${old.name}! ${why} Escolha um novo emprego na aba Jogo.</span>`);
   }
@@ -692,7 +698,7 @@
       diff = exp - pos;
       why = `Após 10 jogos: você está em ${pos}º (esperado: ${exp}º).`;
     }
-    if (c && c.tab[s.user] && c.tab[s.user].p >= 6) {
+    if (myClubs(s).length === 1 && c && c.tab[s.user] && c.tab[s.user].p >= 6) { // com vários clubes ninguém é demitido
       const tab = sortTab(c.ids, c.tab), pos = tab.indexOf(s.user) + 1;
       if (diff <= -7 || (pos >= c.ids.length - 1 && diff <= -4)) { fireUser(s, res, `Após 10 jogos, o time está em ${pos}º, muito abaixo do esperado (${pos + diff}º).`); return; }
     }
@@ -1037,14 +1043,14 @@
       const best = Math.max(0, ...t.players.filter((q) => q.pos === p.pos).map((q) => q.ov));
       if (p.ov < best - 8) continue;
       const f = p.ov > best + 2 ? 1.12 + Math.random() * 0.28 : p.ov >= best - 2 ? 1 + Math.random() * 0.15 : 1 + Math.random() * 0.05;
-      const cap = CASH[LG[t.lkey].tier - 1] * 0.7;
+      const cap = clubCash(t) * 0.7;
       const bid = Math.round(Math.min(p.value * f, cap, p.value * 1.4) / 10000) * 10000;
       if (bid < p.value || bid < 10000) continue; // lance nunca abaixo do valor de mercado
       bids.push({ tid: t.id, name: t.name, league: LG[t.lkey].name, country: COUNTRIES[t.country].name, bid });
     }
     if (!bids.length) { // sempre algum clube paga pelo menos o valor mínimo
       const pool = ids.map((k) => s.teams[k]);
-      const t = pool.filter((x) => CASH[LG[x.lkey].tier - 1] * 0.7 >= p.value)[0] ? shuffle(pool.filter((x) => CASH[LG[x.lkey].tier - 1] * 0.7 >= p.value))[0] : shuffle(pool)[0];
+      const rich = pool.filter((x) => clubCash(x) * 0.7 >= p.value), t = rich.length ? shuffle(rich)[0] : shuffle(pool)[0];
       if (t) bids.push({ tid: t.id, name: t.name, league: LG[t.lkey].name, country: COUNTRIES[t.country].name, bid: Math.round(p.value) });
     }
     bids.sort((a, b) => b.bid - a.bid);
@@ -1072,12 +1078,14 @@
 
   // Atualização: sobrescreve elencos de TODOS os times, menos o do usuário;
   // remove dos outros qualquer jogador (mesmo nome) que esteja no time do usuário.
-  function applyUpdate(s, data) {
+  function applyUpdate(s, data, opts) {
+    const initial = !!(opts && opts.initial); // novo jogo: o time escolhido também recebe o elenco real
+    const isMine = initial ? () => false : isMineG;
     const u = s.teams[s.user];
     const key = (x) => String(x).toLowerCase();
     // Saves antigos: sem registro de compras, ninguém sai do elenco nesta atualização
     s.sold = s.sold || [];
-    const mine = new Set((s.clubs || [s.user]).concat(s.user).flatMap((id) => s.teams[id].players.map((p) => key(p.name))));
+    const mine = initial ? new Set() : new Set((s.clubs || [s.user]).concat(s.user).flatMap((id) => s.teams[id].players.map((p) => key(p.name))));
     const bought = mine; // meu elenco nunca é atualizado
     const realTeam = {}; // nome do jogador -> time real (no elencos.json), exceto o time do usuário
     for (const dt of data.teams || []) {
@@ -1119,7 +1127,7 @@
       b.players.push({ ...x.p, id: PID++ }); kept++;
     }
     // jogadores originais do meu time que, no mundo real, foram para outro clube: transfere também aqui
-    for (const p of u.players.slice()) {
+    for (const p of initial ? [] : u.players.slice()) {
       const nm = key(p.name);
       if (bought.has(nm) || realTeam[nm] === undefined) continue;
       u.players.splice(u.players.indexOf(p), 1);
@@ -1169,6 +1177,6 @@
     if (s.cashes) delete s.cashes[id];
     return null;
   }
-  const api = { yearOf, startRound, liveStep, liveSub, liveResolve, liveFinish, autoReorg, getStad, stadCost, upgradeStadium, topScorers, yearOf, bestFormation, avail, nextRoundClubs, myClubs, addClub, switchClub, dropClub, STATES, CONT, COUNTRIES, LEAGUES, LG, FORMATIONS, TACTICS, newGame, autoLineup, ratings, playRound, acceptOffer, market, buy, sell, auction, sellTo, applyUpdate, resetPid, lineupPlayers, fixLineup, nextUserRound, sortTab, dateOf, userComps, userMatches };
+  const api = { clubCash, yearOf, startRound, liveStep, liveSub, liveResolve, liveFinish, autoReorg, getStad, stadCost, upgradeStadium, topScorers, yearOf, bestFormation, avail, nextRoundClubs, myClubs, addClub, switchClub, dropClub, STATES, CONT, COUNTRIES, LEAGUES, LG, FORMATIONS, TACTICS, newGame, autoLineup, ratings, playRound, acceptOffer, market, buy, sell, auction, sellTo, applyUpdate, resetPid, lineupPlayers, fixLineup, nextUserRound, sortTab, dateOf, userComps, userMatches };
   if (typeof module !== "undefined") module.exports = api; else root.Game = api;
 })(typeof window !== "undefined" ? window : globalThis);
