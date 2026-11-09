@@ -492,7 +492,7 @@
         const lab = { red: "🟥 expulso", yc3: "🟨 suspenso (3º amarelo)", inj: "🚑 lesionado" };
         for (const [tm, evs] of [[H, r.evh], [A, r.eva]]) if (isMine(s, tm.id)) for (const e of evs) res.notes.push(`${lab[e.type]}: ${e.name} (${tm.name}), fora por ${e.n} jogo${e.n > 1 ? "s" : ""}.`);
       }
-      if (!silent && (H.id === s.user || A.id === s.user)) { s.offG = (s.offG || 0) + 1; if (s.offG % 10 === 0) s.offDue = true; }
+      if (!silent && (H.id === s.user || A.id === s.user)) { s.offG = (s.offG || 0) + 1; if (s.offG % (s.jobMode === "seek" ? 5 : 10) === 0) s.offDue = true; }
       for (const tm of [H, A]) if (isMine(s, tm.id)) {
         s.hist = s.hist || {}; const hl = (s.hist[tm.id] = s.hist[tm.id] || []);
         hl.push({ y: yearOf(rd.T), T: rd.T, date: dateOf(rd.T), comp: c.name + (rd.n ? " \u00b7 " + rd.n : ""), h: H.name, a: A.name, gh: r.gh, ga: r.ga, home: tm === H });
@@ -689,22 +689,46 @@
     s.fired = { club: old.name, why };
     res.notes.push(`<span class="bad">🚫 Você foi demitido do ${old.name}! ${why} Escolha um novo emprego na aba Jogo.</span>`);
   }
+  // posição do clube na tabela do campeonato nacional (ou força esperada antes da bola rolar)
+  function standing(s, tid) {
+    const t = s.teams[tid], tier = LG[t.lkey] ? LG[t.lkey].tier : 3;
+    const c = Object.values(s.comps).find((x) => x.key === t.lkey && !x.done && x.tab && x.tab[tid] && x.ids.includes(tid));
+    let pos;
+    if (c && c.ids.some((i) => c.tab[i].p > 0)) pos = sortTab(c.ids, c.tab).indexOf(tid) + 1;
+    else { const r = s.rank && s.rank[t.lkey]; pos = r && r.indexOf(tid) >= 0 ? r.indexOf(tid) + 1 : 99; }
+    return { tier, pos };
+  }
+  // Só oferece clubes melhor colocados na tabela nacional; de divisão diferente, só da mesma divisão para cima.
+  function jobOffers(s, why, res) {
+    const me = standing(s, s.user), u = s.teams[s.user];
+    const have = new Set();
+    const elig = Object.values(s.teams).filter((t) => {
+      if (t.id === s.user || t.local || isMine(s, t.id) || !LG[t.lkey]) return false;
+      const st = standing(s, t.id);
+      return st.tier < me.tier || (st.tier === me.tier && st.pos < me.pos);
+    });
+    const target = ratings(u).ovr + (s.rep - 50) * 0.04;
+    elig.sort((a, b) => Math.abs(ratings(a).ovr - target) - Math.abs(ratings(b).ovr - target));
+    const picks = shuffle(elig.slice(0, 15)).slice(0, 3);
+    s.offers = picks.map((t) => ({ tid: t.id, name: t.name, league: LG[t.lkey].name, country: COUNTRIES[t.country].name, ovr: Math.round(ratings(t).ovr * 10) / 10, cash: clubCash(t), why: why + ` Posição do clube: ${standing(s, t.id).pos}º na ${LG[t.lkey].name}.` }));
+    if (picks.length) res.notes.push(`<span class="warn">Você recebeu ${picks.length} convite(s) de clube. Veja no topo.</span>`);
+  }
   function periodicOffers(s, res) {
     const u = s.teams[s.user];
     const c = Object.values(s.comps).find((x) => (x.after === "lg" || x.after === "arG") && !x.done && x.tab && x.ids.includes(s.user));
-    let diff = 0, why = "A cada 10 jogos chegam propostas de outros clubes.";
+    let diff = 0, why = "Propostas de outros clubes.";
     if (c && c.tab[s.user] && c.tab[s.user].p > 0) {
       const tab = sortTab(c.ids, c.tab), pos = tab.indexOf(s.user) + 1, exp = byStrength(s, c.ids).indexOf(s.user) + 1;
       diff = exp - pos;
-      why = `Após 10 jogos: você está em ${pos}º (esperado: ${exp}º).`;
+      why = `Você está em ${pos}º (esperado: ${exp}º).`;
     }
-    if (myClubs(s).length === 1 && c && c.tab[s.user] && c.tab[s.user].p >= 6) { // com vários clubes ninguém é demitido
+    if (s.offG % 10 === 0 && myClubs(s).length === 1 && c && c.tab[s.user] && c.tab[s.user].p >= 6) { // com vários clubes ninguém é demitido
       const tab = sortTab(c.ids, c.tab), pos = tab.indexOf(s.user) + 1;
       if (diff <= -7 || (pos >= c.ids.length - 1 && diff <= -4)) { fireUser(s, res, `Após 10 jogos, o time está em ${pos}º, muito abaixo do esperado (${pos + diff}º).`); return; }
     }
-    const target = ratings(u).ovr + clamp(diff * 0.5, -3, 4) + (s.rep - 50) * 0.03;
+    if (s.jobMode === "refuse") return; // não quer ofertas de emprego
     s.offers = [];
-    offersAround(s, target, 3, why, res);
+    jobOffers(s, why, res);
   }
   function checkRollover(s, country, res, silent) {
     const tiers = LEAGUES.filter((l) => l.country === country).sort((a, b) => a.tier - b.tier);
