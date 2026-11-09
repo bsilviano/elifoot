@@ -55,7 +55,7 @@ tr.me{background:var(--hl);font-weight:700}
 const PREFIX="elifoot:save:";
 let S=null,tab="jogo",msg="",mf={pos:"",q:"",min:0},viewKey=null;
 const $=id=>document.getElementById(id);
-const VERSAO=7;
+const VERSAO=8;
 const moneyFull=n=>(n<0?"-":"")+"R$ "+Math.round(Math.abs(n)).toLocaleString("pt-BR");
 const money=moneyFull;
 const U=()=>S.teams[S.user];
@@ -179,7 +179,7 @@ function lineupCard(u){
   if(!m1.length){m1=m2;m2=[]}
   const atts=st.filter(p=>p.pos==="ATT");
   let a1=atts.filter(p=>!["PE","PD"].includes(SPN(p))),a2=atts.filter(p=>["PE","PD"].includes(SPN(p)));
-  if(!a1.length){a1=a2;a2=[]}
+  if(!a1.length||atts.length!==3){a1=atts;a2=[]}
   const rows=[a1,a2,m1,m2,st.filter(p=>p.pos==="DEF"),st.filter(p=>p.pos==="GK")];
   for(const g of rows){if(!g.length)continue;
     g.sort((a,b)=>(SPO[SPN(a)]-SPO[SPN(b)])||a.name.localeCompare(b.name));
