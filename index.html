@@ -156,7 +156,7 @@ function vJogo(){
   }else h+=`<p>Sem jogos agendados. Clique para avançar o calendário.</p>`;
   h+=`<div class="row"><select onchange="setF(this.value)">${Object.keys(Game.FORMATIONS).map(f=>`<option ${u.formation===f?"selected":""}>${f}</option>`).join("")}</select>
   <select onchange="U().tactic=this.value;save()">${Game.TACTICS.map(t=>`<option ${u.tactic===t?"selected":""}>${t}</option>`).join("")}</select></div>
-  <p><button class="p" onclick="play()">Jogar</button></p></div>`+lineupCard(u)+(msg?`<div class="card">${msg}</div>`:"");
+  ${CONF?`<p class="mut">Escalação ${CONF.i+1} de ${CONF.q.length}: ajuste o time e confirme.</p><p><button class="p" onclick="confNext()">${CONF.i<CONF.q.length-1?"Confirmar e ir para o próximo time":"Confirmar e jogar a rodada"}</button> <button class="s" onclick="confCancel()">Cancelar</button></p>`:`<p><button class="p" onclick="play()">Jogar</button></p>`}</div>`+lineupCard(u)+(msg?`<div class="card">${msg}</div>`:"");
   return h;
 }
 const SPN=p=>p.sp||({GK:"GOL",DEF:"ZAG",MID:"MC",ATT:"CA"})[p.pos];
@@ -180,7 +180,15 @@ function lineupCard(u){
 function accept(tid){const e=Game.acceptOffer(S,tid);if(e){alert(e);return}viewKey=null;msg=`<p class="good">Você agora comanda o ${U().name}. Save criado com o nome do novo time.</p>`;save();render()}
 function setF(f){const u=U();u.formation=f;u.lineup=Game.autoLineup(u,f);save();render()}
 const sc=a=>a.length?a.join(", "):"–";
+let CONF=null;
 function play(){
+  const nr=Game.myClubs(S).length>1?Game.nextRoundClubs(S):null;
+  if(nr&&nr.clubs.length>1){CONF={q:nr.clubs,i:0};confShow();return}
+  doPlay()}
+function confShow(){if(S.user!==CONF.q[CONF.i])Game.switchClub(S,CONF.q[CONF.i]);viewKey=null;tab="jogo";msg="";save();render();window.scrollTo(0,0)}
+function confNext(){if(CONF.i<CONF.q.length-1){CONF.i++;confShow()}else{CONF=null;doPlay()}}
+function confCancel(){CONF=null;render()}
+function doPlay(){
   const r=Game.playRound(S);
   let t=`<h2>${r.date}</h2>`;
   r.reports.forEach(m=>{t+=`<p class="mut">${m.comp}</p><div class="big">${m.home} ${m.gh} x ${m.ga} ${m.away}</div><p class="mut">${m.home}: ${sc(m.sh)}<br>${m.away}: ${sc(m.sa)}</p>`});
@@ -201,15 +209,16 @@ function vElenco(){
 }
 function tog(id){const u=U(),i=u.lineup.indexOf(id);if(i>=0)u.lineup.splice(i,1);else if(u.lineup.length<11)u.lineup.push(id);save();render()}
 let AUC=null;
-function sell(id){const a=Game.auction(S,id);if(a.err){alert(a.err);return}AUC=a;render();window.scrollTo(0,0)}
-function sellBid(tid,price){const e=Game.sellTo(S,AUC.pid,tid,price);if(e)alert(e);AUC=null;save();render()}
+function sell(id){if(!confirm("Leiloar este jogador? Vence o maior lance."))return;const a=Game.auction(S,id);if(a.err){alert(a.err);return}
+  if(a.bids.length){const w=a.bids[0];const e=Game.sellTo(S,id,w.tid,w.bid);if(e){alert(e);return}a.sold=w;save()}
+  AUC=a;render();window.scrollTo(0,0)}
 function cancelAuc(){AUC=null;render()}
 function aucCard(){
   if(!AUC)return"";const a=AUC;
-  let h=`<div class="card"><h2>Leilão: ${a.name}</h2><p class="mut">${SPN(a)} · OVR ${a.ov} · valor de mercado ${money(a.value)}</p>`;
+  let h=`<div class="card"><h2>Leilão: ${a.name}</h2>${a.sold?`<p><b class="good">Vendido para ${a.sold.name} por ${money(a.sold.bid)}</b></p>`:""}<p class="mut">${SPN(a)} · OVR ${a.ov} · valor de mercado ${money(a.value)}</p>`;
   if(!a.bids.length)h+=`<p class="warn">Nenhum clube pagou o valor mínimo (${money(a.value)}) por este jogador.</p>`;
-  else h+=a.bids.map((b,i)=>`<div class="pl ${i===0?"in":""}"><span>${i===0?"🏆 ":""}<b>${b.name}</b><br><span class="mut">${b.league} · ${b.country}</span></span><span><b class="good">${money(b.bid)}</b> <button class="s p" onclick="sellBid(${b.tid},${b.bid})">Vender</button></span></div>`).join("");
-  return h+`<p><button class="s" onclick="cancelAuc()">Cancelar leilão</button></p></div>`;
+  else h+=a.bids.map((b,i)=>`<div class="pl ${i===0?"in":""}"><span>${i===0?"🏆 ":""}<b>${b.name}</b><br><span class="mut">${b.league} · ${b.country}</span></span><span><b class="good">${money(b.bid)}</b></span></div>`).join("");
+  return h+`<p class="mut">Vence o maior lance.</p><p><button class="s" onclick="cancelAuc()">Fechar</button></p></div>`;
 }
 
 function compOpts(cur){

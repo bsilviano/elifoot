@@ -375,7 +375,7 @@
         th.p++; ta.p++; th.gf += r.gh; th.ga += r.ga; ta.gf += r.ga; ta.ga += r.gh;
         if (r.gh > r.ga) { th.w++; th.pts += 3; ta.l++; } else if (r.gh < r.ga) { ta.w++; ta.pts += 3; th.l++; } else { th.d++; ta.d++; th.pts++; ta.pts++; }
       } else c.ties[k].res.push([r.gh, r.ga]);
-      if (!silent && (h === s.user || a === s.user)) res.reports.push({ comp: c.name + (rd.n ? " · " + rd.n : ""), date: dateOf(rd.T), home: H.name, away: A.name, ...r });
+      if (!silent && (isMine(s, h) || isMine(s, a))) res.reports.push({ comp: c.name + (rd.n ? " · " + rd.n : ""), date: dateOf(rd.T), home: H.name, away: A.name, ...r });
     }
     if (rd.k === "tab") {
       c.rDone++;
@@ -599,6 +599,15 @@
     return null;
   }
 
+  // Clubes meus que jogam na próxima rodada que envolve algum deles.
+  function nextRoundClubs(s) {
+    for (const rd of s.q) {
+      const ids = [];
+      for (const m of rd.fx) for (const id of [m[0], m[1]]) if (isMine(s, id) && !ids.includes(id)) ids.push(id);
+      if (ids.length) return { T: rd.T, date: dateOf(rd.T), clubs: myClubs(s).filter((id) => ids.includes(id)) };
+    }
+    return null;
+  }
   function playRound(s) {
     const u = s.teams[s.user];
     const res = { reports: [], notes: [], wages: 0, gate: 0, skipped: 0, fixed: fixLineup(u) };
@@ -608,6 +617,7 @@
       const rd = s.q.shift();
       s.T = rd.T; ageCheck(s);
       const mine = rd.fx.find((m) => m[0] === s.user || m[1] === s.user);
+      const anyMine = rd.fx.some((m) => isMine(s, m[0]) || isMine(s, m[1]));
       processRound(s, rd, res, false);
       for (const id of s.clubs || []) {
         if (id === s.user) continue;
@@ -620,8 +630,8 @@
       if (mine) {
         res.wages += u.players.reduce((x, p) => x + p.wage, 0);
         if (mine[0] === s.user) res.gate += Math.round(u.fans * 180 * rnd(0.85, 1.15));
-        break;
       }
+      if (anyMine) break;
       res.skipped++;
       if (s.offers.length > nOffers) break;
     }
@@ -819,6 +829,6 @@
     if (s.cashes) delete s.cashes[id];
     return null;
   }
-  const api = { myClubs, addClub, switchClub, dropClub, STATES, CONT, COUNTRIES, LEAGUES, LG, FORMATIONS, TACTICS, newGame, autoLineup, ratings, playRound, acceptOffer, market, buy, sell, auction, sellTo, applyUpdate, resetPid, lineupPlayers, fixLineup, nextUserRound, sortTab, dateOf, userComps, userMatches };
+  const api = { nextRoundClubs, myClubs, addClub, switchClub, dropClub, STATES, CONT, COUNTRIES, LEAGUES, LG, FORMATIONS, TACTICS, newGame, autoLineup, ratings, playRound, acceptOffer, market, buy, sell, auction, sellTo, applyUpdate, resetPid, lineupPlayers, fixLineup, nextUserRound, sortTab, dateOf, userComps, userMatches };
   if (typeof module !== "undefined") module.exports = api; else root.Game = api;
 })(typeof window !== "undefined" ? window : globalThis);
