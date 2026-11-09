@@ -442,6 +442,7 @@
     for (const t of Object.values(s.teams)) {
       if (!isMine(s, t.id)) continue; // os outros times seguem o Transfermarkt (atualização diária)
       t.players.forEach((p) => {
+        if (p.real) return; // quem tem dado real é atualizado pelo Transfermarkt
         if (p.of == null || Math.round(p.of) !== p.ov) p.of = p.ov;
         p.of = Math.max(1, p.of + evoDelta(p));
         const n = Math.round(p.of);
@@ -1318,6 +1319,23 @@
       if (dt.stad && !t.stadUp) t.stad = dt.stad;
       const cgs = {}; for (const q of dt.players || []) if (q.cg) cgs[key(q.name)] = q.cg;
       for (const p of t.players) if (cgs[key(p.name)]) p.cg = cgs[key(p.name)];
+    }
+    // ovr, valor, idade e salário de TODOS os meus jogadores acompanham o desempenho/valor real (Transfermarkt), mesmo sem mexer no elenco
+    if (!initial) {
+      const real = {};
+      for (const dt of data.teams || []) for (const q of dt.players || []) real[key(q.name)] = q;
+      for (const t of Object.values(s.teams)) {
+        if (!isMine(s, t.id)) continue;
+        for (const p of t.players) {
+          const q = real[key(p.name)];
+          if (!q || !(q.value || q.ov)) continue;
+          const age = q.age || p.age, af = age <= 22 ? 1.4 : age >= 32 ? 0.5 : age >= 29 ? 0.8 : 1;
+          p.ov = q.ov || Math.max(1, Math.round(40 + 15 * Math.log10(q.value / af / 20000)));
+          p.of = p.ov; p.age = age; p.value = q.value || valueOf(p.ov, age); p.wage = Math.round(p.value / 900);
+          p.long = age > 40 ? 1 : 0; p.real = 1; // jogador com dado real: o Transfermarkt manda no OVR dele
+        }
+        if (isMineG(s, t.id) && t.id === s.user) fixLineup(t);
+      }
     }
     let n = 0, removed = 0, left = [], kept = 0;
     for (const dt of data.teams || []) {
