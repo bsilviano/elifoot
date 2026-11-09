@@ -50,13 +50,13 @@ tr.me{background:var(--hl);font-weight:700}
 <header><div class="hl"><span id="crest"></span><b id="hT">Meu Elifoot</b></div><div class="hr"><span id="flag"></span><span id="hS"></span></div></header>
 <main id="app"></main>
 <nav id="nav"></nav>
-<script src="clubs.js?v=34"></script>
-<script src="game.js?v=34"></script>
+<script src="clubs.js?v=35"></script>
+<script src="game.js?v=35"></script>
 <script>
 const PREFIX="elifoot:save:";
 let S=null,tab="jogo",msg="",mf={pos:"",q:"",min:1,max:null,afford:true,ord:"ovr",dir:-1},viewKey=null;
 const $=id=>document.getElementById(id);
-const VERSAO=34;
+const VERSAO=35;
 const moneyFull=n=>(n<0?"-":"")+"R$ "+Math.round(Math.abs(n)).toLocaleString("pt-BR");
 const money=moneyFull;
 const U=()=>S.teams[S.user];
@@ -180,7 +180,8 @@ function go(){S=Game.newGame($("clubSel").value);viewKey=null;tab="jogo";msg="";
 function importSave(e){const f=e.target.files[0];if(!f)return;f.text().then(t=>{S=JSON.parse(t);Game.resetPid(S);save();render()})}
 function exportSave(){const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify(S)],{type:"application/json"}));a.download="elifoot-"+U().name+".json";a.click()}
 
-function setTab(t){tab=t;msg="";render()}
+let HISTV=false,HY=null;
+function setTab(t){tab=t;msg="";HISTV=false;render()}
 function autoBest(u){if(u.fAuto===false)return false;const b=Game.bestFormation(u);const same=u.formation===b.f&&u.lineup.length===b.ids.length&&b.ids.every(i=>u.lineup.includes(i));if(same)return false;u.formation=b.f;u.lineup=b.ids;return true}
 function fixSP(){
   if(S&&S.teams&&S.teams[S.user]){const u=S.teams[S.user];if(Game.fixLineup(u)|autoBest(u))save()}
@@ -388,6 +389,7 @@ function tbl(c,ids,hl){
   t.map((id,i)=>{const r=c.tab[id];return `<tr class="${id===S.user?"me":""}"><td class="l">${i+1}. ${S.teams[id].name}</td><td>${r.pts}</td><td>${r.p}</td><td>${r.w}</td><td>${r.d}</td><td>${r.l}</td><td>${r.gf-r.ga}</td></tr>`}).join("")+`</table>`;
 }
 function vTabela(){
+  if(HISTV)return vHist();
   let id=viewKey&&S.comps[viewKey]?viewKey:null;
   if(!id){const mine=Object.values(S.comps).filter(c=>!c.done&&c.ids.includes(S.user));id=(mine.find(c=>c.after==="lg")||mine[0]||Object.values(S.comps)[0]).id}
   const c=S.comps[id];
@@ -403,9 +405,31 @@ function vTabela(){
       return `<div class="pl"><span class="${t.a===S.user||t.b===S.user?"good":""}">${a} × ${b}</span><span class="mut">${res||"a jogar"}${t.w!==null?` → <b>${S.teams[t.w].name}</b>${t.pens?" (pên.)":""}`:""}</span></div>`}).join("")+`</div>`;
     if(c.champion)h+=`<div class="card">Campeão: <b>${S.teams[c.champion].name}</b></div>`;
   }
-  return h;
+  return h+`<div class="card"><button class="p" style="width:100%" onclick="HISTV=true;HY=null;render()">📅 Histórico e próximos jogos</button></div>`;
 }
 
+
+function vHist(){
+  const u=U(),y0=Game.yearOf(S.T),hl=((S.hist||{})[S.user]||[]);
+  const years=[...new Set(hl.map(x=>x.y).concat([y0]))].sort((a,b)=>b-a);
+  const y=HY&&years.includes(HY)?HY:y0;
+  const past=hl.filter(x=>x.y===y).sort((a,b)=>a.T-b.T);
+  const fut=[];
+  if(y===y0)for(const rd of S.q){const m=rd.fx.find(m=>m[0]===S.user||m[1]===S.user);if(m){const c=S.comps[rd.c];fut.push({T:rd.T,date:Game.dateOf(rd.T),comp:c?c.name+(rd.n?" · "+rd.n:""):"",h:S.teams[m[0]].name,a:S.teams[m[1]].name,home:m[0]===S.user})}}
+  const row=(x,played)=>{
+    const mine=x.home?x.h:x.a,gf=x.home?x.gh:x.ga,gc=x.home?x.ga:x.gh;
+    let res="",cl="";
+    if(played){const w=gf>gc?"V":gf<gc?"D":"E";cl=w==="V"?"good":w==="D"?"bad":"mut";res=`<b class="${cl}">${w}</b> ${x.gh} x ${x.ga}`}
+    else res=`<span class="mut">a jogar</span>`;
+    return `<div class="pl"><span class="pc"><span class="mut">${x.date.slice(0,5)}</span></span><span class="nm"><span style="color:${tcol(x.h)}">${x.h}</span> x <span style="color:${tcol(x.a)}">${x.a}</span><br><span class="mut" style="font-size:11px">${x.comp}${x.home?" · em casa":" · fora"}</span></span><span class="rt" style="min-width:64px;justify-content:flex-end">${res}</span></div>`};
+  const last=past[past.length-1],next=fut[0];
+  const big=(t,x,played)=>`<div class="card" style="border-color:var(--ac)"><p class="mut" style="margin:0 0 4px">${t}</p>${x?`<div class="mrow" style="font-size:18px">${tbox(x.h)} <span>${played?x.gh+" x "+x.ga:"x"}</span> ${tbox(x.a)}</div><p class="mut" style="text-align:center;margin:2px 0">${x.date} · ${x.comp}${x.home?" · em casa":" · fora"}</p>`:`<p class="mut">${played?"Nenhum jogo disputado ainda nesta temporada.":"Nenhum jogo marcado."}</p>`}</div>`;
+  let h=`<div class="card"><div class="row"><button class="s" onclick="HISTV=false;render()">← Tabela</button><select onchange="HY=+this.value;render()" style="flex:1">${years.map(a=>`<option value="${a}" ${a===y?"selected":""}>Temporada ${a}</option>`).join("")}</select></div><h2 style="margin-top:8px">${u.name}</h2></div>`;
+  h+=big("Último jogo",last,true)+(y===y0?big("Próximo jogo",next,false):"");
+  const all=past.map(x=>row(x,true)).concat(fut.map((x,i)=>(i===0?`<div id="nxt">`:"")+row(x,false)+(i===0?`</div>`:"")));
+  h+=`<div class="card"><h2>Jogos da temporada ${y}</h2>${all.length?all.join(""):'<p class="mut">Sem jogos.</p>'}<p class="mut">Mata-matas futuros aparecem quando o confronto é definido.</p></div>`;
+  return h;
+}
 let artTab="season";
 function vArt(){
   const l=Game.topScorers(S,artTab,30);

@@ -486,6 +486,11 @@
         const lab = { red: "🟥 expulso", yc3: "🟨 suspenso (3º amarelo)", inj: "🚑 lesionado" };
         for (const [tm, evs] of [[H, r.evh], [A, r.eva]]) if (isMine(s, tm.id)) for (const e of evs) res.notes.push(`${lab[e.type]}: ${e.name} (${tm.name}), fora por ${e.n} jogo${e.n > 1 ? "s" : ""}.`);
       }
+      for (const tm of [H, A]) if (isMine(s, tm.id)) {
+        s.hist = s.hist || {}; const hl = (s.hist[tm.id] = s.hist[tm.id] || []);
+        hl.push({ y: yearOf(rd.T), T: rd.T, date: dateOf(rd.T), comp: c.name + (rd.n ? " \u00b7 " + rd.n : ""), h: H.name, a: A.name, gh: r.gh, ga: r.ga, home: tm === H });
+        if (hl.length > 400) hl.splice(0, hl.length - 400);
+      }
       if (!silent && (isMine(s, h) || isMine(s, a))) res.reports.push({ comp: c.name + (rd.n ? " · " + rd.n : ""), date: dateOf(rd.T), home: H.name, away: A.name, ...r });
     }
     if (rd.k === "tab") {
@@ -1132,6 +1137,6 @@
     if (s.cashes) delete s.cashes[id];
     return null;
   }
-  const api = { startRound, liveStep, liveSub, liveResolve, liveFinish, autoReorg, getStad, stadCost, upgradeStadium, topScorers, yearOf, bestFormation, avail, nextRoundClubs, myClubs, addClub, switchClub, dropClub, STATES, CONT, COUNTRIES, LEAGUES, LG, FORMATIONS, TACTICS, newGame, autoLineup, ratings, playRound, acceptOffer, market, buy, sell, auction, sellTo, applyUpdate, resetPid, lineupPlayers, fixLineup, nextUserRound, sortTab, dateOf, userComps, userMatches };
+  const api = { yearOf, startRound, liveStep, liveSub, liveResolve, liveFinish, autoReorg, getStad, stadCost, upgradeStadium, topScorers, yearOf, bestFormation, avail, nextRoundClubs, myClubs, addClub, switchClub, dropClub, STATES, CONT, COUNTRIES, LEAGUES, LG, FORMATIONS, TACTICS, newGame, autoLineup, ratings, playRound, acceptOffer, market, buy, sell, auction, sellTo, applyUpdate, resetPid, lineupPlayers, fixLineup, nextUserRound, sortTab, dateOf, userComps, userMatches };
   if (typeof module !== "undefined") module.exports = api; else root.Game = api;
 })(typeof window !== "undefined" ? window : globalThis);
