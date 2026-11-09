@@ -50,13 +50,13 @@ tr.me{background:color-mix(in srgb,var(--ac) 30%,transparent);font-weight:800}tr
 <header><div class="hl"><span id="crest"></span><b id="hT">Meu Elifoot</b></div><div class="hr"><span id="flag"></span><span id="hS"></span></div></header>
 <main id="app"></main>
 <nav id="nav"></nav>
-<script src="clubs.js?v=66"></script>
-<script src="game.js?v=66"></script>
+<script src="clubs.js?v=67"></script>
+<script src="game.js?v=67"></script>
 <script>
 const PREFIX="elifoot:save:",SAVE1="Elifoot"; // um único save para todos os times
 let S=null,tab="jogo",msg="",mf={pos:"",q:"",min:1,max:null,afford:true,ord:"ovr",dir:-1},viewKey=null;
 const $=id=>document.getElementById(id);
-const VERSAO=66;
+const VERSAO=67;
 const moneyFull=n=>(n<0?"-":"")+"R$ "+Math.round(Math.abs(n)).toLocaleString("pt-BR");
 const money=moneyFull;
 const U=()=>S.teams[S.user];
@@ -444,7 +444,7 @@ function vTabela(){
   if(c.ties){
     h+=`<div class="card"><h2>${c.name} — ${c.stage}</h2>`+c.ties.map(t=>{
       const a=S.teams[t.a].name,b=S.teams[t.b].name,res=t.res.map(r=>r.join("x")).join(" / ");
-      return `<div class="pl"><span class="${mineIds().includes(t.a)||mineIds().includes(t.b)?"good":""}" style="${mineIds().includes(t.a)||mineIds().includes(t.b)?"font-weight:800":""}">${a} × ${b}</span><span class="mut">${res||"a jogar"}${t.w!==null?` → <b>${S.teams[t.w].name}</b>${t.pens?" (pên.)":""}`:""}</span></div>`}).join("")+`</div>`;
+      return `<div class="pl"><span class="${mineIds().includes(t.a)||mineIds().includes(t.b)?"good":""}" style="${mineIds().includes(t.a)||mineIds().includes(t.b)?"font-weight:800":""}">${a} × ${b}</span><span class="mut">${res||"a jogar"}${t.w!==null?` → <b>${S.teams[t.w].name}</b>${t.pens?(t.pk?` (pên. ${t.pk[0]}x${t.pk[1]})`:" (pên.)"):""}`:""}</span></div>`}).join("")+`</div>`;
     if(c.champion)h+=`<div class="card">Campeão: <b>${S.teams[c.champion].name}</b></div>`;
   }
   return h+`<div class="card"><button class="p" style="width:100%" onclick="HISTV=true;HY=null;render()">📅 Histórico e próximos jogos</button></div>`;

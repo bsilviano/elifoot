@@ -521,10 +521,10 @@
       t.res.forEach((r, i) => { if (i % 2 === 0) { ga += r[0]; gb += r[1]; } else { ga += r[1]; gb += r[0]; } });
       t.agg = [ga, gb];
       if (ga !== gb) t.w = ga > gb ? t.a : t.b;
-      else { t.pens = true; const oa = ovrOf(s, t.a), ob = ovrOf(s, t.b); t.w = Math.random() < 0.5 + (oa - ob) * 0.01 ? t.a : t.b; }
+      else { t.pens = true; const oa = ovrOf(s, t.a), ob = ovrOf(s, t.b); t.w = Math.random() < 0.5 + (oa - ob) * 0.01 ? t.a : t.b; const wn = ri(4, 6), ls = Math.random() < 0.3 ? wn - 1 : ri(Math.max(wn - 3, 2), wn - 1); t.pk = t.w === t.a ? [wn, ls] : [ls, wn]; }
       if (!silent && (t.a === s.user || t.b === s.user)) {
         const won = t.w === s.user;
-        res.notes.push(`<b>${c.name} · ${c.stage}</b>: ${s.teams[t.a].name} ${ga} x ${gb} ${s.teams[t.b].name}${t.pens ? " (pênaltis)" : ""} — ${won ? "você avança!" : "você foi eliminado."}`);
+        res.notes.push(`<b>${c.name} · ${c.stage}</b>: ${s.teams[t.a].name} ${ga} x ${gb} ${s.teams[t.b].name}${t.pens ? (t.pk ? ` (pênaltis ${t.pk[0]} x ${t.pk[1]})` : " (pênaltis)") : ""} — ${won ? "você avança!" : "você foi eliminado."}`);
         if (won && c.prize) { s.cash += c.prize; res.notes.push(`Premiação: +R$ ${Math.round(c.prize).toLocaleString("pt-BR")}`); }
       }
     }
