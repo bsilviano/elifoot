@@ -1376,7 +1376,7 @@
     if (!t) { const e = (s.ext || []).find((x) => x.name === name && x.club === club); return e ? { id: e.id, name: e.name, pos: e.pos, sp: e.sp, ov: e.ov, age: e.age, team: e.club, price: Math.round(e.value * 1.15) } : null; }
     if (isMine(s, t.id)) return null;
     const p = t.players.find((x) => x.name === name);
-    return p ? { id: p.id, name: p.name, pos: p.pos, sp: p.sp, ov: p.ov, age: p.age, team: t.name, price: Math.round(p.value * 1.15) } : null;
+    return p ? { id: p.id, name: p.name, pos: p.pos, sp: p.sp, ov: p.ov, age: p.age, inj: p.inj, sus: p.sus, team: t.name, price: Math.round(p.value * 1.15) } : null;
   }
   function findPlayer(s, pid) {
     const xi = (s.ext || []).findIndex((p) => p.id === pid);
