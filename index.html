@@ -45,20 +45,22 @@ tr.me{background:color-mix(in srgb,var(--ac) 30%,transparent);font-weight:800}tr
 .jog i{font-style:normal;font-weight:800;font-size:13px;width:31px;height:31px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid #fff;box-shadow:0 1px 4px #0008}
 .jog small{display:block;font-size:9px;opacity:.8}
 .jog span{font-size:10px;line-height:1.1;color:#fff;text-shadow:0 1px 2px #000;margin-top:2px;max-width:100%;text-align:center;white-space:normal;overflow-wrap:anywhere}
-.brk{display:flex;gap:22px;overflow-x:auto;padding:4px 2px 8px;align-items:stretch}.bc{display:flex;flex-direction:column;min-width:200px;flex:none}.bl{flex:1;display:flex;flex-direction:column;justify-content:space-around;gap:12px;padding-top:8px}.bh{font-size:12px;color:var(--mut);text-align:center;font-weight:700;text-transform:uppercase;letter-spacing:.5px}.bt{position:relative;background:var(--btn);border:1px solid var(--line);border-radius:10px;overflow:visible}.bt>div{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:5px 8px}.bt>div+div{border-top:1px solid var(--line)}.bt .tb{font-size:13px;margin:0;padding:2px 7px}.bt .l{opacity:.5}.bt.m{border-color:var(--ac)}.bc:not(:last-child) .bt::after{content:"";position:absolute;right:-22px;top:50%;width:22px;border-top:2px solid var(--line)}
+.brk{display:flex;gap:22px;overflow-x:auto;padding:4px 2px 8px;align-items:stretch}.bc{display:flex;flex-direction:column;min-width:200px;flex:none}.bl{flex:1;display:flex;flex-direction:column;justify-content:space-around;gap:12px;padding-top:8px}.bh{font-size:12px;color:var(--mut);text-align:center;font-weight:700;text-transform:uppercase;letter-spacing:.5px}.bt{position:relative;background:var(--btn);border:1px solid var(--line);border-radius:10px;overflow:visible}.bt>div{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:5px 8px}.bt>div+div{border-top:1px solid var(--line)}.bt .tb{font-size:13px;margin:0;padding:2px 7px}.bt .l{opacity:.5}.bt.m{border-color:var(--ac)}.bp{display:flex;flex-direction:column;gap:6px;background:rgba(255,255,255,.05);border-radius:12px;padding:6px}.bn{font-size:10px;color:var(--mut);padding:0 4px}
+@media(min-width:1000px){main{max-width:1680px;padding:14px 24px 84px}#app{display:grid;grid-template-columns:repeat(auto-fill,minmax(440px,1fr));gap:14px;align-items:start}#app>.card{margin-bottom:0}#app>*:not(.card),#app>.card.wide{grid-column:1/-1}.lv{display:grid;grid-template-columns:minmax(0,1fr) 440px;gap:14px;align-items:start;grid-column:1/-1}.lvr{position:sticky;top:64px;max-height:calc(100vh - 140px);overflow:auto}.mg{display:grid;grid-template-columns:repeat(auto-fill,minmax(380px,1fr));gap:12px;align-items:start}.mg>.card{margin-bottom:0}.lvl>.card{margin-bottom:12px}}
+@media(max-width:999px){.lvr{display:none}}
 </style>
 </head>
 <body>
 <header><div class="hl"><span id="crest"></span><b id="hT">Meu Elifoot</b></div><div class="hr"><span id="flag"></span><span id="hS"></span></div></header>
 <main id="app"></main>
 <nav id="nav"></nav>
-<script src="clubs.js?v=123"></script>
-<script src="game.js?v=123"></script>
+<script src="clubs.js?v=124"></script>
+<script src="game.js?v=124"></script>
 <script>
 const PREFIX="elifoot:save:",SAVE1="Elifoot"; // um único save para todos os times
 let artCan=false,S=null,tab="jogo",msg="",mf={pos:"",q:"",any:true,min:1,max:null,afford:true,ord:"ovr",dir:-1},viewKey=null;
 const $=id=>document.getElementById(id);
-const VERSAO=123;
+const VERSAO=124;
 const moneyFull=n=>(n<0?"-":"")+"R$ "+Math.round(Math.abs(n)).toLocaleString("pt-BR");
 const money=moneyFull;
 const U=()=>S.teams[S.user];
@@ -359,7 +361,26 @@ function liveEv(e){
   else t=`${m} 🔁 Entra ${nm}, sai ${e.out}`;
   return tline(e.club,t);
 }
-function liveHtml(){
+function liveTable(){
+  const l=LIVE.live,rd=l.rd,c=S.comps[rd.c];if(!c||rd.k!=="tab"||!c.tab)return "";
+  const play=new Set();l.matches.forEach(m=>{play.add(m.hid);play.add(m.aid)});
+  const mi=mineIds(),sc={};l.matches.forEach(m=>{sc[m.hid]=m.gh+"x"+m.ga;sc[m.aid]=m.ga+"x"+m.gh});
+  let lists=[c.ids];if(c.groups)lists=c.groups.filter(g=>g.some(i=>play.has(i))).sort((x,y)=>(y.some(t=>mi.includes(t))?1:0)-(x.some(t=>mi.includes(t))?1:0));
+  const zn=c.groups?null:zonas(c);
+  const one=ids=>{
+    const tab={};ids.forEach(i=>tab[i]=Object.assign({},c.tab[i]));
+    l.matches.forEach(m=>{const a=tab[m.hid],b=tab[m.aid];if(!a||!b)return;a.p++;b.p++;a.gf+=m.gh;a.ga+=m.ga;b.gf+=m.ga;b.ga+=m.gh;
+      if(m.gh>m.ga){a.w++;a.pts+=3;b.l++}else if(m.gh<m.ga){b.w++;b.pts+=3;a.l++}else{a.d++;b.d++;a.pts++;b.pts++}});
+    const old=Game.sortTab(ids,c.tab),now=Game.sortTab(ids,tab);
+    const rows=now.map((id,i)=>{const r=tab[id],d=old.indexOf(id)-i,zc=zn&&zn.z[i+1];
+      const ar=d>0?`<span class="good">▲${d}</span>`:d<0?`<span class="bad">▼${-d}</span>`:"";
+      return `<tr class="${mi.includes(id)?"me":""}"><td class="l"${zc?` style="border-left:4px solid ${zc}"`:""}>${i+1}. ${mi.includes(id)?"★ ":""}${play.has(id)?"<b>":""}${S.teams[id].name}${play.has(id)?` <span class="mut" style="font-size:11px">(${sc[id]})</span></b>`:""}</td><td>${ar}</td><td>${r.pts}</td><td>${r.p}</td><td>${r.w}</td><td>${r.d}</td><td>${r.l}</td><td>${r.gf-r.ga}</td></tr>`}).join("");
+    return `<table><tr><th class="l">Time</th><th></th><th>P</th><th>J</th><th>V</th><th>E</th><th>D</th><th>SG</th></tr>${rows}</table>`};
+  const body=lists.map((g,i)=>(c.groups?`<p style="margin:${i?10:0}px 0 4px"><b>Grupo ${String.fromCharCode(65+c.groups.indexOf(g))}</b></p>`:"")+one(g)).join("");
+  return `<div class="card"><h2>${c.name} — tabela ao vivo</h2>${body}<p class="mut" style="font-size:12px;margin:6px 0 0">Considera os placares atuais desta rodada. Em negrito, quem está jogando agora.</p></div>`;
+}
+function liveHtml(){const t=liveTable();const b=liveBody();return t?`<div class="lv"><div class="lvl">${b}</div><div class="lvr">${t}</div></div>`:b}
+function liveBody(){
   const l=LIVE.live,p=l.pending[0];
   let h=`<div class="card"><h2>${l.rodada&&l.rodada.includes(" - ")?l.rodada:l.comp}</h2><p class="mut">${l.date}</p><div class="big">⏱ ${l.minute}'${l.done?" · Fim de jogo":""}</div>`;
   if(!l.done&&!p)h+=`<div class="row"><button class="${LSPD===900?"p":""}" onclick="liveSpeed(900)">▶ Normal</button><button class="${LSPD===250?"p":""}" onclick="liveSpeed(250)">⏩ Rápido</button><button class="${LSPD===-1?"p":""}" onclick="liveSpeed(-1)">⏭ Ir ao fim</button></div>`;
@@ -384,6 +405,7 @@ function liveHtml(){
     ${m.bench[p.side].length&&m.subs[p.side]<5?m.bench[p.side].slice().sort((x,y)=>SPR[SPN(x)]-SPR[SPN(y)]||y.ov-x.ov).map(q=>`<div class="pl"><span><span class="pos">${SPN(q)}</span>${q.name}</span><span><b>${q.ov}</b> <button class="s p" onclick="LSEL=${q.id};liveRender()">${LSEL===q.id?"Selecionado":"Entrar"}</button></span></div>`).join(""):`<p class="mut">Sem substituições disponíveis.</p>`}
 </div>`;
   }
+  h+=`<div class="mg">`;
   for(const m of l.matches.slice().sort((a,b)=>(b.mine.h||b.mine.a)-(a.mine.h||a.mine.a))){
     const mine=m.mine.h||m.mine.a;
     h+=`<div class="card" ${mine?'style="border-color:var(--ac)"':""}><div class="mrow">${tbox(m.H.name)} <span>${m.gh} x ${m.ga}</span> ${tbox(m.A.name)}</div>`;
@@ -392,6 +414,7 @@ function liveHtml(){
     h+=m.ev.length?`<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:13px"><div style="min-width:0">${m.ev.filter(e=>e.side==="h").map(liveEv).join("")}</div><div style="min-width:0">${m.ev.filter(e=>e.side==="a").map(liveEv).join("")}</div></div>`:`<p class="mut">Sem lances ainda.</p>`;
     h+=`</div>`;
   }
+  h+=`</div>`;
   if(l.done&&l.shoot){const sh=l.shoot,sc=[0,0];sh.kicks.slice(0,sh.shown).forEach(k=>{if(k.ok)sc[k.team===sh.ids[0]?0:1]++});const fin=sh.shown>=sh.kicks.length;
     h+=`<div class="card" style="border-color:var(--ac)"><h2>🥅 Disputa de pênaltis</h2><div class="mrow">${tbox(sh.a)} <span>${sc[0]} x ${sc[1]}</span> ${tbox(sh.b)}</div>${sh.kicks.slice(0,sh.shown).map((k,i)=>tline(k.club,`${Math.floor(i/2)+1}ª · ${k.ok?"⚽ converteu":"❌ perdeu"} ${k.name}`)).join("")}${fin?`<p><b>${S.teams[sh.w].name}</b> vence nos pênaltis (${sh.pk[0]} x ${sh.pk[1]}).</p>`:`<p class="mut">Cobrando...</p>`}</div>`}
   if(l.done)h+=`<div class="card"><p class="mut">Fim de jogo. Encerrando a rodada...</p></div>`;
@@ -506,7 +529,7 @@ function vTabela(){
     id=(mine.find(c=>c.after==="lg")||mine[0]||all.filter(c=>c.key).pop()||all.pop()||Object.values(S.comps)[0]).id}
   if(id.endsWith("_K")&&S.comps[id.slice(0,-2)])id=id.slice(0,-2);
   const c=S.comps[id],kc=S.comps[id+"_K"],T=kc||c; // copas com fase de grupos/liga + mata-mata aparecem como uma competição só
-  let h=`<div class="card"><select onchange="viewKey=this.value;render()" style="width:100%">${compOpts(id)}</select></div>`;
+  let h=`<div class="card wide"><select onchange="viewKey=this.value;render()" style="width:100%">${compOpts(id)}</select></div>`;
   const mi=mineIds();
   const tieCard=(nm,ties)=>`<div class="card"><h2>${c.name} — ${nm}</h2>`+ties.map(t=>{
     const A=S.teams[t.a].name,B=S.teams[t.b].name,m=mi.includes(t.a)||mi.includes(t.b);
@@ -525,7 +548,7 @@ function vTabela(){
   }else if(c.R&&!(c.after==="cup")){
     h+=`<div class="card"><h2>${c.name}${kc?" — Fase de liga":""}</h2>${tbl(c,c.ids)}${c.after==="euS"&&c.final?'<p class="mut">Top 8 direto nas oitavas; 9º a 24º no playoff.</p>':""}</div>`;
   }
-  return h+`<div class="card"><button class="p" style="width:100%" onclick="HISTV=true;HY=null;render()">📅 Histórico e próximos jogos</button></div>`;
+  return h+`<div class="card wide"><button class="p" style="width:100%" onclick="HISTV=true;HY=null;render()">📅 Histórico e próximos jogos</button></div>`;
 }
 
 
@@ -538,9 +561,12 @@ function bracket(c,T,mi){
     const legs=t.legs===2&&t.res.length?` <span class="mut" style="font-size:11px">(${t.res.map((r,k)=>(k%2===0)===(side===0)?r[0]:r[1]).join("·")})</span>`:"";
     const pk=t.pens&&t.pk?` <span class="mut" style="font-size:11px">(${t.pk[side]})</span>`:"";
     return `<div class="${w}">${tbox(S.teams[id].name)}<span style="font-size:18px;font-weight:800;white-space:nowrap">${m?"★ ":""}${g===null?"":g}${t.legs===2?legs:""}${pk}</span></div>`};
-  const col=st=>`<div class="bc"><div class="bh">${st.name}</div><div class="bl">`+st.ties.map(t=>{const m=mi.includes(t.a)||mi.includes(t.b);return `<div class="bt${m?" m":""}">${row(t,0)}${row(t,1)}</div>`}).join("")+`</div></div>`;
+  const col=st=>{const one=t=>{const m=mi.includes(t.a)||mi.includes(t.b);return `<div class="bt${m?" m":""}">${row(t,0)}${row(t,1)}</div>`};
+    const grp=(T.mode==="tree"||T.mode==="uefa")&&st.name!=="Playoff"&&st.ties.length>1&&st.ties.length%2===0; // confrontos vizinhos (1 e 2, 3 e 4...) se enfrentam na fase seguinte
+    let b="";if(grp){for(let i=0;i<st.ties.length;i+=2)b+=`<div class="bp">${one(st.ties[i])}${one(st.ties[i+1])}</div>`}else b=st.ties.map(one).join("");
+    return `<div class="bc"><div class="bh">${st.name}</div><div class="bl">${b}</div></div>`};
   const champ=T.champion!==null&&T.champion!==undefined&&T.champion!==false?`<div class="bc"><div class="bh">Campeão</div><div class="bl"><div class="bt m" style="text-align:center;padding:14px 8px"><div style="font-size:34px;justify-content:center">🏆</div><div style="justify-content:center">${tbox(S.teams[T.champion].name)}</div></div></div></div>`:"";
-  return `<div class="card"><h2>${c.name} — Mata-mata</h2><div class="brk"><img src="data:," alt="" style="display:none" onerror="this.parentNode.scrollLeft=1e5;this.remove()">${stages.map(col).join("")}${champ}</div></div>`;
+  return `<div class="card wide"><h2>${c.name} — Mata-mata</h2><p class="mut" style="margin:0 0 6px;font-size:12px">${T.mode==="tree"||T.mode==="uefa"?"Os vencedores de cada par de confrontos (mesmo bloco) se enfrentam na fase seguinte.":"Sorteio livre a cada fase."}</p><div class="brk"><img src="data:," alt="" style="display:none" onerror="this.parentNode.scrollLeft=1e5;this.remove()">${stages.map(col).join("")}${champ}</div></div>`;
 }
 
 function vHist(){
