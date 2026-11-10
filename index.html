@@ -55,6 +55,7 @@ tr.me{background:color-mix(in srgb,var(--ac) 30%,transparent);font-weight:800}tr
 @media(min-width:1000px){.mob-only{display:none}#app>.elg.desk-only{grid-template-columns:repeat(3,minmax(0,1fr));align-items:start}.desk-only>.card{margin:0}}
 @media(min-width:1000px){#app>.mcg{grid-column:1/-1;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;align-items:start}.mc{display:flex;flex-direction:column;gap:14px;min-width:0}.mc>.card{margin:0}}
 @media(min-width:1000px){#app>.jgl{grid-column:1/-1;grid-template-columns:minmax(0,1fr) 440px}.mbig{padding:22px 18px!important}.mbig>div:first-child{font-size:30px!important;line-height:1.3}.mbig p{font-size:16px!important}.jgl .el3{align-self:start}}
+@media(min-width:1000px){.el1>.card.pr{flex:1;padding:20px 18px!important}.el1>.card.pr [style*="font-size:13px"]{font-size:18px!important;padding:6px 0!important}.el1>.card.pr [style*="font-size:11px"]{font-size:15px!important;margin-top:8px!important}.el1>.card.esc{flex:none;padding:8px 12px}.el1>.card.esc h2{font-size:14px;margin:0 0 4px}}
 @media(max-width:999px){.lvr,.el3{display:none}}
 </style>
 </head>
@@ -62,13 +63,13 @@ tr.me{background:color-mix(in srgb,var(--ac) 30%,transparent);font-weight:800}tr
 <header><div class="hl"><span id="crest"></span><b id="hT">Meu Elifoot</b></div><div class="hr"><span id="flag"></span><span id="hS"></span></div></header>
 <main id="app"></main>
 <nav id="nav"></nav>
-<script src="clubs.js?v=131"></script>
-<script src="game.js?v=131"></script>
+<script src="clubs.js?v=132"></script>
+<script src="game.js?v=132"></script>
 <script>
 const PREFIX="elifoot:save:",SAVE1="Elifoot"; // um único save para todos os times
 let artCan=false,S=null,tab="jogo",msg="",mf={pos:"",q:"",any:true,min:1,max:null,afford:true,ord:"ovr",dir:-1},viewKey=null;
 const $=id=>document.getElementById(id);
-const VERSAO=131;
+const VERSAO=132;
 const moneyFull=n=>(n<0?"-":"")+"R$ "+Math.round(Math.abs(n)).toLocaleString("pt-BR");
 const money=moneyFull;
 const U=()=>S.teams[S.user];
@@ -479,17 +480,17 @@ function liveEnd(){
 function posResumo(u,extra){
   const cnt={},out={};u.players.forEach(p=>{const k=SPN(p);if(Game.avail(p))cnt[k]=(cnt[k]||0)+1;else out[k]=(out[k]||0)+1});
   const ln=(t,ks)=>`<div style="display:grid;grid-template-columns:52px repeat(4,1fr);font-size:13px;padding:2px 0;text-align:center"><span class="mut" style="text-align:left">${t}</span>${ks.map(k=>`<span><span class="mut">${k}</span> <b>${cnt[k]||0}</b> <span class="mut">(${out[k]||0})</span></span>`).join("")}</div>`;
-  return `<div class="card" style="padding:8px 10px">${ln("Defesa",["GOL","LD","ZAG","LE"])}${ln("Meio",["VOL","ME","MC","MD"])}${ln("Ataque",["PD","PE","CA"])}<div class="mut" style="text-align:center;font-size:11px;margin-top:2px">${u.players.length} jogadores</div>${extra||""}</div>`
+  return `<div class="card${extra?" pr":""}" style="padding:8px 10px">${ln("Defesa",["GOL","LD","ZAG","LE"])}${ln("Meio",["VOL","ME","MC","MD"])}${ln("Ataque",["PD","PE","CA"])}<div class="mut" style="text-align:center;font-size:11px;margin-top:2px">${u.players.length} jogadores</div>${extra||""}</div>`
 }
 function vElenco(){
   const u=U(),set=new Set(u.lineup);
   const order={GK:0,DEF:1,MID:2,ATT:3};
   const ps=u.players.slice().sort((a,b)=>SPR[SPN(a)]-SPR[SPN(b)]||b.ov-a.ov||a.age-b.age||a.name.localeCompare(b.name,"pt-BR"));
   const resumo=posResumo(u,destaques(u));
-  const y=Game.yearOf(S.T),mn=n=>Game.topScorers(S,n,100000).filter(e=>e.c===u.name).slice(0,15);
+  const y=Game.yearOf(S.T),mn=n=>Game.topScorers(S,n,100000).filter(e=>e.c===u.name).slice(0,5);
   const sl=l=>l.length?l.map((e,i)=>`<div class="pl"><span><b>${i+1}º</b> ${e.n}</span><span><b>${e.g}</b> gol${e.g>1?"s":""}</span></div>`).join(""):`<p class="mut">Ninguém marcou ainda.</p>`;
   const art=`<div class="card el3"><h2>Artilheiros do time</h2><p class="mut" style="margin:0 0 4px"><b>Temporada ${y}</b></p>${sl(mn("season"))}<p class="mut" style="margin:10px 0 4px"><b>De sempre</b></p>${sl(mn("all"))}</div>`;
-  return `<div class="elg"><div class="el1">`+aucCard()+resumo+`<div class="card"><h2>Escalação (${u.lineup.length}/11)</h2>
+  return `<div class="elg"><div class="el1">`+aucCard()+resumo+`<div class="card esc"><h2>Escalação (${u.lineup.length}/11)</h2>
   <div class="row"><button class="s" onclick="U().lineup=Game.autoLineup(U());save();render()">Auto</button><span class="mut">Toque para titular/reserva</span></div></div></div><div class="el2"><div class="card">${ps.map(p=>`<div class="pl ${set.has(p.id)?"in":""}" onclick="tog(${p.id})"><span class="pc"><span class="pos">${SPN(p)}</span><span class="mut">${p.age}a</span></span><span class="nm">${p.name}${p.inj>0?` <span class="bad">🚑 ${p.inj} jogo${p.inj>1?"s":""}</span>`:""}${p.sus>0?` <span class="bad">🟥 susp. ${p.sus}</span>`:""}${p.yc?` <span class="mut">🟨${p.yc}</span>`:""}</span><span class="rt"><b class="ovc">${p.ov}</b><button class="s d" onclick="event.stopPropagation();sell(${p.id})">Vender</button><span class="mut vl" title="Valor mínimo de venda">${money(p.value)}</span></span></div>`).join("")}</div></div>${art}</div>`;
 }
 function destaques(u){
