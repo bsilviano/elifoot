@@ -65,13 +65,13 @@ tr.me{background:color-mix(in srgb,var(--ac) 30%,transparent);font-weight:800}tr
 <header><div class="hl"><span id="crest"></span><b id="hT">Meu Elifoot</b></div><div class="hr"><span id="flag"></span><span id="hS"></span></div></header>
 <main id="app"></main>
 <nav id="nav"></nav>
-<script src="clubs.js?v=137"></script>
-<script src="game.js?v=137"></script>
+<script src="clubs.js?v=138"></script>
+<script src="game.js?v=138"></script>
 <script>
 const PREFIX="elifoot:save:",SAVE1="Elifoot"; // um único save para todos os times
 let artCan=false,S=null,tab="jogo",msg="",mf={pos:"",q:"",any:true,min:1,max:null,afford:true,ord:"ovr",dir:-1},viewKey=null;
 const $=id=>document.getElementById(id);
-const VERSAO=137;
+const VERSAO=138;
 const moneyFull=n=>(n<0?"-":"")+"R$ "+Math.round(Math.abs(n)).toLocaleString("pt-BR");
 const money=moneyFull;
 const U=()=>S.teams[S.user];
@@ -495,7 +495,11 @@ function vElenco(){
   const ps=u.players.slice().sort((a,b)=>SPR[SPN(a)]-SPR[SPN(b)]||b.ov-a.ov||a.age-b.age||a.name.localeCompare(b.name,"pt-BR"));
   const resumo=posResumo(u,destaques(u));
   const y=Game.yearOf(S.T),mn=n=>Game.topScorers(S,n,100000).filter(e=>e.c===u.name).slice(0,5);
-  const sl=l=>l.length?l.map((e,i)=>`<div class="pl"><span><b>${i+1}º</b> ${e.n}</span><span><b>${e.g}</b> gol${e.g>1?"s":""}</span></div>`).join(""):`<p class="mut">Ninguém marcou ainda.</p>`;
+  const po={ATT:0,MID:1,DEF:2,GK:3};
+  const sl=l=>{l=l.slice(0,5);const have=new Set(l.map(e=>e.n));
+    const fill=u.players.filter(p=>!have.has(p.name)).sort((a,b)=>po[a.pos]-po[b.pos]||b.ov-a.ov);
+    while(l.length<5&&fill.length){const p=fill.shift();l.push({n:p.name,g:0})}
+    return l.map((e,i)=>`<div class="pl"><span><b>${i+1}º</b> ${e.n}</span><span><b>${e.g}</b> gol${e.g===1?"":"s"}</span></div>`).join("")};
   const art=`<div class="card el3"><h2>Artilheiros do time</h2><p class="mut" style="margin:0 0 4px"><b>Temporada ${y}</b></p>${sl(mn("season"))}<p class="mut" style="margin:10px 0 4px"><b>De sempre</b></p>${sl(mn("all"))}</div>`;
   return `<div class="elg"><div class="el1">`+aucCard()+resumo+`<div class="card esc"><h2>Escalação (${u.lineup.length}/11)</h2>
   <div class="row"><button class="s" onclick="U().lineup=Game.autoLineup(U());save();render()">Auto</button><span class="mut">Toque para titular/reserva</span></div></div></div><div class="el2"><div class="card">${ps.map(p=>`<div class="pl ${set.has(p.id)?"in":""}" onclick="tog(${p.id})"><span class="pc"><span class="pos">${SPN(p)}</span><span class="mut">${p.age}a</span></span><span class="nm">${p.name}${p.inj>0?` <span class="bad">🚑 ${p.inj} jogo${p.inj>1?"s":""}</span>`:""}${p.sus>0?` <span class="bad">🟥 susp. ${p.sus}</span>`:""}${p.yc?` <span class="mut">🟨${p.yc}</span>`:""}</span><span class="rt"><b class="ovc">${p.ov}</b><button class="s d" onclick="event.stopPropagation();sell(${p.id})">Vender</button><span class="mut vl" title="Valor mínimo de venda">${money(p.value)}</span></span></div>`).join("")}</div></div>${art}</div>`;
