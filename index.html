@@ -63,13 +63,13 @@ tr.me{background:color-mix(in srgb,var(--ac) 30%,transparent);font-weight:800}tr
 <header><div class="hl"><span id="crest"></span><b id="hT">Meu Elifoot</b></div><div class="hr"><span id="flag"></span><span id="hS"></span></div></header>
 <main id="app"></main>
 <nav id="nav"></nav>
-<script src="clubs.js?v=134"></script>
-<script src="game.js?v=134"></script>
+<script src="clubs.js?v=135"></script>
+<script src="game.js?v=135"></script>
 <script>
 const PREFIX="elifoot:save:",SAVE1="Elifoot"; // um único save para todos os times
 let artCan=false,S=null,tab="jogo",msg="",mf={pos:"",q:"",any:true,min:1,max:null,afford:true,ord:"ovr",dir:-1},viewKey=null;
 const $=id=>document.getElementById(id);
-const VERSAO=134;
+const VERSAO=135;
 const moneyFull=n=>(n<0?"-":"")+"R$ "+Math.round(Math.abs(n)).toLocaleString("pt-BR");
 const money=moneyFull;
 const U=()=>S.teams[S.user];
@@ -635,7 +635,9 @@ function vArtD(){
   return `<div class="elg desk-only"><div class="card" style="grid-column:1/-1;margin:0"><label class="mut" style="display:flex;align-items:center;gap:6px"><input type="checkbox" ${artCan?"checked":""} onchange="artCan=this.checked;render()"> Só os que posso contratar (caixa ${money(S.cash)}) · toque no nome para contratar</label></div>
   <div class="card"><h2>De sempre</h2><p class="mut" style="margin:0 0 4px">Gols da carreira real (Transfermarkt) somados aos do jogo.</p>${lst(Game.topScorers(S,"all",pool),true)}</div>
   <div class="card"><h2>Temporada ${y}</h2><p class="mut" style="margin:0 0 4px">Todas as competições do jogo. Zera a cada ano.</p>${lst(Game.topScorers(S,"season",pool))}</div>
-  <div class="card"><h2>Campeonato</h2>${sel}${lst(Game.topScorersComp(S,artComp,pool))}<p class="mut" style="margin-top:6px;font-size:12px">Conta os gols feitos no jogo a partir da versão 129.</p></div></div>`}
+  <div class="card"><h2>Campeonato</h2>${sel}${(()=>{let l=Game.topScorersComp(S,artComp,pool),ap=false;
+    if(!l.length){const cc=S.comps[artComp],set=new Set((cc.ids||[]).map(i=>S.teams[i].name));l=Game.topScorers(S,"season",100000).filter(e=>set.has(e.c));ap=l.length>0}
+    return lst(l)+`<p class="mut" style="margin-top:6px;font-size:12px">${ap?"Aproximado: gols da temporada dos jogadores dos clubes deste campeonato (em todas as competições), porque os gols por campeonato só são contados a partir da versão 129. Os próximos jogos passam a contar certinho.":"Gols marcados neste campeonato."}</p>`})()}</div></div>`}
 function vMercado(){
   const all=Game.market(S),maxOvr=all.reduce((m,p)=>Math.max(m,p.ov),1),mx=mf.max==null?maxOvr:mf.max;
   let l=all.filter(p=>(!mf.pos||SPN(p)===mf.pos)&&(mf.any||(p.ov>=mf.min&&p.ov<=mx))&&(!mf.afford||Math.round(p.value*1.15)<=S.cash)&&(!mf.q||(p.name+p.team).toLowerCase().includes(mf.q.toLowerCase())));
