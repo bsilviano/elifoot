@@ -59,19 +59,20 @@ tr.me{background:color-mix(in srgb,var(--ac) 30%,transparent);font-weight:800}tr
 @media(min-width:1000px){#app>.jgl{grid-column:1/-1;grid-template-columns:minmax(0,1fr) 420px;grid-template-rows:auto 1fr;align-items:start}.jgl>.mbig{grid-column:2;grid-row:1;margin:0!important;padding:16px 14px!important}.jgl>.el1{grid-column:1;grid-row:1/span 2}.jgl>.el3{grid-column:2;grid-row:2}.jgl .campo{height:clamp(360px,calc(100dvh - 330px),950px)}.jgl .jog i{width:clamp(32px,calc((100dvh - 330px)/11),44px);height:clamp(32px,calc((100dvh - 330px)/11),44px);font-size:16px}.jgl .jog span{font-size:13px;font-weight:600;line-height:1.15}.jgl .jog small{font-size:11px;line-height:1.1}.mbig>div:first-child{font-size:22px!important;line-height:1.3}.mbig p{font-size:14px!important}}
 @media(min-width:1000px){.el1>.card.pr{flex:1;padding:20px 18px!important}.el1>.card.pr [style*="font-size:13px"]{font-size:18px!important;padding:6px 0!important}.el1>.card.pr [style*="font-size:11px"]{font-size:15px!important;margin-top:8px!important}.el1>.card.esc{flex:none;padding:8px 12px}.el1>.card.esc h2{font-size:14px;margin:0 0 4px}}
 @media(max-width:999px){.lvr,.el3{display:none}}
+.ur{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--line)}.urk{font-weight:800;width:20px;flex:none}.urm{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;flex-wrap:wrap;font-size:16px;text-align:center}.urd{font-size:12px;flex:none;text-align:right}@media(max-width:700px){.ur{flex-wrap:wrap;gap:2px 8px}.urm{order:3;flex-basis:100%}.urd{margin-left:auto}}
 </style>
 </head>
 <body>
 <header><div class="hl"><span id="crest"></span><b id="hT">Meu Elifoot</b></div><div class="hr"><span id="flag"></span><span id="hS"></span></div></header>
 <main id="app"></main>
 <nav id="nav"></nav>
-<script src="clubs.js?v=148"></script>
-<script src="game.js?v=148"></script>
+<script src="clubs.js?v=149"></script>
+<script src="game.js?v=149"></script>
 <script>
 const PREFIX="elifoot:save:",SAVE1="Elifoot"; // um único save para todos os times
 let artCan=false,S=null,tab="jogo",msg="",mf={pos:"",q:"",any:true,min:1,max:null,afford:true,ord:"ovr",dir:-1},viewKey=null;
 const $=id=>document.getElementById(id);
-const VERSAO=148;
+const VERSAO=149;
 const moneyFull=n=>(n<0?"-":"")+"R$ "+Math.round(Math.abs(n)).toLocaleString("pt-BR");
 const money=moneyFull;
 const U=()=>S.teams[S.user];
@@ -582,7 +583,7 @@ function vTabela(){
   const mi=mineIds();
   {const names=[c.name,kc&&kc.name].filter(Boolean),rows=[];
     Game.myClubs(S).forEach(cid=>{const tm=S.teams[cid],hl=(S.hist&&S.hist[cid])||[];let e=null;for(let i=hl.length-1;i>=0;i--){if(names.some(n=>hl[i].comp.startsWith(n))){e=hl[i];break}}
-      if(e){const my=e.home?e.gh:e.ga,op=e.home?e.ga:e.gh,k=my>op?"good":my<op?"bad":"mut",lt=my>op?"V":my<op?"D":"E";rows.push(`<div class="pl" style="font-size:16px"><span class="${k}" style="font-weight:800;width:22px;display:inline-block">${lt}</span><span style="flex:1;text-align:center;font-weight:700">${tbox(e.h)} ${e.gh} x ${e.ga} ${tbox(e.a)}</span><span class="mut" style="font-size:12px;text-align:right">${e.date}${/ · /.test(e.comp)?" · "+e.comp.split(" · ").pop():""}</span></div>`)}});
+      if(e){const my=e.home?e.gh:e.ga,op=e.home?e.ga:e.gh,k=my>op?"good":my<op?"bad":"mut",lt=my>op?"V":my<op?"D":"E";rows.push(`<div class="ur"><span class="${k} urk">${lt}</span><span class="urm">${tbox(e.h)} <b>${e.gh} x ${e.ga}</b> ${tbox(e.a)}</span><span class="mut urd">${e.date}${/ · /.test(e.comp)?" · "+e.comp.split(" · ").pop():""}</span></div>`)}});
     if(rows.length)h+=`<div class="card wide"><h2>Último resultado dos meus times</h2>${rows.join("")}</div>`}
   const tieCard=(nm,ties)=>`<div class="card"><h2>${c.name} — ${nm}</h2>`+ties.map(t=>{
     const A=S.teams[t.a].name,B=S.teams[t.b].name,m=mi.includes(t.a)||mi.includes(t.b);
