@@ -66,13 +66,13 @@ tr.me{background:color-mix(in srgb,var(--ac) 30%,transparent);font-weight:800}tr
 <header><div class="hl"><span id="crest"></span><b id="hT">Meu Elifoot</b></div><div class="hr"><span id="flag"></span><span id="hS"></span></div></header>
 <main id="app"></main>
 <nav id="nav"></nav>
-<script src="clubs.js?v=171"></script>
-<script src="game.js?v=171"></script>
+<script src="clubs.js?v=172"></script>
+<script src="game.js?v=172"></script>
 <script>
 const PREFIX="elifoot:save:",SAVE1="Elifoot"; // um único save para todos os times
 let artCan=false,S=null,tab="jogo",msg="",mf={pos:"",q:"",any:true,min:1,max:null,afford:true,ord:"ovr",dir:-1},viewKey=null;
 const $=id=>document.getElementById(id);
-const VERSAO=171;
+const VERSAO=172;
 const moneyFull=n=>(n<0?"-":"")+"R$ "+Math.round(Math.abs(n)).toLocaleString("pt-BR");
 const money=moneyFull;
 const U=()=>S.teams[S.user];
@@ -133,7 +133,7 @@ async function syncPull(force){
     const name=decodeURIComponent(f.filename.slice(5,-4));seen.add(name);
     let txt=f.content;if(f.truncated||txt==null){txt=await (await fetch(f.raw_url)).text()}
     const i=txt.indexOf("|"),ts=+txt.slice(0,i),loc=+localStorage.getItem(TSK+name)||0;cmax=Math.max(cmax,ts);
-    if(force||ts>loc||!localStorage.getItem(PREFIX+name)){if(!force&&loc&&localStorage.getItem(PREFIX+name)&&!confirm(`A nuvem tem um save "${name}" mais novo (${new Date(ts).toLocaleString("pt-BR")}) que o deste aparelho (${new Date(loc).toLocaleString("pt-BR")}). OK = baixar e substituir o daqui. Cancelar = manter o daqui.`))continue;localStorage.setItem(PREFIX+name,await ungz(txt.slice(i+1)));localStorage.setItem(TSK+name,ts);localStorage.setItem(SYK+name,ts);if(!localStorage.getItem("elifoot:last"))localStorage.setItem("elifoot:last",name);got++}
+    if(force||ts>loc||!localStorage.getItem(PREFIX+name)){localStorage.setItem(PREFIX+name,await ungz(txt.slice(i+1)));localStorage.setItem(TSK+name,ts);localStorage.setItem(SYK+name,ts);if(!localStorage.getItem("elifoot:last"))localStorage.setItem("elifoot:last",name);got++}
   }
   for(const n of listSaves())if(!seen.has(n))await syncPush(n);
   newest();const fd=t=>t?new Date(t).toLocaleString("pt-BR"):"nenhum";syncSt(`☁️ Conferido às ${new Date().toLocaleTimeString("pt-BR")} · save na nuvem: ${fd(cmax)} · neste aparelho: ${fd(+localStorage.getItem(TSK+(localStorage.getItem("elifoot:last")||""))||0)}`);return got;
