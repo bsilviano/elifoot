@@ -152,8 +152,11 @@
   function ratings(team) { return ratingsL(lineupPlayers(team)); }
   function ratingsL(L) {
     const by = (pos) => L.filter((p) => p.pos === pos);
-    const A = avg(by("ATT"), 35) * 0.55 + avg(by("MID"), 35) * 0.45;
-    const D = avg(by("DEF"), 35) * 0.55 + avg(by("GK"), 30) * 0.25 + avg(by("MID"), 35) * 0.2;
+    // A formação mexe no jogo: mais defensores = mais defesa e menos ataque (e vice-versa); meias contam para os dois lados.
+    // Soma zero em relação a 4-4-2/4-3-3 (4 defensores, 3,5 meias, 2,5 atacantes), então a calibração geral não muda.
+    const nd = by("DEF").length, nm = by("MID").length, na = by("ATT").length;
+    const A = avg(by("ATT"), 35) * 0.55 + avg(by("MID"), 35) * 0.45 + 1.6 * (na - 2.5) + 0.8 * (nm - 3.5);
+    const D = avg(by("DEF"), 35) * 0.55 + avg(by("GK"), 30) * 0.25 + avg(by("MID"), 35) * 0.2 + 1.6 * (nd - 4) + 0.8 * (nm - 3.5);
     return { A, D, ovr: L.length ? avg(L, 0) : 0 };
   }
   function poisson(l) {
@@ -191,8 +194,8 @@
     const tf = (t) => (t.tactic === "Ofensiva" ? [1.06, 0.94] : t.tactic === "Defensiva" ? [0.94, 1.06] : [1, 1]);
     const [ah, dh] = tf(h), [aa, da] = tf(a);
     const redH = evh.some((e) => e.type === "red") ? 1 : 0, redA = eva.some((e) => e.type === "red") ? 1 : 0;
-    const S = simS(h, a), xh = 1.37 * Math.exp((rh.A * ah - ra.D * da + HOME_ADV) / S) * (redH ? 0.82 : 1) * (redA ? 1.12 : 1);
-    const xa = 1.16 * Math.exp((ra.A * aa - rh.D * dh - HOME_ADV) / S) * (redA ? 0.82 : 1) * (redH ? 1.12 : 1);
+    const S = simS(h, a), xh = 1.33 * Math.exp((rh.A * ah - ra.D * da + HOME_ADV) / S) * (redH ? 0.82 : 1) * (redA ? 1.12 : 1);
+    const xa = 1.125 * Math.exp((ra.A * aa - rh.D * dh - HOME_ADV) / S) * (redA ? 0.82 : 1) * (redH ? 1.12 : 1);
     const gh = poisson(clamp(xh, 0.15, 5)), ga = poisson(clamp(xa, 0.15, 5));
     const sh = [], sa = [];
     for (let i = 0; i < gh; i++) sh.push(scorer(h));
@@ -1154,8 +1157,8 @@
     const tf = (t) => (t.tactic === "Ofensiva" ? [1.06, 0.94] : t.tactic === "Defensiva" ? [0.94, 1.06] : [1, 1]);
     const [ah, dh] = tf(m.H), [aa, da] = tf(m.A);
     const S = simS(m.H, m.A);
-    let xh = clamp(1.37 * Math.exp((rh.A * ah - ra.D * da + HOME_ADV) / S), 0.15, 5);
-    let xa = clamp(1.16 * Math.exp((ra.A * aa - rh.D * dh - HOME_ADV) / S), 0.15, 5);
+    let xh = clamp(1.33 * Math.exp((rh.A * ah - ra.D * da + HOME_ADV) / S), 0.15, 5);
+    let xa = clamp(1.125 * Math.exp((ra.A * aa - rh.D * dh - HOME_ADV) / S), 0.15, 5);
     xh *= Math.pow(nh / 11, 1.3) * Math.pow(11 / Math.max(na, 1), 0.5);
     xa *= Math.pow(na / 11, 1.3) * Math.pow(11 / Math.max(nh, 1), 0.5);
     m.px = { h: xh / 90, a: xa / 90 };
