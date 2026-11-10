@@ -66,13 +66,13 @@ tr.me{background:color-mix(in srgb,var(--ac) 30%,transparent);font-weight:800}tr
 <header><div class="hl"><span id="crest"></span><b id="hT">Meu Elifoot</b></div><div class="hr"><span id="flag"></span><span id="hS"></span></div></header>
 <main id="app"></main>
 <nav id="nav"></nav>
-<script src="clubs.js?v=151"></script>
-<script src="game.js?v=151"></script>
+<script src="clubs.js?v=152"></script>
+<script src="game.js?v=152"></script>
 <script>
 const PREFIX="elifoot:save:",SAVE1="Elifoot"; // um único save para todos os times
 let artCan=false,S=null,tab="jogo",msg="",mf={pos:"",q:"",any:true,min:1,max:null,afford:true,ord:"ovr",dir:-1},viewKey=null;
 const $=id=>document.getElementById(id);
-const VERSAO=151;
+const VERSAO=152;
 const moneyFull=n=>(n<0?"-":"")+"R$ "+Math.round(Math.abs(n)).toLocaleString("pt-BR");
 const money=moneyFull;
 const U=()=>S.teams[S.user];
@@ -154,7 +154,7 @@ function syncCard(){
   return `<div class="card"><h2>Sincronizar celular e computador</h2><p class="mut">Cole o token do GitHub (permissão só de gist). Nada para instalar. Faça o mesmo em cada aparelho.</p><div class="row"><input id="gtok" type="password" placeholder="ghp_... ou github_pat_..." style="flex:1;min-width:0"><button class="p" onclick="syncOn()">Ativar</button></div></div>`;
 }
 function listSaves(){const r=[];for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k.startsWith(PREFIX))r.push(k.slice(PREFIX.length))}return r.sort()}
-function loadSave(name){try{S=JSON.parse(localStorage.getItem(PREFIX+name));Game.resetPid(S);Game.migrateOvr(S);viewKey=null;tab="jogo";msg="";localStorage.setItem("elifoot:last",name);render()}catch(e){console.error(e);if(S&&typeof Game.bestFormation!=="function"){alert("Versão antiga do jogo em cache. Recarregue a página (Ctrl+F5) e abra o save de novo.")}else alert("Erro ao abrir o save: "+(e&&e.message||e))}}
+function loadSave(name){try{S=JSON.parse(localStorage.getItem(PREFIX+name));Game.resetPid(S);Game.migrateOvr(S);Game.migrateFin(S);viewKey=null;tab="jogo";msg="";localStorage.setItem("elifoot:last",name);render()}catch(e){console.error(e);if(S&&typeof Game.bestFormation!=="function"){alert("Versão antiga do jogo em cache. Recarregue a página (Ctrl+F5) e abra o save de novo.")}else alert("Erro ao abrir o save: "+(e&&e.message||e))}}
 function delSave(name){if(confirm("Apagar o save de "+name+"?")){localStorage.removeItem(PREFIX+name);syncDelete(name);start()}}
 
 const cKeys=()=>Object.keys(Game.COUNTRIES).sort((a,b)=>Game.COUNTRIES[a].name.localeCompare(Game.COUNTRIES[b].name,"pt-BR"));
@@ -714,7 +714,7 @@ function vFin(){
 function vMais(){
   if(FINH)return vFin();
   const u=U(),w=u.players.reduce((s,p)=>s+p.wage,0);
-  return `<div class="elg mcg"><div class="mc"><div class="card"><h2>Finanças</h2><p>Caixa: <b>${moneyFull(S.cash)}</b><br>Folha mensal: ${money(Math.round(w*52/12))} <span class="mut">(paga uma vez por mês)</span><br>Torcida (estimada): ${(u.fans*1000).toLocaleString("pt-BR")}<br>Reputação: ${S.rep}/100</p><button class="s" onclick="FINH=true;render()">📒 Histórico financeiro</button></div>
+  return `<div class="elg mcg"><div class="mc"><div class="card"><h2>Finanças</h2><p>Caixa: <b>${moneyFull(S.cash)}</b><br>Receita anual estimada: ${money(Game.clubRev(u))} <span class="mut">(TV, patrocínio e bilheteria)</span><br>Folha mensal: ${money(Math.round(Game.payroll(u)/12))} <span class="mut">(paga uma vez por mês)</span><br>Torcida (estimada): ${(u.fans*1000).toLocaleString("pt-BR")}<br>Reputação: ${S.rep}/100</p><button class="s" onclick="FINH=true;render()">📒 Histórico financeiro</button></div>
   <div class="card"><h2>Ofertas de emprego</h2>
   ${myS().map(id=>{const m=(S.jobModes&&S.jobModes[id]!=null?S.jobModes[id]:S.jobMode)||"";return `<div style="border-bottom:1px solid var(--line);padding:6px 0"><b>${S.teams[id].name}</b> <span class="mut">(${Game.COUNTRIES[S.teams[id].country].name})</span>
   <label style="display:flex;gap:8px;align-items:center;padding:3px 0"><input type="checkbox" ${m==="refuse"?"checked":""} onchange="setJob(${id},'refuse',this.checked)" style="padding:0;width:20px;height:20px"> Recusar ofertas de emprego</label>

@@ -401,11 +401,32 @@
     s.teams[id] = t;
     return t;
   }
-  // Poder de compra: 10% do valor de mercado do elenco do clube (dados reais do Transfermarkt quando atualizados).
+  // ---- Finanças realistas ----
+  // Receita anual dos 20 maiores clubes: Deloitte Football Money League (temporada 2025), em milhões de euros.
+  const EURBRL = 6.13;
+  const REV_REAL = { "Real Madrid": 1161, "Barcelona": 975, "Bayern de Munique": 861, "PSG": 837, "Liverpool": 836, "Manchester City": 829, "Arsenal": 822, "Manchester United": 793, "Tottenham": 673, "Chelsea": 584, "Inter de Milão": 537, "Borussia Dortmund": 531, "Atlético de Madrid": 455, "Aston Villa": 450, "Milan": 410, "Juventus": 402, "Newcastle": 398, "VfB Stuttgart": 296, "Benfica": 283, "West Ham": 276 };
+  // Demais clubes (ESTIMATIVA): [valor médio do elenco da liga em R$ mi, receita ÷ valor do elenco do clube médio]. Série A do Brasil calibrada nos R$ 14,9 bi de 2025 (EY).
+  const REV_LG = { BRA1: [660, 1.13], BRA2: [57, 1.3], BRA3: [5, 3], ARG1: [214, 1.1], ARG2: [19, 1], GER1: [1732, 0.9], GER2: [213, 1.6], ENG1: [4222, 0.6], ENG2: [701, 0.47], ESP1: [1831, 0.65], ESP2: [194, 0.8], POR1: [665, 0.6], POR2: [56, 0.45], ITA1: [1809, 0.63], ITA2: [230, 0.53], FRA1: [1449, 0.68], FRA2: [136, 0.9] };
+  const squadValue = (t) => t.players.reduce((x, p) => x + (p.value || 0), 0);
+  function clubRev(t) { // receita anual estimada, em R$
+    if (REV_REAL[t.name]) return REV_REAL[t.name] * 1e6 * EURBRL;
+    const L = REV_LG[t.lkey] || [100, 0.8], ref = L[0] * 1e6;
+    return Math.max(2e6, L[1] * ref * Math.pow(Math.max(squadValue(t), 1) / ref, 0.85));
+  }
+  const wageRate = (t) => 0.55 * (REV_LG[t.lkey] ? REV_LG[t.lkey][1] : 0.7); // folha anual = valor do elenco × taxa (≈ 55–65% da receita)
+  const payroll = (t) => Math.round(squadValue(t) * wageRate(t)); // folha anual em R$
+  // Poder de compra: 40% da receita anual do clube.
   function clubCash(t) {
     if (t.local) return 1000000;
-    const tot = t.players.reduce((x, p) => x + (p.value || 0), 0);
-    return Math.max(500000, Math.round((tot * 0.1) / 10000) * 10000);
+    return Math.max(500000, Math.round((clubRev(t) * 0.4) / 10000) * 10000);
+  }
+  // Migração única (saves antigos): caixa dos meus clubes sobe até o poder de compra realista.
+  function migrateFin(s) {
+    if (s.finV) return;
+    s.finV = 1;
+    if (s.teams[s.user]) s.cash = Math.max(s.cash, clubCash(s.teams[s.user]));
+    s.cashes = s.cashes || {};
+    for (const id of myClubs(s)) if (id !== s.user && s.teams[id]) s.cashes[id] = Math.max(s.cashes[id] || 0, clubCash(s.teams[id]));
   }
   function repFor(ovr) { return clamp(Math.round((ovr - 48) * 3.5), 5, 95); }
 
@@ -635,7 +656,7 @@
       if (!silent && (t.a === s.user || t.b === s.user)) {
         const won = t.w === s.user;
         res.notes.push(`<b>${c.name} · ${c.stage}</b>: ${s.teams[t.a].name} ${ga} x ${gb} ${s.teams[t.b].name}${t.pens ? (t.pk ? ` (pênaltis ${t.pk[0]} x ${t.pk[1]})` : " (pênaltis)") : ""} — ${won ? "você avança!" : "você foi eliminado."}`);
-        if (won && c.prize) { s.cash += c.prize; led(s, s.user, `Premiação: ${c.name} · ${c.stage}`, c.prize); res.notes.push(`Premiação: +R$ ${Math.round(c.prize).toLocaleString("pt-BR")}`); }
+        if (won && c.prize) { const pz = Math.round(c.prize * (CUP_PRIZE_X[String(c.id).replace(/_K$/, "")] || 3)); s.cash += pz; led(s, s.user, `Premiação: ${c.name} · ${c.stage}`, pz); res.notes.push(`Premiação: +R$ ${pz.toLocaleString("pt-BR")}`); }
       }
     }
     if (!c.closed && c.ties.every((t) => t.w !== null)) {
@@ -779,7 +800,7 @@
   function endOfSeasonUser(s, c, final, res) {
     const ul = LG[c.key], pos = final.indexOf(s.user) + 1;
     const expPos = byStrength(s, c.ids).indexOf(s.user) + 1;
-    const prize = (final.length + 1 - pos) * [400000, 150000, 60000][ul.tier - 1];
+    const prize = Math.round(clubRev(s.teams[s.user]) * 0.07 * (final.length + 1 - pos) / final.length);
     s.cash += prize; led(s, s.user, `Premiação da temporada: ${c.name} (${pos}º lugar)`, prize);
     let rep = s.rep + (expPos - pos) * 0.9 + (pos === 1 ? 4 : 0);
     s.honors.filter((h) => h.year === yearOf(s.T) && h.club === s.teams[s.user].name).forEach(() => (rep += 3));
@@ -974,6 +995,7 @@
     s.ledger.push({ T: s.T, id, d, v: Math.round(v) });
     if (s.ledger.length > 4000) s.ledger.splice(0, s.ledger.length - 4000);
   }
+  const CUP_PRIZE_X = { UCL: 30, UEL: 30, UECL: 30, LIB: 20, SUL: 20, CDB: 15 }; // prêmio por fase vencida (valor-base × fator)
   const STAD_MAINT = 10; // R$ por lugar por mês
   const monthIdx = (T) => { const d = new Date(Date.UTC(START_YEAR, 0, 1) + Math.round(T * 7) * 864e5); return d.getUTCFullYear() * 12 + d.getUTCMonth(); };
   const MESES = ["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
@@ -984,10 +1006,12 @@
     while (s.payM < mi) {
       s.payM++;
       for (const id of myClubs(s)) {
-        const amt = Math.round(s.teams[id].players.reduce((x, p) => x + p.wage, 0) * 52 / 12);
-        if (id === s.user) s.cash -= amt; else { s.cashes = s.cashes || {}; s.cashes[id] = (s.cashes[id] || 0) - amt; }
+        const tm = s.teams[id], R = clubRev(tm), amt = Math.round(payroll(tm) / 12);
+        const tv = Math.round((R * 0.44) / 12), com = Math.round((R * 0.32) / 12), ops = Math.round((R * 0.08) / 12), mes = `${MESES[s.payM % 12]}/${Math.floor(s.payM / 12)}`;
+        const net = tv + com - ops - amt;
+        if (id === s.user) s.cash += net; else { s.cashes = s.cashes || {}; s.cashes[id] = (s.cashes[id] || 0) + net; }
         s.ledger = s.ledger || [];
-        s.ledger.push({ T, id, d: `Salários de ${MESES[s.payM % 12]}/${Math.floor(s.payM / 12)}`, v: -amt });
+        s.ledger.push({ T, id, d: `Direitos de TV de ${mes}`, v: tv }, { T, id, d: `Patrocínio e comercial de ${mes}`, v: com }, { T, id, d: `Custos operacionais de ${mes}`, v: -ops }, { T, id, d: `Salários de ${mes}`, v: -amt });
       }
     }
   }
@@ -1619,6 +1643,6 @@
     if (s.cashes) delete s.cashes[id];
     return null;
   }
-  const api = { liveReposition, applyLeagues, clubCash, yearOf, startRound, liveStep, liveSub, liveTakePen, penProb, liveResolve, liveFinish, autoReorg, getStad, stadCost, upgradeStadium, autoStadium, topScorers, topScorersComp, lookup, yearOf, bestFormation, avail, nextRoundClubs, myClubs, addClub, switchClub, dropClub, STATES, CONT, COUNTRIES, LEAGUES, LG, FORMATIONS, TACTICS, newGame, autoLineup, ratings, playRound, acceptOffer, market, buy, sell, auction, sellTo, applyUpdate, resetPid, migrateOvr, lineupPlayers, fixLineup, nextUserRound, sortTab, dateOf, userComps, userMatches };
+  const api = { liveReposition, applyLeagues, clubCash, yearOf, startRound, liveStep, liveSub, liveTakePen, penProb, liveResolve, liveFinish, autoReorg, getStad, stadCost, upgradeStadium, autoStadium, clubRev, payroll, migrateFin, topScorers, topScorersComp, lookup, yearOf, bestFormation, avail, nextRoundClubs, myClubs, addClub, switchClub, dropClub, STATES, CONT, COUNTRIES, LEAGUES, LG, FORMATIONS, TACTICS, newGame, autoLineup, ratings, playRound, acceptOffer, market, buy, sell, auction, sellTo, applyUpdate, resetPid, migrateOvr, lineupPlayers, fixLineup, nextUserRound, sortTab, dateOf, userComps, userMatches };
   if (typeof module !== "undefined") module.exports = api; else root.Game = api;
 })(typeof window !== "undefined" ? window : globalThis);
