@@ -65,13 +65,13 @@ tr.me{background:color-mix(in srgb,var(--ac) 30%,transparent);font-weight:800}tr
 <header><div class="hl"><span id="crest"></span><b id="hT">Meu Elifoot</b></div><div class="hr"><span id="flag"></span><span id="hS"></span></div></header>
 <main id="app"></main>
 <nav id="nav"></nav>
-<script src="clubs.js?v=143"></script>
-<script src="game.js?v=143"></script>
+<script src="clubs.js?v=144"></script>
+<script src="game.js?v=144"></script>
 <script>
 const PREFIX="elifoot:save:",SAVE1="Elifoot"; // um único save para todos os times
 let artCan=false,S=null,tab="jogo",msg="",mf={pos:"",q:"",any:true,min:1,max:null,afford:true,ord:"ovr",dir:-1},viewKey=null;
 const $=id=>document.getElementById(id);
-const VERSAO=143;
+const VERSAO=144;
 const moneyFull=n=>(n<0?"-":"")+"R$ "+Math.round(Math.abs(n)).toLocaleString("pt-BR");
 const money=moneyFull;
 const U=()=>S.teams[S.user];
@@ -287,7 +287,7 @@ function lineupCard(u){
   const short=n=>{const w=n.split(" ");return w.length>1?w[w.length-1]:n};
   const bestF0=Game.bestFormation(u).f;
   const ctl=`<div class="row ctlr" style="align-items:center;margin:0 0 6px;gap:6px">${CONF?`<select onchange="setF(this.value)">${Object.keys(Game.FORMATIONS).map(f=>`<option value="${f}" ${u.formation===f?"selected":""}>${f}${f===bestF0?" (melhor)":""}</option>`).join("")}</select>`:""}${CONF?`<button class="p" onclick="confNext()">${CONF.i<CONF.q.length-1?"Confirmar e próximo time":"Confirmar e jogar"}</button><button class="s" onclick="confCancel()">Cancelar</button>`:`<button class="p" onclick="playBest()">Jogar com melhor formação</button>`}</div>${CONF?`<p class="mut" style="margin:0 0 8px">Escalação ${CONF.i+1} de ${CONF.q.length}: ajuste o time e confirme.</p>`:""}`;
-  let h=`<div class="card" style="padding:8px 10px;margin-bottom:8px"><h2 style="margin:0 0 6px;font-size:15px">Sua escalação${u.fAuto===false?"":` <span class="mut" style="font-size:11px;font-weight:400">· melhor formação automática</span>`}</h2>${ctl}`;
+  let h=`<div class="card" style="padding:8px 10px;margin-bottom:8px"><h2 style="margin:0 0 6px;font-size:15px">Sua escalação<span class="mut" style="font-size:13px;font-weight:600"> · OVR ${Math.round(Game.ratings(u).ovr)}</span></h2>${ctl}`;
   if(!st.length)return h+`<p class="mut">Nenhum titular escalado. Toque em Auto na aba Elenco.</p><p><button class="s" onclick="setTab('elenco')">Mudar escalação</button></p></div>`;
   h+=`<div class="campo">`;
   const mids=st.filter(p=>p.pos==="MID");
