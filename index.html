@@ -66,13 +66,13 @@ tr.me{background:color-mix(in srgb,var(--ac) 30%,transparent);font-weight:800}tr
 <header><div class="hl"><span id="crest"></span><b id="hT">Meu Elifoot</b></div><div class="hr"><span id="flag"></span><span id="hS"></span></div></header>
 <main id="app"></main>
 <nav id="nav"></nav>
-<script src="clubs.js?v=149"></script>
-<script src="game.js?v=149"></script>
+<script src="clubs.js?v=150"></script>
+<script src="game.js?v=150"></script>
 <script>
 const PREFIX="elifoot:save:",SAVE1="Elifoot"; // um único save para todos os times
 let artCan=false,S=null,tab="jogo",msg="",mf={pos:"",q:"",any:true,min:1,max:null,afford:true,ord:"ovr",dir:-1},viewKey=null;
 const $=id=>document.getElementById(id);
-const VERSAO=149;
+const VERSAO=150;
 const moneyFull=n=>(n<0?"-":"")+"R$ "+Math.round(Math.abs(n)).toLocaleString("pt-BR");
 const money=moneyFull;
 const U=()=>S.teams[S.user];
@@ -80,7 +80,7 @@ const LGu=()=>Game.LG[U().lkey];
 
 // ---- salvamento automático com o nome do time (mesmo nome = sobrescreve) ----
 let _tt=null;
-function toast(t){let e=document.getElementById("toast");if(!e){e=document.createElement("div");e.id="toast";e.style.cssText="position:fixed;top:74px;right:12px;z-index:50;background:#000c;color:#fff;font-size:12px;padding:6px 10px;border-radius:14px;transition:opacity .4s;pointer-events:none";document.body.appendChild(e)}e.textContent=t;e.style.opacity=1;clearTimeout(_tt);_tt=setTimeout(()=>e.style.opacity=0,1400)}
+function toast(t,ms){let e=document.getElementById("toast");if(!e){e=document.createElement("div");e.id="toast";e.style.cssText="position:fixed;top:74px;right:12px;z-index:50;background:#000c;color:#fff;font-size:12px;padding:6px 10px;border-radius:14px;transition:opacity .4s;pointer-events:none";document.body.appendChild(e)}e.textContent=t;e.style.opacity=1;clearTimeout(_tt);_tt=setTimeout(()=>e.style.opacity=0,ms||1400)}
 function save(){
   try{const old=S.saveName;S.saveName=SAVE1;if(old&&old!==SAVE1){localStorage.removeItem(PREFIX+old);localStorage.removeItem(TSK+old);syncDelete(old)}localStorage.setItem(PREFIX+S.saveName,JSON.stringify(S));localStorage.setItem("elifoot:last",S.saveName);localStorage.setItem(TSK+S.saveName,Date.now());syncPushLater(S.saveName);toast("💾 Jogo salvo")}
   catch(e){alert("Sem espaço no aparelho para salvar. Apague saves antigos na tela inicial.")}
@@ -360,7 +360,7 @@ function showSummary(r){
 }
 let SUMM=null,SUMT=null,SUMN=0,SUMC=null,SUMLOST=false,SUMWIN=false;
 function summRender(){if(!SUMM)return;$("nav").style.display="none";$("app").innerHTML=`<div class="card">${SUMM}</div><div class="card"><p class="mut">Indo para a classificação em ${SUMN}s</p><button class="p" style="width:100%" onclick="summGo()">Ir agora para a classificação</button></div>`;window.scrollTo(0,0)}
-function summGo(){clearInterval(SUMT);SUMM=null;let entered=false;try{if(Game.myClubs(S).length>1){const nr=Game.nextRoundClubs(S);if(nr&&!SUMLOST&&!nr.clubs.includes(S.user)){Game.switchClub(S,nr.clubs[0]);entered=true;save()}}}catch(e){}$("nav").style.display="";viewKey=SUMC&&S.comps[SUMC]?SUMC:null;try{Game.autoStadium(S);save()}catch(e){}const lost=SUMLOST;SUMC=null;SUMLOST=false;SUMWIN=false;HISTV=false;FINH=false;tab=lost?"mercado":"tabela";render()}
+function summGo(){clearInterval(SUMT);SUMM=null;let entered=false;try{if(Game.myClubs(S).length>1){const nr=Game.nextRoundClubs(S);if(nr&&!SUMLOST&&!nr.clubs.includes(S.user)){Game.switchClub(S,nr.clubs[0]);entered=true;save()}}}catch(e){}$("nav").style.display="";viewKey=SUMC&&S.comps[SUMC]?SUMC:null;try{Game.autoStadium(S);save()}catch(e){}const lost=SUMLOST;SUMC=null;SUMLOST=false;SUMWIN=false;HISTV=false;FINH=false;tab=lost?"elenco":"tabela";render()}
 function stadOk(){try{const t=U();return Game.getStad(t)<100000&&S.cash>=Game.stadCost(t)}catch(e){return false}}
 
 
@@ -537,7 +537,7 @@ function tog(id){const u=U(),i=u.lineup.indexOf(id);u.fAuto=false;const pp=u.pla
 let AUC=null;
 function sell(id){if(!confirm("Vender este jogador? Vai a leilão e vence o maior lance."))return;const a=Game.auction(S,id);if(a.err){alert(a.err);return}
   if(a.bids.length){const w=a.bids[0];const e=Game.sellTo(S,id,w.tid,w.bid);if(e){alert(e);return}a.sold=w;save()}
-  AUC=a;render();window.scrollTo(0,0)}
+  AUC=null;render();toast(a.sold?`💰 Vendido para ${a.sold.name} por ${money(a.sold.bid)}`:`Nenhum clube pagou o valor mínimo (${money(a.value)}) por ${a.name}`,4000);}
 function cancelAuc(){AUC=null;render()}
 function aucCard(){
   if(!AUC)return"";const a=AUC;
