@@ -54,6 +54,7 @@ tr.me{background:color-mix(in srgb,var(--ac) 30%,transparent);font-weight:800}tr
 .desk-only{display:none}
 @media(min-width:1000px){.mob-only{display:none}#app>.elg.desk-only{grid-template-columns:repeat(3,minmax(0,1fr));align-items:start}.desk-only>.card{margin:0}}
 @media(min-width:1000px){#app>.mcg{grid-column:1/-1;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;align-items:start}.mc{display:flex;flex-direction:column;gap:14px;min-width:0}.mc>.card{margin:0}}
+@media(min-width:1000px){#app>.jgl{grid-column:1/-1;grid-template-columns:minmax(0,1fr) 440px}.mbig{padding:22px 18px!important}.mbig>div:first-child{font-size:30px!important;line-height:1.3}.mbig p{font-size:16px!important}.jgl .el3{align-self:start}}
 @media(max-width:999px){.lvr,.el3{display:none}}
 </style>
 </head>
@@ -61,13 +62,13 @@ tr.me{background:color-mix(in srgb,var(--ac) 30%,transparent);font-weight:800}tr
 <header><div class="hl"><span id="crest"></span><b id="hT">Meu Elifoot</b></div><div class="hr"><span id="flag"></span><span id="hS"></span></div></header>
 <main id="app"></main>
 <nav id="nav"></nav>
-<script src="clubs.js?v=130"></script>
-<script src="game.js?v=130"></script>
+<script src="clubs.js?v=131"></script>
+<script src="game.js?v=131"></script>
 <script>
 const PREFIX="elifoot:save:",SAVE1="Elifoot"; // um único save para todos os times
 let artCan=false,S=null,tab="jogo",msg="",mf={pos:"",q:"",any:true,min:1,max:null,afford:true,ord:"ovr",dir:-1},viewKey=null;
 const $=id=>document.getElementById(id);
-const VERSAO=130;
+const VERSAO=131;
 const moneyFull=n=>(n<0?"-":"")+"R$ "+Math.round(Math.abs(n)).toLocaleString("pt-BR");
 const money=moneyFull;
 const U=()=>S.teams[S.user];
@@ -251,16 +252,18 @@ function render(){
 function vJogo(){
   const u=U();let h="";
   if(S.offers&&S.offers.length){
-    h+=`<div class="card"${S.fired?' style="border-color:#d33"':""}><h2>${S.fired?"🚫 Demitido do "+S.fired.club:"Convites de outros clubes"}</h2>${S.fired?`<p>${S.fired.why}</p>`:""}<p class="mut">Sua reputação: ${S.rep}/100. Se aceitar, você assume o novo clube (com o caixa dele) e o time atual segue com a IA.</p>`+
+    h+=`<div class="card wide"${S.fired?' style="border-color:#d33"':""}><h2>${S.fired?"🚫 Demitido do "+S.fired.club:"Convites de outros clubes"}</h2>${S.fired?`<p>${S.fired.why}</p>`:""}<p class="mut">Sua reputação: ${S.rep}/100. Se aceitar, você assume o novo clube (com o caixa dele) e o time atual segue com a IA.</p>`+
     S.offers.map(o=>`<div class="pl"><span>${o.name}${o.forName&&Game.myClubs(S).length>1?` <span class="mut">(no lugar do ${o.forName})</span>`:""}<br><span class="mut">${o.league} · ${o.country} · OVR ${o.ovr}${o.why?"<br>"+o.why:""}</span></span><button class="s p" onclick="accept(${o.tid})">Aceitar</button></div>`).join("")+
     `<div class="row"><select id="offCty" style="flex:1;min-width:0"><option value="">Qualquer país</option>${[...new Set(S.offers.map(o=>o.country))].sort((a,b)=>a.localeCompare(b,"pt-BR")).map(c=>`<option>${c}</option>`).join("")}</select><button class="p" onclick="acceptRandom()">🎲 Escolher aleatório</button></div><p>${S.fired?"":` <button class="s" onclick="S.offers=[];save();render()">Recusar todos</button>`}</p></div>`;
   }
   const n=Game.nextUserRound(S);
-  h+=`<div class="card" style="padding:8px 12px;margin-bottom:8px">`;
+  h+=`<div class="elg jgl"><div class="el1"><div class="card mbig" style="padding:8px 12px;margin-bottom:8px">`;
   if(n){
     h+=`<div style="text-align:center;font-weight:700;font-size:16px">${n.home.name} (${n.hp?n.hp+"º · ":""}${Game.ratings(n.home).ovr.toFixed(1)}) x ${n.away.name} (${n.ap?n.ap+"º · ":""}${Game.ratings(n.away).ovr.toFixed(1)})</div><p class="mut" style="text-align:center;margin:2px 0 0;font-size:12px">${n.date} · ${n.rodada&&n.rodada.includes(" - ")?n.rodada:n.comp}</p>`;
   }else h+=`<p style="margin:0">Sem jogos agendados. Clique para avançar o calendário.</p>`;
-  h+=`</div>`+lineupCard(u)+(msg?`<div class="card">${msg}</div>`:"");
+  const inl=new Set(u.lineup),bn=u.players.filter(p=>!inl.has(p.id)).sort((a,b)=>SPR[SPN(a)]-SPR[SPN(b)]||b.ov-a.ov);
+  const bench=`<div class="card el3"><h2>Banco e reservas</h2><p class="mut" style="margin:0 0 6px">${bn.length} jogadores fora da escalação</p>${bn.map(p=>`<div class="pl"><span class="pc"><span class="pos">${SPN(p)}</span><span class="mut">${p.age}a</span></span><span class="nm">${p.name}${p.inj>0?` <span class="bad">🚑 ${p.inj}</span>`:""}${p.sus>0?` <span class="bad">🟥 susp.</span>`:""}</span><span class="rt"><b class="ovc">${p.ov}</b></span></div>`).join("")}</div>`;
+  h+=`</div>`+lineupCard(u)+(msg?`<div class="card">${msg}</div>`:"")+`</div>${bench}</div>`;
   return h;
 }
 const SPN=p=>p.sp||({GK:"GOL",DEF:"ZAG",MID:"MC",ATT:"CA"})[p.pos];
@@ -289,7 +292,7 @@ function lineupCard(u){
     g.sort((a,b)=>(SPO[SPN(a)]-SPO[SPN(b)])||a.name.localeCompare(b.name));
     h+=`<div class="lin${g.length===2&&g[0].pos==="ATT"?" dup":""}">`+g.map(p=>`<div class="jog"><i style="background:${col};color:${tx}">${p.ov}</i><span>${p.name}</span><small>${SPN(p)}</small></div>`).join("")+`</div>`}
   h+=`</div>`;
-  if(res.length)h+=`<p class="mut" style="margin:8px 0 0">Banco: ${res.map(p=>`${p.name} (${SPN(p)} ${p.ov})`).join(", ")}</p>`;
+  if(res.length)h+=`<p class="mut mob-only" style="margin:8px 0 0">Banco: ${res.map(p=>`${p.name} (${SPN(p)} ${p.ov})`).join(", ")}</p>`;
   return h+`<p><button class="s" onclick="setTab('elenco')">Mudar escalação</button></p></div>`;
 }
 function acceptRandom(){const c=$("offCty")?$("offCty").value:"";const l=S.offers.filter(o=>!c||o.country===c);if(!l.length){alert("Nenhuma oferta nesse país.");return}accept(l[Math.floor(Math.random()*l.length)].tid)}
