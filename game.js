@@ -24,11 +24,29 @@
   }
   const yearOf = (T) => START_YEAR + Math.floor(T / 52);
 
-  function valueOf(ov, age) {
-    let v = 20000 * Math.pow(10, (ov - 40) / 15);
-    if (age <= 22) v *= 1.4; else if (age >= 32) v *= 0.5; else if (age >= 29) v *= 0.8;
+  // ---- Valor de mercado <-> OVR (v153) ----
+  // Fator de idade suave: o mercado cobra mais pelos jovens (potencial) e menos pelos veteranos.
+  const AGE_PTS = [[17, 1.55], [19, 1.5], [22, 1.35], [25, 1.08], [27, 1], [29, 0.9], [31, 0.72], [33, 0.52], [36, 0.35], [40, 0.25]];
+  function ageF(age) {
+    if (age <= AGE_PTS[0][0]) return AGE_PTS[0][1];
+    for (let i = 1; i < AGE_PTS.length; i++) if (age <= AGE_PTS[i][0]) { const [a0, f0] = AGE_PTS[i - 1], [a1, f1] = AGE_PTS[i]; return f0 + (f1 - f0) * (age - a0) / (a1 - a0); }
+    return AGE_PTS[AGE_PTS.length - 1][1];
+  }
+  // Prêmio de mercado por posição (ESTIMATIVA): atacantes e pontas custam mais que zagueiros e goleiros com a mesma qualidade.
+  const POS_F = { GOL: 0.8, ZAG: 0.95, LD: 1, LE: 1, VOL: 0.95, MC: 1, ME: 1.05, MD: 1.05, PD: 1.2, PE: 1.2, CA: 1.25 };
+  // Prêmio de mercado por liga (ESTIMATIVA): os valores do Transfermarkt na Inglaterra são inflados pelo dinheiro da liga.
+  const LIGA_F = { ENG1: 1.15, ENG2: 1.1 };
+  const mktF = (age, sp, lkey) => ageF(age) * (POS_F[sp] || 1) * (LIGA_F[lkey] || 1);
+  const ovFromValue = (value, age, sp, lkey) => Math.max(1, Math.round(40 + 15 * Math.log10(value / mktF(age, sp, lkey) / 20000)));
+  function valueOf(ov, age, sp, lkey) {
+    const v = 20000 * Math.pow(10, (ov - 40) / 15) * mktF(age, sp, lkey);
     return Math.round(v / 1000) * 1000;
   }
+  const oldValueOf = (ov, age) => { let v = 20000 * Math.pow(10, (ov - 40) / 15); if (age <= 22) v *= 1.4; else if (age >= 32) v *= 0.5; else if (age >= 29) v *= 0.8; return v; };
+  // Motor da partida (calibrado com as tabelas reais de 2025/26): divisor por liga e vantagem de mandar o jogo.
+  const SIM_S = { BRA1: 40, BRA2: 40, BRA3: 40, ARG1: 40, ARG2: 40 };
+  const simS = (a, b) => ((SIM_S[a.lkey] || 21) + (SIM_S[b.lkey] || 21)) / 2;
+  const HOME_ADV = 1;
   function mkPlayer(pos, ov, age) {
     ov = Math.max(1, Math.round(ov)); // sem teto: só o mínimo é 1
     age = age || ri(18, 36);
@@ -133,8 +151,8 @@
     const tf = (t) => (t.tactic === "Ofensiva" ? [1.06, 0.94] : t.tactic === "Defensiva" ? [0.94, 1.06] : [1, 1]);
     const [ah, dh] = tf(h), [aa, da] = tf(a);
     const redH = evh.some((e) => e.type === "red") ? 1 : 0, redA = eva.some((e) => e.type === "red") ? 1 : 0;
-    const xh = 1.3 * Math.exp((rh.A * ah - ra.D * da + 3) / 15) * (redH ? 0.82 : 1) * (redA ? 1.12 : 1);
-    const xa = 1.1 * Math.exp((ra.A * aa - rh.D * dh - 3) / 15) * (redA ? 0.82 : 1) * (redH ? 1.12 : 1);
+    const S = simS(h, a), xh = 1.37 * Math.exp((rh.A * ah - ra.D * da + HOME_ADV) / S) * (redH ? 0.82 : 1) * (redA ? 1.12 : 1);
+    const xa = 1.16 * Math.exp((ra.A * aa - rh.D * dh - HOME_ADV) / S) * (redA ? 0.82 : 1) * (redH ? 1.12 : 1);
     const gh = poisson(clamp(xh, 0.15, 5)), ga = poisson(clamp(xa, 0.15, 5));
     const sh = [], sa = [];
     for (let i = 0; i < gh; i++) sh.push(scorer(h));
@@ -420,6 +438,22 @@
     if (t.local) return 1000000;
     return Math.max(500000, Math.round((clubRev(t) * 0.4) / 10000) * 10000);
   }
+  // Migração única (v153): saves antigos passam a usar a nova conversão valor <-> OVR (idade suave, posição, liga).
+  function migrateOvr2(s) {
+    if (s.ovrV2) return;
+    s.ovrV2 = 1;
+    for (const t of Object.values(s.teams)) {
+      const mine = isMine(s, t.id);
+      for (const p of t.players) {
+        if (!p.value) continue;
+        const sim = mine && !p.real && Math.abs(p.value - oldValueOf(p.ov, p.age)) / Math.max(oldValueOf(p.ov, p.age), 1) < 0.1;
+        if (sim) p.value = valueOf(p.ov, p.age, p.sp, t.lkey);
+        else { p.ov = ovFromValue(p.value, p.age, p.sp, t.lkey); p.of = p.ov; }
+      }
+      t.lineup = mine ? (fixLineup(t), t.lineup) : autoLineup(t);
+    }
+    for (const p of s.ext || []) if (p.value) { p.ov = ovFromValue(p.value, p.age, p.sp); p.of = p.ov; }
+  }
   // Migração única (saves antigos): caixa dos meus clubes sobe até o poder de compra realista.
   function migrateFin(s) {
     if (s.finV) return;
@@ -515,7 +549,7 @@
         if (p.of == null || Math.round(p.of) !== p.ov) p.of = p.ov;
         p.of = Math.max(1, p.of + evoDelta(p));
         const n = Math.round(p.of);
-        if (n !== p.ov) { p.ov = n; p.value = valueOf(p.ov, p.age); p.wage = Math.round(p.value / 900); }
+        if (n !== p.ov) { p.ov = n; p.value = valueOf(p.ov, p.age, p.sp, t.lkey); p.wage = Math.round(p.value / 900); }
       });
       fixLineup(t);
     }
@@ -546,7 +580,7 @@
         t.players.forEach((p) => {
           if (p.long == null) p.long = p.age > 40 ? 1 : 0; // já passava dos 40 na vida real: aposenta aos 45
           p.age++;
-          p.value = valueOf(p.ov, p.age); p.wage = Math.round(p.value / 900);
+          p.value = valueOf(p.ov, p.age, p.sp, t.lkey); p.wage = Math.round(p.value / 900);
         });
         // aposentadoria em todos os times: 40 anos (45 para quem já jogava depois dos 40 na vida real)
         const keep = t.players.filter((p) => p.age < (p.long ? 45 : 40)), retired = t.players.filter((p) => !keep.includes(p));
@@ -1058,8 +1092,9 @@
     const nh = m.on.h.length, na = m.on.a.length;
     const tf = (t) => (t.tactic === "Ofensiva" ? [1.06, 0.94] : t.tactic === "Defensiva" ? [0.94, 1.06] : [1, 1]);
     const [ah, dh] = tf(m.H), [aa, da] = tf(m.A);
-    let xh = clamp(1.3 * Math.exp((rh.A * ah - ra.D * da + 3) / 15), 0.15, 5);
-    let xa = clamp(1.1 * Math.exp((ra.A * aa - rh.D * dh - 3) / 15), 0.15, 5);
+    const S = simS(m.H, m.A);
+    let xh = clamp(1.37 * Math.exp((rh.A * ah - ra.D * da + HOME_ADV) / S), 0.15, 5);
+    let xa = clamp(1.16 * Math.exp((ra.A * aa - rh.D * dh - HOME_ADV) / S), 0.15, 5);
     xh *= Math.pow(nh / 11, 1.3) * Math.pow(11 / Math.max(na, 1), 0.5);
     xa *= Math.pow(na / 11, 1.3) * Math.pow(11 / Math.max(nh, 1), 0.5);
     m.px = { h: xh / 90, a: xa / 90 };
@@ -1532,9 +1567,9 @@
         for (const p of t.players) {
           const q = real[key(p.name)];
           if (!q || !(q.value || q.ov)) continue;
-          const age = q.age || p.age, af = age <= 22 ? 1.4 : age >= 32 ? 0.5 : age >= 29 ? 0.8 : 1;
-          p.ov = q.ov || Math.max(1, Math.round(40 + 15 * Math.log10(q.value / af / 20000)));
-          p.of = p.ov; p.age = age; p.value = q.value || valueOf(p.ov, age); p.wage = Math.round(p.value / 900);
+          const age = q.age || p.age;
+          p.ov = q.ov || ovFromValue(q.value, age, q.sp || p.sp, t.lkey);
+          p.of = p.ov; p.age = age; p.value = q.value || valueOf(p.ov, age, q.sp || p.sp, t.lkey); p.wage = Math.round(p.value / 900);
           p.long = age > 40 ? 1 : 0; p.real = 1; // jogador com dado real: o Transfermarkt manda no OVR dele
         }
         if (isMineG(s, t.id) && t.id === s.user) fixLineup(t);
@@ -1549,9 +1584,8 @@
         // jogador comprado por mim continua comigo; os que saíram de verdade vão para o novo clube
         if (mine.has(key(q.name)) && bought.has(key(q.name))) { removed++; continue; }
         const age = q.age || 25;
-        const af = age <= 22 ? 1.4 : age >= 32 ? 0.5 : age >= 29 ? 0.8 : 1;
-        const ov = q.ov || (q.value ? Math.max(1, Math.round(40 + 15 * Math.log10(q.value / af / 20000))) : 55);
-        const value = q.value || valueOf(ov, age);
+        const ov = q.ov || (q.value ? ovFromValue(q.value, age, q.sp, t.lkey) : 55);
+        const value = q.value || valueOf(ov, age, q.sp, t.lkey);
         ps.push({ id: PID++, name: q.name, pos: q.pos, sp: q.sp, cg: q.cg || 0, ov, age, value, wage: Math.round(value / 900), long: age > 40 ? 1 : 0 });
       }
       if (dt.stad && !t.stadUp) t.stad = dt.stad;
@@ -1588,9 +1622,9 @@
       s.ext = [];
       for (const q of data.outros) {
         if (have.has(key(q.name))) continue;
-        const age = q.age || 27, af = age <= 22 ? 1.4 : age >= 32 ? 0.5 : age >= 29 ? 0.8 : 1;
-        const ov = q.ov || Math.max(1, Math.round(40 + 15 * Math.log10(q.value / af / 20000)));
-        const value = q.value || valueOf(ov, age);
+        const age = q.age || 27;
+        const ov = q.ov || ovFromValue(q.value, age, q.sp);
+        const value = q.value || valueOf(ov, age, q.sp);
         s.ext.push({ id: PID++, name: q.name, pos: q.pos, sp: q.sp, cg: q.cg || 0, ov, age, value, wage: Math.round(value / 900), long: age > 40 ? 1 : 0, club: q.club, ext: 1 });
       }
     }
@@ -1643,6 +1677,6 @@
     if (s.cashes) delete s.cashes[id];
     return null;
   }
-  const api = { liveReposition, applyLeagues, clubCash, yearOf, startRound, liveStep, liveSub, liveTakePen, penProb, liveResolve, liveFinish, autoReorg, getStad, stadCost, upgradeStadium, autoStadium, clubRev, payroll, migrateFin, topScorers, topScorersComp, lookup, yearOf, bestFormation, avail, nextRoundClubs, myClubs, addClub, switchClub, dropClub, STATES, CONT, COUNTRIES, LEAGUES, LG, FORMATIONS, TACTICS, newGame, autoLineup, ratings, playRound, acceptOffer, market, buy, sell, auction, sellTo, applyUpdate, resetPid, migrateOvr, lineupPlayers, fixLineup, nextUserRound, sortTab, dateOf, userComps, userMatches };
+  const api = { liveReposition, applyLeagues, clubCash, yearOf, startRound, liveStep, liveSub, liveTakePen, penProb, liveResolve, liveFinish, autoReorg, getStad, stadCost, upgradeStadium, autoStadium, clubRev, payroll, migrateFin, migrateOvr2, topScorers, topScorersComp, lookup, yearOf, bestFormation, avail, nextRoundClubs, myClubs, addClub, switchClub, dropClub, STATES, CONT, COUNTRIES, LEAGUES, LG, FORMATIONS, TACTICS, newGame, autoLineup, ratings, playRound, acceptOffer, market, buy, sell, auction, sellTo, applyUpdate, resetPid, migrateOvr, lineupPlayers, fixLineup, nextUserRound, sortTab, dateOf, userComps, userMatches };
   if (typeof module !== "undefined") module.exports = api; else root.Game = api;
 })(typeof window !== "undefined" ? window : globalThis);
