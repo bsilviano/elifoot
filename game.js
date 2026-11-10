@@ -925,13 +925,13 @@
     }
     return { tier, esp, atu, rk: rk + 1 };
   }
-  // Porte do clube para convites: média ponderada dos percentis de OVR (45%), torcida (30%) e caixa (25%) entre todos os clubes.
+  // Porte do clube para convites: média ponderada dos percentis de OVR (50%), torcida (20%) e caixa (30%) entre todos os clubes.
   function prestige(s) {
     const ts = Object.values(s.teams).filter((t) => !t.local && LG[t.lkey]);
     const pct = (f) => { const v = ts.map(f).sort((a, b) => a - b), m = {}; ts.forEach((t) => { const x = f(t); let lo = 0, hi = v.length; while (lo < hi) { const mid = (lo + hi) >> 1; if (v[mid] < x) lo = mid + 1; else hi = mid; } m[t.id] = lo / Math.max(v.length - 1, 1); }); return m; };
     const ov = {}; ts.forEach((t) => { ov[t.id] = ratings(t).ovr; });
     const po = pct((t) => ov[t.id]), pf = pct((t) => t.fans || 0), pc = pct((t) => clubCash(t)), out = {};
-    ts.forEach((t) => { out[t.id] = { score: 0.45 * po[t.id] + 0.3 * pf[t.id] + 0.25 * pc[t.id], ovr: ov[t.id], po: po[t.id], pf: pf[t.id], pc: pc[t.id] }; });
+    ts.forEach((t) => { out[t.id] = { score: 0.5 * po[t.id] + 0.2 * pf[t.id] + 0.3 * pc[t.id], ovr: ov[t.id], po: po[t.id], pf: pf[t.id], pc: pc[t.id] }; });
     return out;
   }
   // Convites: clubes melhores que o meu (pelo valor), desde que minha posição atual seja compatível com o valor do clube.
