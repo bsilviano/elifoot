@@ -928,6 +928,7 @@
     s.cash -= cost; t.stad = Math.min(STAD_MAX, cap + STAD_STEP); t.stadUp = 1;
     return null;
   }
+  function autoStadium(s) { let n = 0; while (n < 10 && !upgradeStadium(s)) n++; return n; }
   // Renda do jogo: público x preço do ingresso; mandante fica com 70% e visitante com 30%.
   // O público varia com a torcida, o porte do adversário e o acaso.
   // Preço médio do ingresso (R$) por competição. Série A: ticket médio real do Brasileirão 2026 (R$ 52,64, Trivela/Pluri);
@@ -1621,6 +1622,6 @@
     if (s.cashes) delete s.cashes[id];
     return null;
   }
-  const api = { liveReposition, applyLeagues, clubCash, yearOf, startRound, liveStep, liveSub, liveTakePen, penProb, liveResolve, liveFinish, autoReorg, getStad, stadCost, upgradeStadium, topScorers, topScorersComp, lookup, yearOf, bestFormation, avail, nextRoundClubs, myClubs, addClub, switchClub, dropClub, STATES, CONT, COUNTRIES, LEAGUES, LG, FORMATIONS, TACTICS, newGame, autoLineup, ratings, playRound, acceptOffer, market, buy, sell, auction, sellTo, applyUpdate, resetPid, migrateOvr, lineupPlayers, fixLineup, nextUserRound, sortTab, dateOf, userComps, userMatches };
+  const api = { liveReposition, applyLeagues, clubCash, yearOf, startRound, liveStep, liveSub, liveTakePen, penProb, liveResolve, liveFinish, autoReorg, getStad, stadCost, upgradeStadium, autoStadium, topScorers, topScorersComp, lookup, yearOf, bestFormation, avail, nextRoundClubs, myClubs, addClub, switchClub, dropClub, STATES, CONT, COUNTRIES, LEAGUES, LG, FORMATIONS, TACTICS, newGame, autoLineup, ratings, playRound, acceptOffer, market, buy, sell, auction, sellTo, applyUpdate, resetPid, migrateOvr, lineupPlayers, fixLineup, nextUserRound, sortTab, dateOf, userComps, userMatches };
   if (typeof module !== "undefined") module.exports = api; else root.Game = api;
 })(typeof window !== "undefined" ? window : globalThis);
