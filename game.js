@@ -1,7 +1,8 @@
 (function (root) {
   const CD = typeof require !== "undefined" ? require("./clubs.js") : root.ClubData;
   const { COUNTRIES, LEAGUES, STATES, CONT } = CD;
-  const FORMATIONS = { "4-4-2": [4,4,2], "4-3-3": [4,3,3], "3-5-2": [3,5,2], "4-5-1": [4,5,1], "5-3-2": [5,3,2] };
+  const FORMATIONS = {}; // todos os desenhos de 10 jogadores de linha (3 a 5 defensores, 2 a 6 meias, 1 a 4 atacantes)
+  [[4,4,2],[4,3,3],[3,5,2],[4,5,1],[5,3,2],[5,4,1],[3,4,3],[4,2,4],[5,2,3],[3,6,1],[3,3,4],[4,6,0]].filter((x) => x[2] > 0).forEach((x) => (FORMATIONS[x.join("-")] = x));
   const TACTICS = ["Defensiva", "Equilibrada", "Ofensiva"];
   const FIRST = ["João","Pedro","Lucas","Gabriel","Matheus","Rafael","Bruno","Diego","Felipe","Thiago","Carlos","André","Vitor","Marcos","Leandro","Rodrigo","Gustavo","Everton","Wesley","Caio","Renan","Igor","Danilo","Paulo","Fábio","Mateo","Hugo","Luca","Jonas","Declan","Marco","Jules"];
   const LAST = ["Silva","Santos","Oliveira","Souza","Lima","Pereira","Costa","Ribeiro","Alves","Martins","Rocha","Carvalho","Gomes","Barbosa","Moreira","Araújo","Nunes","Teixeira","Cardoso","Freitas","Dias","Ramos","Pinto","Mendes","Müller","Rossi","Dupont","García","Smith","Fernández"];
@@ -79,41 +80,68 @@
   const COMPAT = {}; Object.keys(ALTS).forEach((sp) => { COMPAT[sp] = [sp].concat(Object.keys(ALTS).filter((o) => ALTS[o].includes(sp))); });
   // Meia central e meia ofensivo cobrem a vaga de meia lateral na escalação automática (meia lateral é raro no Transfermarkt).
   ["ME", "MD"].forEach((sp) => { COMPAT[sp] = COMPAT[sp].concat(["MEI", "MC"].filter((x) => !COMPAT[sp].includes(x))); });
-  // Monta o time ideal; "miss" conta quantos jogadores ficaram fora da posição exata.
+  // Variantes de vagas por quantidade de jogadores em cada setor (o goleiro é sempre 1; o resto pode inovar).
+  const VARS = {
+    DEF: { 3: [["ZAG", "ZAG", "ZAG"]], 4: [["LE", "ZAG", "ZAG", "LD"]], 5: [["LE", "ZAG", "ZAG", "ZAG", "LD"]] },
+    MID: {
+      2: [["VOL", "MC"], ["VOL", "VOL"], ["MC", "MEI"]],
+      3: [["VOL", "MC", "MEI"], ["VOL", "VOL", "MEI"], ["MC", "MC", "MEI"], ["VOL", "MC", "MC"]],
+      4: [["ME", "MC", "MC", "MD"], ["VOL", "MC", "MEI", "MC"], ["VOL", "VOL", "MEI", "MEI"], ["VOL", "MC", "MEI", "MEI"]],
+      5: [["ME", "VOL", "MC", "MEI", "MD"], ["VOL", "MC", "MC", "MEI", "MEI"], ["VOL", "VOL", "MC", "MEI", "MEI"]],
+      6: [["ME", "VOL", "VOL", "MEI", "MEI", "MD"]],
+    },
+    ATT: { 1: [["CA"]], 2: [["CA", "SA"], ["CA", "CA"], ["SA", "SA"]], 3: [["PE", "CA", "PD"], ["PE", "SA", "PD"], ["CA", "SA", "CA"]], 4: [["PE", "CA", "SA", "PD"], ["PE", "CA", "CA", "PD"]] },
+  };
+  const fitOf = (sp, slot) => (sp === slot ? 1 : (COMPAT[slot] || []).includes(sp) ? 0.99 : 0.95);
+  // Escolhe, para um setor, os jogadores e a variante de vagas que somam mais qualidade (ov x encaixe). Retorna {chosen, eff, miss}.
+  function pickGroup(pool, out, n, pos) {
+    const vs = VARS[pos][n] || [new Array(n).fill(null)];
+    let best = null;
+    for (const slots of vs) {
+      const pairs = [];
+      pool.forEach((p, pi) => slots.forEach((sl, si) => pairs.push({ pi, si, v: p.ov * (sl ? fitOf(p.sp, sl) : 1) })));
+      pairs.sort((x, y) => y.v - x.v);
+      const usedP = new Set(), usedS = new Set(), pick = [];
+      let eff = 0, miss = 0;
+      for (const q of pairs) {
+        if (usedP.has(q.pi) || usedS.has(q.si)) continue;
+        usedP.add(q.pi); usedS.add(q.si); pick.push(pool[q.pi]); eff += q.v;
+        if (slots[q.si] && pool[q.pi].sp !== slots[q.si] && fitOf(pool[q.pi].sp, slots[q.si]) < 0.99) miss++;
+        if (pick.length === n) break;
+      }
+      if (!best || eff > best.eff) best = { pick, eff, miss };
+    }
+    const chosen = best.pick.slice();
+    for (const p of out) { if (chosen.length >= n) break; chosen.push(p); }
+    return { chosen, eff: best.eff, miss: best.miss };
+  }
+  // Monta o melhor onze para a formação (goleiro sempre 1; "miss" = jogadores fora de posição e fora das alternativas).
   function buildLineup(team, formation) {
-    const f = FORMATIONS[formation || team.formation];
+    const f = FORMATIONS[formation || team.formation] || FORMATIONS["4-4-2"];
     const need = { GK: 1, DEF: f[0], MID: f[1], ATT: f[2] };
-    const ids = []; let miss = 0;
+    const ids = []; let miss = 0, eff = 0;
     for (const pos in need) {
       const all = team.players.filter((p) => p.pos === pos).sort((a, b) => b.ov - a.ov);
       const pool = all.filter(avail), out = all.filter((p) => !avail(p));
-      const slots = SLOTS[pos] && SLOTS[pos][need[pos]];
-      const used = new Set();
-      if (slots) {
-        const got = slots.map((sp) => { const c = pool.find((p) => !used.has(p.id) && p.sp === sp); if (c) used.add(c.id); return c; });
-        slots.forEach((sp, i) => {
-          if (got[i]) return;
-          let c = null;
-          for (const alt of (COMPAT[sp] || [sp]).slice(1)) { c = pool.find((p) => !used.has(p.id) && p.sp === alt); if (c) break; }
-          if (c) used.add(c.id); else miss++;
-        });
-      }
-      const pick1 = [...used].map((id) => pool.find((p) => p.id === id));
-      const rest = pool.filter((p) => !used.has(p.id)).concat(out);
-      const chosen = pick1.concat(rest.slice(0, need[pos] - pick1.length));
-      chosen.forEach((p) => ids.push(p.id));
+      const r = pos === "GK" ? { chosen: pool.concat(out).slice(0, 1), eff: (pool[0] || { ov: 0 }).ov, miss: 0 } : pickGroup(pool, out, need[pos], pos);
+      r.chosen.forEach((p) => ids.push(p.id)); miss += r.miss; eff += r.eff;
     }
-    return { ids, miss };
+    return { ids, miss, eff };
   }
-  function autoLineup(team, formation) { return buildLineup(team, formation).ids; }
+  // Sem formação indicada e com a formação automática ligada (fAuto !== false), usa a melhor formação do time.
+  function autoLineup(team, formation) {
+    if (!formation && team.fAuto !== false) { const b = bestFormation(team); team.formation = b.f; return b.ids; }
+    return buildLineup(team, formation).ids;
+  }
+  // Melhor formação = a que escala o onze de maior qualidade (soma de OVR com encaixe de posição), qualquer desenho.
   function bestFormation(team) {
     let best = null;
     for (const f in FORMATIONS) {
-      const { ids, miss } = buildLineup(team, f);
-      const set = new Set(ids), r = ratingsL(team.players.filter((p) => set.has(p.id)));
-      const score = (r.A + r.D) / 2 - miss * 1.5;
-      if (!best || score > best.score) best = { f, ids, score, ovr: r.ovr, miss };
+      const { ids, miss, eff } = buildLineup(team, f);
+      if (!best || eff > best.score + 1e-9) best = { f, ids, score: eff, miss };
     }
+    const set = new Set(best.ids);
+    best.ovr = ratingsL(team.players.filter((p) => set.has(p.id))).ovr;
     return best;
   }
   function lineupPlayers(team) {
