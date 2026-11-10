@@ -66,13 +66,13 @@ tr.me{background:color-mix(in srgb,var(--ac) 30%,transparent);font-weight:800}tr
 <header><div class="hl"><span id="crest"></span><b id="hT">Meu Elifoot</b></div><div class="hr"><span id="flag"></span><span id="hS"></span></div></header>
 <main id="app"></main>
 <nav id="nav"></nav>
-<script src="clubs.js?v=162"></script>
-<script src="game.js?v=162"></script>
+<script src="clubs.js?v=163"></script>
+<script src="game.js?v=163"></script>
 <script>
 const PREFIX="elifoot:save:",SAVE1="Elifoot"; // um único save para todos os times
 let artCan=false,S=null,tab="jogo",msg="",mf={pos:"",q:"",any:true,min:1,max:null,afford:true,ord:"ovr",dir:-1},viewKey=null;
 const $=id=>document.getElementById(id);
-const VERSAO=162;
+const VERSAO=163;
 const moneyFull=n=>(n<0?"-":"")+"R$ "+Math.round(Math.abs(n)).toLocaleString("pt-BR");
 const money=moneyFull;
 const U=()=>S.teams[S.user];
@@ -225,7 +225,7 @@ function goRandom(){const c=$("rndSel").value,sel=$("clubSel");let o=[...sel.opt
 async function go(){
   if(localStorage.getItem(PREFIX+SAVE1)&&!confirm("Já existe um jogo salvo. Começar um novo jogo substitui o save atual (seus times e elencos). Continuar?"))return;
   S=Game.newGame($("clubSel").value);
-  try{const r=await fetch("elencos.json?"+Date.now());if(r.ok){const d=await r.json();try{const rn=await fetch("notas.json?"+Date.now());if(rn.ok)d.notas=await rn.json()}catch(e){}Game.applyUpdate(S,d,{initial:true});S.lastUpd=(d.updated||"")+"|"+((d.notas&&d.notas.v)||"")+"|p2";S.cash=Game.clubCash(U());S.rep=Game.repFor?Game.repFor(Game.ratings(U()).ovr):S.rep}}catch(e){}
+  try{const r=await fetch("elencos.json?"+Date.now());if(r.ok){const d=await r.json();try{const rn=await fetch("notas.json?"+Date.now());if(rn.ok)d.notas=await rn.json()}catch(e){}Game.applyUpdate(S,d,{initial:true});S.lastUpd=(d.updated||"")+"|"+((d.notas&&d.notas.v)||"")+"|p3";S.cash=Game.clubCash(U());S.rep=Game.repFor?Game.repFor(Game.ratings(U()).ovr):S.rep}}catch(e){}
   viewKey=null;tab="jogo";msg="";save();render()}
 function importSave(e){const f=e.target.files[0];if(!f)return;f.text().then(t=>{S=JSON.parse(t);Game.resetPid(S);Game.migrateOvr(S);save();render()})}
 function exportSave(){const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify(S)],{type:"application/json"}));a.download="elifoot-"+U().name+".json";a.click()}
@@ -733,7 +733,7 @@ function vMais(){
 }
 async function update(auto){
   try{const r=await fetch("elencos.json?"+Date.now());if(!r.ok)throw 0;const d=await r.json();try{const rn=await fetch("notas.json?"+Date.now());if(rn.ok)d.notas=await rn.json()}catch(e){}
-    const stamp=(d.updated||"")+"|"+((d.notas&&d.notas.v)||"")+"|p2";
+    const stamp=(d.updated||"")+"|"+((d.notas&&d.notas.v)||"")+"|p3";
     if(auto&&d.updated&&S.lastUpd===stamp&&(S.ext||!d.outros))return;
     const tsPrev=localStorage.getItem(TSK+S.saveName),x=Game.applyUpdate(S,d);S.lastUpd=stamp;msg=`Elencos atualizados (${d.updated||"?"}): ${x.teams} times, ${x.kept} jogadores vendidos mantidos nos compradores.`+(x.left.length?`<br>Saíram do seu time (transferência real): ${x.left.join("; ")}`:"");save();if(auto&&tsPrev){clearTimeout(_pt);localStorage.setItem(TSK+S.saveName,tsPrev)}}
   catch(e){if(!auto)msg="Ainda não há elencos.json publicado."}

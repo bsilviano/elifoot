@@ -1625,13 +1625,13 @@
     }
     // ovr, valor, idade e salário de TODOS os meus jogadores acompanham o desempenho/valor real (Transfermarkt), mesmo sem mexer no elenco
     if (!initial) {
-      const real = {};
-      for (const dt of data.teams || []) for (const q of dt.players || []) real[key(q.name)] = q;
+      const real = {}, realT = {}; // realT: por clube (nomes iguais em clubes diferentes, ex.: Paulo Henrique)
+      for (const dt of data.teams || []) for (const q of dt.players || []) { real[key(q.name)] = q; realT[dt.name + "|" + key(q.name)] = q; }
       for (const q of data.outros || []) real[key(q.name)] = q;
       for (const t of Object.values(s.teams)) {
         if (!isMine(s, t.id)) continue;
         for (const p of t.players) {
-          const q = real[key(p.name)];
+          const q = realT[t.name + "|" + key(p.name)] || real[key(p.name)];
           if (!q || !(q.value || q.ov)) continue;
           const age = q.age || p.age;
           p.ov = q.ov || Math.max(1, ovFromValue(q.value, age, q.sp || p.sp, t.lkey) + nbo(t.name, q.name));
