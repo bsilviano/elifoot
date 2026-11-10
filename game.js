@@ -935,6 +935,10 @@
     // Nunca convida de uma liga onde já tenho clube. Se tenho 2+ clubes na mesma divisão, os convites servem para trocar
     // um deles por clube de outra liga (mesma divisão ou melhor, OVR parecido).
     const held = new Set(myClubs(s).map((id) => s.teams[id].lkey));
+    // Exceção: a liga do próprio clube que recebe o convite é permitida (aceitar substitui o clube, continuo com um por liga),
+    // desde que eu não tenha outro clube nela.
+    const ownL = s.teams[cid].lkey;
+    if (myClubs(s).filter((id) => s.teams[id].lkey === ownL).length === 1) held.delete(ownL);
     const dup = !!isDup;
     const myTier = LG[s.teams[cid].lkey] ? LG[s.teams[cid].lkey].tier : 3;
     const elig = Object.values(s.teams).filter((t) => {
