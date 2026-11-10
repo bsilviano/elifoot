@@ -1049,6 +1049,15 @@
     s.cash -= cost; t.stad = Math.min(STAD_MAX, cap + STAD_STEP); t.stadUp = 1;
     return null;
   }
+  // Meus clubes ficam com estádio de 100 mil, sem custo; ao deixar o clube, ele volta à capacidade real (stad0).
+  function syncStad(s) {
+    for (const t of Object.values(s.teams)) {
+      if (isMine(s, t.id)) {
+        if (t.stad0 === undefined && !t.stadUp) t.stad0 = getStad(t);
+        if (t.stad !== STAD_MAX) { t.stad = STAD_MAX; t.stadUp = 1; }
+      } else if (t.stad0 !== undefined) { t.stad = t.stad0; t.stadUp = 0; delete t.stad0; }
+    }
+  }
   // Ampliação automática do clube ativo: só se a procura por ingresso passa da capacidade e a obra custa até 25% do caixa (uma por vez).
   function autoStadium(s) {
     const t = s.teams[s.user]; let n = 0;
@@ -1138,6 +1147,7 @@
     });
   }
   function playRound(s) {
+    syncStad(s);
     const u = s.teams[s.user];
     const res = { reports: [], notes: [], wages: 0, gate: 0, skipped: 0, fixed: fixLineup(u) };
     const nOffers = s.offers.length;
@@ -1193,6 +1203,7 @@
     return live;
   }
   function startRound(s) {
+    syncStad(s);
     if (s.fired) return { res: { reports: [], notes: [], wages: 0, gate: 0, skipped: 0 }, live: null, blocked: true };
     const u = s.teams[s.user];
     const res = { reports: [], notes: [], wages: 0, gate: 0, skipped: 0, fixed: fixLineup(u) };
@@ -1491,6 +1502,7 @@
     }
     if (s.jobModes && s.jobModes[old] != null) { s.jobModes[tid] = s.jobModes[old]; delete s.jobModes[old]; }
     s.teams[tid].lineup = autoLineup(s.teams[tid]);
+    syncStad(s);
     return null;
   }
 
@@ -1626,7 +1638,7 @@
     for (const dt of data.teams || []) {
       const t = Object.values(s.teams).find((x) => x.name === dt.name);
       if (!t || !isMine(s, t.id)) continue;
-      if (dt.stad && (!t.stadUp || !s.stadV2)) { t.stad = dt.stad; t.stadUp = 0; }
+      if (dt.stad) { if (t.stadUp) t.stad0 = dt.stad; else t.stad = dt.stad; }
       const cgs = {}; for (const q of dt.players || []) if (q.cg) cgs[key(q.name)] = q.cg;
       for (const p of t.players) if (cgs[key(p.name)]) p.cg = cgs[key(p.name)];
     }
@@ -1662,7 +1674,7 @@
         const value = q.value || valueOf(ov, age, q.sp, t.lkey);
         ps.push({ id: PID++, name: q.name, pos: q.pos, sp: q.sp, cg: q.cg || 0, ov, age, value, wage: Math.round(value / 900), long: age > 40 ? 1 : 0 });
       }
-      if (dt.stad && (!t.stadUp || !s.stadV2)) { t.stad = dt.stad; t.stadUp = 0; }
+      if (dt.stad) { if (t.stadUp) t.stad0 = dt.stad; else t.stad = dt.stad; }
       t.players = ps; t.lineup = autoLineup(t); n++;
     }
     // jogadores que eu vendi continuam no clube comprador, a menos que o elenco real já os traga em algum clube
@@ -1702,7 +1714,7 @@
         s.ext.push({ id: PID++, name: q.name, pos: q.pos, sp: q.sp, cg: q.cg || 0, ov, age, value, wage: Math.round(value / 900), long: age > 40 ? 1 : 0, club: q.club, ext: 1 });
       }
     }
-    s.stadV2 = 1;
+    syncStad(s);
     return { teams: n, removed, kept, left };
   }
 
@@ -1717,6 +1729,7 @@
     if (s.free) { // estava sem clube: assume este
       s.free = false; s.fired = null; s.offers = []; s.user = id; s.clubs = [id]; s.cashes = {};
       s.cash = clubCash(s.teams[id]); s.teams[id].lineup = autoLineup(s.teams[id]);
+      syncStad(s);
       return null;
     }
     s.clubs = myClubs(s).concat(id);
@@ -1724,6 +1737,7 @@
     s.cashes[id] = clubCash(s.teams[id]);
     s.teams[id].lineup = autoLineup(s.teams[id]);
     dupOffers(s, { notes: [] });
+    syncStad(s);
     return null;
   }
   function switchClub(s, id) {
@@ -1751,8 +1765,9 @@
     }
     s.clubs = (s.clubs || []).filter((x) => x !== id);
     if (s.cashes) delete s.cashes[id];
+    syncStad(s);
     return null;
   }
-  const api = { ALTS, dupOffers, jobOffers, level, liveReposition, applyLeagues, clubCash, yearOf, startRound, liveStep, liveSub, liveTakePen, penProb, liveResolve, liveFinish, autoReorg, getStad, stadCost, upgradeStadium, autoStadium, clubRev, payroll, migrateFin, migrateOvr2, topScorers, topScorersComp, lookup, yearOf, bestFormation, avail, nextRoundClubs, myClubs, addClub, switchClub, dropClub, STATES, CONT, COUNTRIES, LEAGUES, LG, FORMATIONS, TACTICS, newGame, autoLineup, ratings, playRound, acceptOffer, market, buy, sell, auction, sellTo, applyUpdate, resetPid, migrateOvr, lineupPlayers, fixLineup, nextUserRound, sortTab, dateOf, userComps, userMatches };
+  const api = { syncStad, ALTS, dupOffers, jobOffers, level, liveReposition, applyLeagues, clubCash, yearOf, startRound, liveStep, liveSub, liveTakePen, penProb, liveResolve, liveFinish, autoReorg, getStad, stadCost, upgradeStadium, autoStadium, clubRev, payroll, migrateFin, migrateOvr2, topScorers, topScorersComp, lookup, yearOf, bestFormation, avail, nextRoundClubs, myClubs, addClub, switchClub, dropClub, STATES, CONT, COUNTRIES, LEAGUES, LG, FORMATIONS, TACTICS, newGame, autoLineup, ratings, playRound, acceptOffer, market, buy, sell, auction, sellTo, applyUpdate, resetPid, migrateOvr, lineupPlayers, fixLineup, nextUserRound, sortTab, dateOf, userComps, userMatches };
   if (typeof module !== "undefined") module.exports = api; else root.Game = api;
 })(typeof window !== "undefined" ? window : globalThis);
