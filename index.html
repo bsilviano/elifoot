@@ -66,13 +66,13 @@ tr.me{background:color-mix(in srgb,var(--ac) 30%,transparent);font-weight:800}tr
 <header><div class="hl"><span id="crest"></span><b id="hT">Meu Elifoot</b></div><div class="hr"><span id="flag"></span><span id="hS"></span></div></header>
 <main id="app"></main>
 <nav id="nav"></nav>
-<script src="clubs.js?v=160"></script>
-<script src="game.js?v=160"></script>
+<script src="clubs.js?v=161"></script>
+<script src="game.js?v=161"></script>
 <script>
 const PREFIX="elifoot:save:",SAVE1="Elifoot"; // um único save para todos os times
 let artCan=false,S=null,tab="jogo",msg="",mf={pos:"",q:"",any:true,min:1,max:null,afford:true,ord:"ovr",dir:-1},viewKey=null;
 const $=id=>document.getElementById(id);
-const VERSAO=160;
+const VERSAO=161;
 const moneyFull=n=>(n<0?"-":"")+"R$ "+Math.round(Math.abs(n)).toLocaleString("pt-BR");
 const money=moneyFull;
 const U=()=>S.teams[S.user];
@@ -215,7 +215,7 @@ POR:'<rect width="30" height="20" fill="#ff0000"/><rect width="12" height="20" f
 ITA:'<rect width="10" height="20" fill="#009246"/><rect x="10" width="10" height="20" fill="#fff"/><rect x="20" width="10" height="20" fill="#ce2b37"/>',
 FRA:'<rect width="10" height="20" fill="#002395"/><rect x="10" width="10" height="20" fill="#fff"/><rect x="20" width="10" height="20" fill="#ed2939"/>'};
 function flagSvg(c){return FLAGS[c]?`<svg width="30" height="20" viewBox="0 0 30 20">${FLAGS[c]}</svg>`:""}
-let TMID={},SPMAP=null;fetch("elencos.json").then(r=>r.json()).then(d=>{SPMAP={};d.teams.forEach(t=>{if(t.tm)TMID[t.name]=t.tm;t.players.forEach(p=>{if(p.sp)SPMAP[t.name+"|"+p.name]=p.sp})});if(window.S&&typeof render==="function")render()}).catch(()=>{});
+let TMID={},SPMAP=null;fetch("elencos.json?"+Date.now()).then(r=>r.json()).then(d=>{SPMAP={};d.teams.forEach(t=>{if(t.tm)TMID[t.name]=t.tm;t.players.forEach(p=>{if(p.sp)SPMAP[t.name+"|"+p.name]=p.sp})});if(window.S&&typeof render==="function")render()}).catch(()=>{});
 function crestFallback(im){const n=im.getAttribute("data-n");if(im.parentNode)im.parentNode.innerHTML=crestSvg0(n)}
 function crestSvg(name){if(TMID[name])return `<img src="escudos/${TMID[name]}.png" alt="" data-n="${name.replace(/"/g,"")}" style="display:block;height:40px;width:auto;max-width:44px;object-fit:contain" onerror="crestFallback(this)">`;return crestSvg0(name)}
 function crestSvg0(name){const t=themeFor(name),h=TEAM_COLORS[name]||t.ac;const w=name.replace(/[^A-Za-zÀ-ÿ ]/g,"").split(" ").filter(x=>x.length>1);const ini=((w[0]||name)[0]+((w[1]||"")[0]||(w[0]||name)[1]||"")).toUpperCase();
@@ -225,7 +225,7 @@ function goRandom(){const c=$("rndSel").value,sel=$("clubSel");let o=[...sel.opt
 async function go(){
   if(localStorage.getItem(PREFIX+SAVE1)&&!confirm("Já existe um jogo salvo. Começar um novo jogo substitui o save atual (seus times e elencos). Continuar?"))return;
   S=Game.newGame($("clubSel").value);
-  try{const r=await fetch("elencos.json?"+Date.now());if(r.ok){const d=await r.json();try{const rn=await fetch("notas.json?"+Date.now());if(rn.ok)d.notas=await rn.json()}catch(e){}Game.applyUpdate(S,d,{initial:true});S.lastUpd=(d.updated||"")+"|"+((d.notas&&d.notas.v)||"");S.cash=Game.clubCash(U());S.rep=Game.repFor?Game.repFor(Game.ratings(U()).ovr):S.rep}}catch(e){}
+  try{const r=await fetch("elencos.json?"+Date.now());if(r.ok){const d=await r.json();try{const rn=await fetch("notas.json?"+Date.now());if(rn.ok)d.notas=await rn.json()}catch(e){}Game.applyUpdate(S,d,{initial:true});S.lastUpd=(d.updated||"")+"|"+((d.notas&&d.notas.v)||"")+"|p2";S.cash=Game.clubCash(U());S.rep=Game.repFor?Game.repFor(Game.ratings(U()).ovr):S.rep}}catch(e){}
   viewKey=null;tab="jogo";msg="";save();render()}
 function importSave(e){const f=e.target.files[0];if(!f)return;f.text().then(t=>{S=JSON.parse(t);Game.resetPid(S);Game.migrateOvr(S);save();render()})}
 function exportSave(){const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify(S)],{type:"application/json"}));a.download="elifoot-"+U().name+".json";a.click()}
@@ -236,7 +236,7 @@ function autoBest(u){if(u.fAuto===false)return false;const b=Game.bestFormation(
 function fixSP(){
   if(S&&S.teams&&S.teams[S.user]){const u=S.teams[S.user];if(Game.fixLineup(u)|autoBest(u))save()}
   if(S&&S.spv&&!S.lv5){Game.myClubs(S).forEach(id=>{S.teams[id].lineup=Game.autoLineup(S.teams[id])});S.lv5=1;save()}
-  if(S&&SPMAP&&!S.spv3){let ch3=0;for(const t of Object.values(S.teams))for(const p of t.players){const m=SPMAP[t.name+"|"+p.name];if(m&&p.sp!==m&&!p.rp){p.sp=m;ch3=1}}S.spv3=1;Game.myClubs(S).forEach(id=>{S.teams[id].lineup=Game.autoLineup(S.teams[id])});save()}
+  if(S&&SPMAP&&!S.spv4){let ch3=0;for(const t of Object.values(S.teams))for(const p of t.players){const m=SPMAP[t.name+"|"+p.name];if(m&&p.sp!==m&&!p.rp){p.sp=m;ch3=1}}S.spv4=1;Game.myClubs(S).forEach(id=>{S.teams[id].lineup=Game.autoLineup(S.teams[id])});save()}
   if(!S||S.spv||!SPMAP)return;
   const alt={GK:["GOL"],DEF:["ZAG","LD","ZAG","LE"],MID:["VOL","MC","ME","MD","MC"],ATT:["CA","PE","PD"]};
   for(const t of Object.values(S.teams)){let ch=0;
@@ -733,7 +733,7 @@ function vMais(){
 }
 async function update(auto){
   try{const r=await fetch("elencos.json?"+Date.now());if(!r.ok)throw 0;const d=await r.json();try{const rn=await fetch("notas.json?"+Date.now());if(rn.ok)d.notas=await rn.json()}catch(e){}
-    const stamp=(d.updated||"")+"|"+((d.notas&&d.notas.v)||"");
+    const stamp=(d.updated||"")+"|"+((d.notas&&d.notas.v)||"")+"|p2";
     if(auto&&d.updated&&S.lastUpd===stamp&&(S.ext||!d.outros))return;
     const tsPrev=localStorage.getItem(TSK+S.saveName),x=Game.applyUpdate(S,d);S.lastUpd=stamp;msg=`Elencos atualizados (${d.updated||"?"}): ${x.teams} times, ${x.kept} jogadores vendidos mantidos nos compradores.`+(x.left.length?`<br>Saíram do seu time (transferência real): ${x.left.join("; ")}`:"");save();if(auto&&tsPrev){clearTimeout(_pt);localStorage.setItem(TSK+S.saveName,tsPrev)}}
   catch(e){if(!auto)msg="Ainda não há elencos.json publicado."}
