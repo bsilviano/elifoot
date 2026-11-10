@@ -906,7 +906,7 @@
       if (m) {
         const c = s.comps[rd.c];
         const pos = (id) => { if (rd.k !== "tab" || !c || !c.tab || !c.tab[id] || !c.tab[id].p) return null; const grp = c.groups && c.groups.find((x) => x.includes(id)); return sortTab(grp || c.ids, c.tab).indexOf(id) + 1; };
-        return { rodada: rodLabel(c, rd), hp: pos(m[0]), ap: pos(m[1]), T: rd.T, date: dateOf(rd.T), comp: c ? c.name + (rd.n ? " · " + rd.n : "") : "", home: s.teams[m[0]], away: s.teams[m[1]] }; }
+        return { cid: rd.c, rodada: rodLabel(c, rd), hp: pos(m[0]), ap: pos(m[1]), T: rd.T, date: dateOf(rd.T), comp: c ? c.name + (rd.n ? " · " + rd.n : "") : "", home: s.teams[m[0]], away: s.teams[m[1]] }; }
     }
     return null;
   }

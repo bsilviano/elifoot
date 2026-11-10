@@ -63,13 +63,13 @@ tr.me{background:color-mix(in srgb,var(--ac) 30%,transparent);font-weight:800}tr
 <header><div class="hl"><span id="crest"></span><b id="hT">Meu Elifoot</b></div><div class="hr"><span id="flag"></span><span id="hS"></span></div></header>
 <main id="app"></main>
 <nav id="nav"></nav>
-<script src="clubs.js?v=133"></script>
-<script src="game.js?v=133"></script>
+<script src="clubs.js?v=134"></script>
+<script src="game.js?v=134"></script>
 <script>
 const PREFIX="elifoot:save:",SAVE1="Elifoot"; // um único save para todos os times
 let artCan=false,S=null,tab="jogo",msg="",mf={pos:"",q:"",any:true,min:1,max:null,afford:true,ord:"ovr",dir:-1},viewKey=null;
 const $=id=>document.getElementById(id);
-const VERSAO=133;
+const VERSAO=134;
 const moneyFull=n=>(n<0?"-":"")+"R$ "+Math.round(Math.abs(n)).toLocaleString("pt-BR");
 const money=moneyFull;
 const U=()=>S.teams[S.user];
@@ -264,7 +264,11 @@ function vJogo(){
   }else h+=`<p style="margin:0">Sem jogos agendados. Clique para avançar o calendário.</p>`;
   const inl=new Set(u.lineup),bn=u.players.filter(p=>!inl.has(p.id)).sort((a,b)=>SPR[SPN(a)]-SPR[SPN(b)]||b.ov-a.ov);
   const bench=`<div class="card el3"><h2>Banco e reservas</h2><p class="mut" style="margin:0 0 6px">${bn.length} jogadores fora da escalação</p>${bn.map(p=>`<div class="pl"><span class="pc"><span class="pos">${SPN(p)}</span><span class="mut">${p.age}a</span></span><span class="nm">${p.name}${p.inj>0?` <span class="bad">🚑 ${p.inj}</span>`:""}${p.sus>0?` <span class="bad">🟥 susp.</span>`:""}</span><span class="rt"><b class="ovc">${p.ov}</b></span></div>`).join("")}</div>`;
-  h+=`</div>`+lineupCard(u)+(msg?`<div class="card">${msg}</div>`:"")+`</div>${bench}</div>`;
+  let side=bench;
+  const nc=n&&S.comps[n.cid];
+  if(nc&&nc.tab){const ids=nc.groups?(nc.groups.find(g=>g.includes(n.home.id))||nc.ids):nc.ids;
+    side=`<div class="card el3"><h2>${nc.name} — tabela</h2>${tbl(nc,ids)}</div>`}
+  h+=`</div>`+lineupCard(u)+(msg?`<div class="card">${msg}</div>`:"")+`</div>${side}</div>`;
   return h;
 }
 const SPN=p=>p.sp||({GK:"GOL",DEF:"ZAG",MID:"MC",ATT:"CA"})[p.pos];
@@ -293,7 +297,7 @@ function lineupCard(u){
     g.sort((a,b)=>(SPO[SPN(a)]-SPO[SPN(b)])||a.name.localeCompare(b.name));
     h+=`<div class="lin${g.length===2&&g[0].pos==="ATT"?" dup":""}">`+g.map(p=>`<div class="jog"><i style="background:${col};color:${tx}">${p.ov}</i><span>${p.name}</span><small>${SPN(p)}</small></div>`).join("")+`</div>`}
   h+=`</div>`;
-  if(res.length)h+=`<p class="mut mob-only" style="margin:8px 0 0">Banco: ${res.map(p=>`${p.name} (${SPN(p)} ${p.ov})`).join(", ")}</p>`;
+  if(res.length)h+=`<p class="mut" style="margin:8px 0 0">Banco: ${res.map(p=>`${p.name} (${SPN(p)} ${p.ov})`).join(", ")}</p>`;
   return h+`<p><button class="s" onclick="setTab('elenco')">Mudar escalação</button></p></div>`;
 }
 function acceptRandom(){const c=$("offCty")?$("offCty").value:"";const l=S.offers.filter(o=>!c||o.country===c);if(!l.length){alert("Nenhuma oferta nesse país.");return}accept(l[Math.floor(Math.random()*l.length)].tid)}
