@@ -1557,6 +1557,8 @@
     const isMine = initial ? () => false : isMineG;
     const u = s.teams[s.user];
     const key = (x) => String(x).toLowerCase();
+    const NB = (data.notas && data.notas.t) || {}; // bônus de OVR (−3..+3) pelas notas reais do Sofascore
+    const nbo = (tname, pname) => (NB[tname] && NB[tname][pname]) || 0;
     // Saves antigos: sem registro de compras, ninguém sai do elenco nesta atualização
     s.sold = s.sold || [];
     const mine = initial ? new Set() : new Set((s.clubs || [s.user]).concat(s.user).flatMap((id) => s.teams[id].players.map((p) => key(p.name))));
@@ -1586,7 +1588,7 @@
           const q = real[key(p.name)];
           if (!q || !(q.value || q.ov)) continue;
           const age = q.age || p.age;
-          p.ov = q.ov || ovFromValue(q.value, age, q.sp || p.sp, t.lkey);
+          p.ov = q.ov || Math.max(1, ovFromValue(q.value, age, q.sp || p.sp, t.lkey) + nbo(t.name, q.name));
           p.of = p.ov; p.age = age; p.value = q.value || valueOf(p.ov, age, q.sp || p.sp, t.lkey); p.wage = Math.round(p.value / 900);
           p.long = age > 40 ? 1 : 0; p.real = 1; // jogador com dado real: o Transfermarkt manda no OVR dele
         }
@@ -1602,7 +1604,7 @@
         // jogador comprado por mim continua comigo; os que saíram de verdade vão para o novo clube
         if (mine.has(key(q.name)) && bought.has(key(q.name))) { removed++; continue; }
         const age = q.age || 25;
-        const ov = q.ov || (q.value ? ovFromValue(q.value, age, q.sp, t.lkey) : 55);
+        const ov = q.ov || (q.value ? Math.max(1, ovFromValue(q.value, age, q.sp, t.lkey) + nbo(dt.name, q.name)) : 55);
         const value = q.value || valueOf(ov, age, q.sp, t.lkey);
         ps.push({ id: PID++, name: q.name, pos: q.pos, sp: q.sp, cg: q.cg || 0, ov, age, value, wage: Math.round(value / 900), long: age > 40 ? 1 : 0 });
       }
