@@ -84,7 +84,7 @@
       const slots = SLOTS[pos] && SLOTS[pos][need[pos]];
       const used = new Set();
       if (slots) {
-        for (const sp of slots) { const c = pool.find((p) => !used.has(p.id) && p.sp === sp); if (c) { used.add(c.id); } else miss++; }
+        for (const sp of slots) { const c = pool.find((p) => !used.has(p.id) && p.sp === sp) || ((sp === "ME" || sp === "MD") ? pool.find((p) => !used.has(p.id) && p.sp === "MC") : null); if (c) { used.add(c.id); } else miss++; } // meia lateral é raro no Transfermarkt: meia central cobre sem penalidade
       }
       const pick1 = [...used].map((id) => pool.find((p) => p.id === id));
       const rest = pool.filter((p) => !used.has(p.id)).concat(out);
