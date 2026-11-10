@@ -50,8 +50,10 @@ tr.me{background:color-mix(in srgb,var(--ac) 30%,transparent);font-weight:800}tr
 @media(min-width:1000px){.mg>.card.mine{grid-column:1/-1;padding:18px}.mg>.card.mine .mrow{font-size:38px}.mg>.card.mine .mrow .tb{font-size:26px;padding:6px 14px}.mg>.card.mine .evg{font-size:17px!important;gap:10px!important}.mg .mrow{font-size:28px}.mg .mrow .tb{font-size:19px}.lvl>.card:first-child .big{font-size:30px}.lvr .pl{font-size:15px}}
 @media(min-width:1000px){#app>.elg{grid-column:1/-1;display:grid;grid-template-columns:minmax(340px,1fr) minmax(460px,1.4fr) minmax(300px,1fr);gap:14px;align-items:stretch}.elg>div{min-width:0}.el1{display:flex;flex-direction:column;gap:14px}.el1>.card{margin:0}.el1>.card:last-child{flex:1}.el2>.card,.elg>.el3{margin:0}.elg>.el3{align-self:start}}
 @media(min-width:1000px){.tbw table{font-size:16px}.tbw td,.tbw th{padding:7px 10px}.tbw td:not(.l),.tbw th:not(.l){width:8%}}
+.mc{display:contents}
 .desk-only{display:none}
 @media(min-width:1000px){.mob-only{display:none}#app>.elg.desk-only{grid-template-columns:repeat(3,minmax(0,1fr));align-items:start}.desk-only>.card{margin:0}}
+@media(min-width:1000px){#app>.mcg{grid-column:1/-1;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;align-items:start}.mc{display:flex;flex-direction:column;gap:14px;min-width:0}.mc>.card{margin:0}}
 @media(max-width:999px){.lvr,.el3{display:none}}
 </style>
 </head>
@@ -59,13 +61,13 @@ tr.me{background:color-mix(in srgb,var(--ac) 30%,transparent);font-weight:800}tr
 <header><div class="hl"><span id="crest"></span><b id="hT">Meu Elifoot</b></div><div class="hr"><span id="flag"></span><span id="hS"></span></div></header>
 <main id="app"></main>
 <nav id="nav"></nav>
-<script src="clubs.js?v=129"></script>
-<script src="game.js?v=129"></script>
+<script src="clubs.js?v=130"></script>
+<script src="game.js?v=130"></script>
 <script>
 const PREFIX="elifoot:save:",SAVE1="Elifoot"; // um único save para todos os times
 let artCan=false,S=null,tab="jogo",msg="",mf={pos:"",q:"",any:true,min:1,max:null,afford:true,ord:"ovr",dir:-1},viewKey=null;
 const $=id=>document.getElementById(id);
-const VERSAO=129;
+const VERSAO=130;
 const moneyFull=n=>(n<0?"-":"")+"R$ "+Math.round(Math.abs(n)).toLocaleString("pt-BR");
 const money=moneyFull;
 const U=()=>S.teams[S.user];
@@ -654,21 +656,21 @@ function vFin(){
 function vMais(){
   if(FINH)return vFin();
   const u=U(),w=u.players.reduce((s,p)=>s+p.wage,0);
-  return `<div class="card"><h2>Finanças</h2><p>Caixa: <b>${moneyFull(S.cash)}</b><br>Folha mensal: ${money(Math.round(w*52/12))} <span class="mut">(paga uma vez por mês)</span><br>Torcida (estimada): ${(u.fans*1000).toLocaleString("pt-BR")}<br>Reputação: ${S.rep}/100</p><button class="s" onclick="FINH=true;render()">📒 Histórico financeiro</button></div>
-  <div class="card"><h2>Estádio</h2>${(()=>{const cap=Game.getStad(u),max=cap>=100000;return `<p>Capacidade: <b>${cap.toLocaleString("pt-BR")}</b> lugares${max?" (máximo)":""}<br><span class="mut">Mínimo 10.000 · máximo 100.000 · amplia de 10.000 em 10.000. Custo: capacidade atual × 100. Manutenção: R$ 10 por lugar por mês (${money(cap*10)}/mês). O ingresso é mais caro em competições e fases mais importantes. A renda do jogo é toda do mandante; o visitante não recebe nada. O público depende da torcida (${(u.fans*1000).toLocaleString("pt-BR")}).</span></p>${max?"":`<p><button class="p" onclick="buildStad()">Ampliar para ${(cap+10000).toLocaleString("pt-BR")} lugares (${moneyFull(Game.stadCost(u))})</button></p>`}`})()}</div>
+  return `<div class="elg mcg"><div class="mc"><div class="card"><h2>Finanças</h2><p>Caixa: <b>${moneyFull(S.cash)}</b><br>Folha mensal: ${money(Math.round(w*52/12))} <span class="mut">(paga uma vez por mês)</span><br>Torcida (estimada): ${(u.fans*1000).toLocaleString("pt-BR")}<br>Reputação: ${S.rep}/100</p><button class="s" onclick="FINH=true;render()">📒 Histórico financeiro</button></div>
   <div class="card"><h2>Ofertas de emprego</h2>
   ${myS().map(id=>{const m=(S.jobModes&&S.jobModes[id]!=null?S.jobModes[id]:S.jobMode)||"";return `<div style="border-bottom:1px solid var(--line);padding:6px 0"><b>${S.teams[id].name}</b> <span class="mut">(${Game.COUNTRIES[S.teams[id].country].name})</span>
   <label style="display:flex;gap:8px;align-items:center;padding:3px 0"><input type="checkbox" ${m==="refuse"?"checked":""} onchange="setJob(${id},'refuse',this.checked)" style="padding:0;width:20px;height:20px"> Recusar ofertas de emprego</label>
   <label style="display:flex;gap:8px;align-items:center;padding:3px 0"><input type="checkbox" ${m==="seek"?"checked":""} onchange="setJob(${id},'seek',this.checked)" style="padding:0;width:20px;height:20px"> Procurando emprego (ofertas a cada 5 jogos)</label></div>`}).join("")}
-  <p class="mut">Vale para cada clube separadamente. Sem nenhuma marcada, chegam ofertas a cada 10 jogos. Os convites são de clubes maiores que o clube (pelo valor do elenco), desde que a posição atual na tabela seja compatível com o porte do clube. Nunca de divisão inferior, nem em outro país. Se você aceitar, o convite substitui aquele clube.</p></div>
+  <p class="mut">Vale para cada clube separadamente. Sem nenhuma marcada, chegam ofertas a cada 10 jogos. Os convites são de clubes maiores que o clube (pelo valor do elenco), desde que a posição atual na tabela seja compatível com o porte do clube. Nunca de divisão inferior, nem em outro país. Se você aceitar, o convite substitui aquele clube.</p></div></div><div class="mc">
+  <div class="card"><h2>Estádio</h2>${(()=>{const cap=Game.getStad(u),max=cap>=100000;return `<p>Capacidade: <b>${cap.toLocaleString("pt-BR")}</b> lugares${max?" (máximo)":""}<br><span class="mut">Mínimo 10.000 · máximo 100.000 · amplia de 10.000 em 10.000. Custo: capacidade atual × 100. Manutenção: R$ 10 por lugar por mês (${money(cap*10)}/mês). O ingresso é mais caro em competições e fases mais importantes. A renda do jogo é toda do mandante; o visitante não recebe nada. O público depende da torcida (${(u.fans*1000).toLocaleString("pt-BR")}).</span></p>${max?"":`<p><button class="p" onclick="buildStad()">Ampliar para ${(cap+10000).toLocaleString("pt-BR")} lugares (${moneyFull(Game.stadCost(u))})</button></p>`}`})()}</div>
   <div class="card"><h2>Meus times</h2>${myS().map(id=>`<div class="pl ${id===S.user?"in":""}"><span><b>${S.teams[id].name}</b> <span class="mut">(${Game.COUNTRIES[S.teams[id].country].name})</span><br><span class="mut">Caixa ${moneyFull(id===S.user?S.cash:(S.cashes&&S.cashes[id])||0)}${id===S.user?" · ativo":""}</span></span><span>${id===S.user?"":`<button class="s p" onclick="swClub(${id})">Comandar</button> `}<button class="s d" onclick="dropClubUI(${id})">Largar</button></span></div>`).join("")}
   <div class="row" style="margin-top:8px"><select id="addSel" style="flex:1;min-width:0">${clubOpts()}</select><button class="p" onclick="addClubUI()">Adicionar time</button></div>
   <div class="row" style="margin-top:8px"><select id="addCty" style="flex:1;min-width:0"><option value="">Qualquer país</option>${cNames().map(n=>`<option>${n}</option>`).join("")}</select><button onclick="addRandomUI()">🎲 Time aleatório</button></div>
-  <p class="mut">Cada time tem elenco, escalação e caixa próprios. O jogo avança até a próxima partida do time ativo; os outros times seus jogam com escalação automática se ela ficar inválida e pagam salários e recebem bilheteria. Prêmios e propostas de fim de temporada só valem para o time ativo.</p></div>
+  <p class="mut">Cada time tem elenco, escalação e caixa próprios. O jogo avança até a próxima partida do time ativo; os outros times seus jogam com escalação automática se ela ficar inválida e pagam salários e recebem bilheteria. Prêmios e propostas de fim de temporada só valem para o time ativo.</p></div></div><div class="mc">
   ${syncCard()}
   <div class="card"><h2>Save e elencos</h2><p class="mut">Salvamento automático em um único save para todos os seus times.</p>
   <div class="row"><button onclick="exportSave()">Exportar save</button><button onclick="start()">Trocar de save / novo jogo</button></div>
-  <p class="mut">Os elencos são atualizados automaticamente ao abrir o jogo. Todos os times são atualizados, exceto o seu. O seu elenco nunca é alterado enquanto você for o técnico; jogadores que você vendeu ficam no clube comprador.</p>${msg?`<p>${msg}</p>`:""}</div>`;
+  <p class="mut">Os elencos são atualizados automaticamente ao abrir o jogo. Todos os times são atualizados, exceto o seu. O seu elenco nunca é alterado enquanto você for o técnico; jogadores que você vendeu ficam no clube comprador.</p>${msg?`<p>${msg}</p>`:""}</div></div></div>`;
 }
 async function update(auto){
   try{const r=await fetch("elencos.json?"+Date.now());if(!r.ok)throw 0;const d=await r.json();
