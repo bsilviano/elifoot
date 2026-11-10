@@ -50,6 +50,8 @@ tr.me{background:color-mix(in srgb,var(--ac) 30%,transparent);font-weight:800}tr
 @media(min-width:1000px){.mg>.card.mine{grid-column:1/-1;padding:18px}.mg>.card.mine .mrow{font-size:38px}.mg>.card.mine .mrow .tb{font-size:26px;padding:6px 14px}.mg>.card.mine .evg{font-size:17px!important;gap:10px!important}.mg .mrow{font-size:28px}.mg .mrow .tb{font-size:19px}.lvl>.card:first-child .big{font-size:30px}.lvr .pl{font-size:15px}}
 @media(min-width:1000px){#app>.elg{grid-column:1/-1;display:grid;grid-template-columns:minmax(340px,1fr) minmax(460px,1.4fr) minmax(300px,1fr);gap:14px;align-items:stretch}.elg>div{min-width:0}.el1{display:flex;flex-direction:column;gap:14px}.el1>.card{margin:0}.el1>.card:last-child{flex:1}.el2>.card,.elg>.el3{margin:0}.elg>.el3{align-self:start}}
 @media(min-width:1000px){.tbw table{font-size:16px}.tbw td,.tbw th{padding:7px 10px}.tbw td:not(.l),.tbw th:not(.l){width:8%}}
+.desk-only{display:none}
+@media(min-width:1000px){.mob-only{display:none}#app>.elg.desk-only{grid-template-columns:repeat(3,minmax(0,1fr));align-items:start}.desk-only>.card{margin:0}}
 @media(max-width:999px){.lvr,.el3{display:none}}
 </style>
 </head>
@@ -57,13 +59,13 @@ tr.me{background:color-mix(in srgb,var(--ac) 30%,transparent);font-weight:800}tr
 <header><div class="hl"><span id="crest"></span><b id="hT">Meu Elifoot</b></div><div class="hr"><span id="flag"></span><span id="hS"></span></div></header>
 <main id="app"></main>
 <nav id="nav"></nav>
-<script src="clubs.js?v=128"></script>
-<script src="game.js?v=128"></script>
+<script src="clubs.js?v=129"></script>
+<script src="game.js?v=129"></script>
 <script>
 const PREFIX="elifoot:save:",SAVE1="Elifoot"; // um único save para todos os times
 let artCan=false,S=null,tab="jogo",msg="",mf={pos:"",q:"",any:true,min:1,max:null,afford:true,ord:"ovr",dir:-1},viewKey=null;
 const $=id=>document.getElementById(id);
-const VERSAO=128;
+const VERSAO=129;
 const moneyFull=n=>(n<0?"-":"")+"R$ "+Math.round(Math.abs(n)).toLocaleString("pt-BR");
 const money=moneyFull;
 const U=()=>S.teams[S.user];
@@ -601,7 +603,8 @@ function vHist(){
   return h;
 }
 let artTab="season";
-function vArt(){
+function vArt(){return `<div class="mob-only">${vArtM()}</div>${vArtD()}`}
+function vArtM(){
   let l=Game.topScorers(S,artTab,artCan?100000:30);
   if(artCan)l=l.filter(e=>{const f=Game.lookup(S,e.n,e.c);return f&&f.price<=S.cash}).slice(0,30);
   const tb=(k,t)=>`<button class="${artTab===k?"p":"s"}" onclick="artTab='${k}';render()">${t}</button>`;
@@ -610,6 +613,18 @@ function vArt(){
   <p class="mut">Toque no nome de um jogador de outro time para contratá-lo. Gols de todas as competições do jogo. ${artTab==="season"?"Zera a cada ano.":"Gols da carreira real (Transfermarkt) somados aos que o jogador faz no jogo."}</p>
   ${l.length?l.map((e,i)=>`<div class="pl ${e.mine?"in":""}"><span><b>${i+1}º</b> ${pn(e.n,e.c)}<br><span class="mut">${e.c}</span></span><span style="text-align:right"><b>${e.g}</b> gol${e.g>1?"s":""}${artTab==="all"&&e.real?`<br><span class="mut">${e.real} real + ${e.jogo} no jogo</span>`:""}</span></div>`).join(""):'<p class="mut">Ainda não houve gols. Jogue a primeira rodada.</p>'}</div>`;
 }
+let artComp=null;
+function vArtD(){
+  const cs=Object.values(S.comps).filter(c=>!c.id.endsWith("_K")&&c.ids&&c.ids.length);
+  if(!artComp||!S.comps[artComp]){const m=cs.filter(c=>c.ids.includes(S.user));artComp=(m.find(c=>c.after==="lg")||m[0]||cs[0]||{}).id}
+  const y=Game.yearOf(S.T);
+  const lst=(l,sub)=>{if(artCan)l=l.filter(e=>{const f=Game.lookup(S,e.n,e.c);return f&&f.price<=S.cash});l=l.slice(0,30);
+    return l.length?l.map((e,i)=>`<div class="pl ${e.mine?"in":""}"><span><b>${i+1}º</b> ${pn(e.n,e.c)}<br><span class="mut">${e.c}</span></span><span style="text-align:right"><b>${e.g}</b> gol${e.g>1?"s":""}${sub&&e.real?`<br><span class="mut">${e.real} real + ${e.jogo} no jogo</span>`:""}</span></div>`).join(""):'<p class="mut">Ainda não houve gols.</p>'};
+  const pool=100000,sel=`<select onchange="artComp=this.value;render()" style="width:100%;margin-bottom:6px">${cs.map(c=>`<option value="${c.id}" ${c.id===artComp?"selected":""}>${c.name}</option>`).join("")}</select>`;
+  return `<div class="elg desk-only"><div class="card" style="grid-column:1/-1;margin:0"><label class="mut" style="display:flex;align-items:center;gap:6px"><input type="checkbox" ${artCan?"checked":""} onchange="artCan=this.checked;render()"> Só os que posso contratar (caixa ${money(S.cash)}) · toque no nome para contratar</label></div>
+  <div class="card"><h2>De sempre</h2><p class="mut" style="margin:0 0 4px">Gols da carreira real (Transfermarkt) somados aos do jogo.</p>${lst(Game.topScorers(S,"all",pool),true)}</div>
+  <div class="card"><h2>Temporada ${y}</h2><p class="mut" style="margin:0 0 4px">Todas as competições do jogo. Zera a cada ano.</p>${lst(Game.topScorers(S,"season",pool))}</div>
+  <div class="card"><h2>Campeonato</h2>${sel}${lst(Game.topScorersComp(S,artComp,pool))}<p class="mut" style="margin-top:6px;font-size:12px">Conta os gols feitos no jogo a partir da versão 129.</p></div></div>`}
 function vMercado(){
   const all=Game.market(S),maxOvr=all.reduce((m,p)=>Math.max(m,p.ov),1),mx=mf.max==null?maxOvr:mf.max;
   let l=all.filter(p=>(!mf.pos||SPN(p)===mf.pos)&&(mf.any||(p.ov>=mf.min&&p.ov<=mx))&&(!mf.afford||Math.round(p.value*1.15)<=S.cash)&&(!mf.q||(p.name+p.team).toLowerCase().includes(mf.q.toLowerCase())));

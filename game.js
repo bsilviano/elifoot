@@ -540,7 +540,7 @@
       }
   }
   // Artilheiros: chave nome|clube; total (g) e da temporada (sg, ano sy).
-  function trackGoals(s, team, names) {
+  function trackGoals(s, team, names, c) {
     s.scorers = s.scorers || {};
     const y = yearOf(s.T);
     s.scY = y;
@@ -555,7 +555,20 @@
       const e = s.scorers[k] || (s.scorers[k] = { n: nm, c: team.name, g: 0, sy: y, sg: 0 });
       if (e.sy !== y) { e.sy = y; e.sg = 0; }
       e.g++; e.sg++;
+      if (c) { // gols por campeonato (reinicia a cada edição)
+        const cid = c.id.replace(/_K$/, ""), bc = s.comps[cid] || c;
+        e.cs = e.cs || {};
+        if (!e.cs[cid] || e.cs[cid].k !== bc.name) e.cs[cid] = { k: bc.name, g: 0 };
+        e.cs[cid].g++;
+      }
     }
+  }
+  function topScorersComp(s, cid, n) {
+    const bc = s.comps[cid]; if (!bc) return [];
+    const mine = (id) => (s.clubs || [s.user]).concat(s.user).some((m) => s.teams[m] && s.teams[m].id === id);
+    return Object.values(s.scorers || {}).filter((e) => e.cs && e.cs[cid] && e.cs[cid].k === bc.name && e.cs[cid].g > 0)
+      .sort((a, b) => b.cs[cid].g - a.cs[cid].g || b.g - a.g).slice(0, n || 30)
+      .map((e) => ({ n: e.n, c: e.c, g: e.cs[cid].g, mine: Object.values(s.teams).some((t) => t.name === e.c && mine(t.id)) }));
   }
   // "De sempre" = gols da carreira real (cg, vindos do elencos.json) + gols feitos no jogo.
   function topScorers(s, kind, n) {
@@ -583,7 +596,7 @@
       if (!silent && h === s.user) { /* escalação do usuário ativo */ } else if (!silent && isMine(s, h)) fixLineup(H); else H.lineup = autoLineup(H);
       if (!silent && a === s.user) { /* escalação do usuário ativo */ } else if (!silent && isMine(s, a)) fixLineup(A); else A.lineup = autoLineup(A);
       const r = pre ? pre[fi] : simMatch(H, A);
-      trackGoals(s, H, r.sh); trackGoals(s, A, r.sa);
+      trackGoals(s, H, r.sh, c); trackGoals(s, A, r.sa, c);
       if (rd.k === "tab") {
         const th = c.tab[h], ta = c.tab[a];
         th.p++; ta.p++; th.gf += r.gh; th.ga += r.ga; ta.gf += r.ga; ta.ga += r.gh;
@@ -1608,6 +1621,6 @@
     if (s.cashes) delete s.cashes[id];
     return null;
   }
-  const api = { liveReposition, applyLeagues, clubCash, yearOf, startRound, liveStep, liveSub, liveTakePen, penProb, liveResolve, liveFinish, autoReorg, getStad, stadCost, upgradeStadium, topScorers, lookup, yearOf, bestFormation, avail, nextRoundClubs, myClubs, addClub, switchClub, dropClub, STATES, CONT, COUNTRIES, LEAGUES, LG, FORMATIONS, TACTICS, newGame, autoLineup, ratings, playRound, acceptOffer, market, buy, sell, auction, sellTo, applyUpdate, resetPid, migrateOvr, lineupPlayers, fixLineup, nextUserRound, sortTab, dateOf, userComps, userMatches };
+  const api = { liveReposition, applyLeagues, clubCash, yearOf, startRound, liveStep, liveSub, liveTakePen, penProb, liveResolve, liveFinish, autoReorg, getStad, stadCost, upgradeStadium, topScorers, topScorersComp, lookup, yearOf, bestFormation, avail, nextRoundClubs, myClubs, addClub, switchClub, dropClub, STATES, CONT, COUNTRIES, LEAGUES, LG, FORMATIONS, TACTICS, newGame, autoLineup, ratings, playRound, acceptOffer, market, buy, sell, auction, sellTo, applyUpdate, resetPid, migrateOvr, lineupPlayers, fixLineup, nextUserRound, sortTab, dateOf, userComps, userMatches };
   if (typeof module !== "undefined") module.exports = api; else root.Game = api;
 })(typeof window !== "undefined" ? window : globalThis);
