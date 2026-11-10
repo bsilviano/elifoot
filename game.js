@@ -1037,7 +1037,9 @@
     const raw = t.stad || (tier === 1 ? 30000 : tier === 2 ? 20000 : STAD_MIN);
     return Math.max(STAD_MIN, Math.min(STAD_MAX, Math.round(raw / STAD_STEP) * STAD_STEP));
   }
-  function stadCost(t) { return getStad(t) * 100; }
+  // Custo real de ampliar: cerca de € 8.000 por lugar (x 6,13), ou seja, ~R$ 490 milhões por 10 mil lugares: só clube muito rico amplia.
+  const SEAT_COST = 8000 * 6.13;
+  function stadCost(t) { return STAD_STEP * SEAT_COST; }
   function upgradeStadium(s) {
     const t = s.teams[s.user], cap = getStad(t);
     if (cap >= STAD_MAX) return "O estádio já está no tamanho máximo (100.000 lugares).";
@@ -1047,7 +1049,12 @@
     s.cash -= cost; t.stad = Math.min(STAD_MAX, cap + STAD_STEP); t.stadUp = 1;
     return null;
   }
-  function autoStadium(s) { let n = 0; while (n < 10 && !upgradeStadium(s)) n++; return n; }
+  // Ampliação automática do clube ativo: só se a procura por ingresso passa da capacidade e a obra custa até 25% do caixa (uma por vez).
+  function autoStadium(s) {
+    const t = s.teams[s.user]; let n = 0;
+    while (n < 1 && getStad(t) < t.fans * 1000 * 0.12 * 1.1 && stadCost(t) <= s.cash * 0.25 && !upgradeStadium(s)) n++;
+    return n;
+  }
   // Renda do jogo: público x preço do ingresso; mandante fica com 70% e visitante com 30%.
   // O público varia com a torcida, o porte do adversário e o acaso.
   // Preço médio do ingresso (R$) por competição. Série A: ticket médio real do Brasileirão 2026 (R$ 52,64, Trivela/Pluri);
@@ -1619,7 +1626,7 @@
     for (const dt of data.teams || []) {
       const t = Object.values(s.teams).find((x) => x.name === dt.name);
       if (!t || !isMine(s, t.id)) continue;
-      if (dt.stad && !t.stadUp) t.stad = dt.stad;
+      if (dt.stad && (!t.stadUp || !s.stadV2)) { t.stad = dt.stad; t.stadUp = 0; }
       const cgs = {}; for (const q of dt.players || []) if (q.cg) cgs[key(q.name)] = q.cg;
       for (const p of t.players) if (cgs[key(p.name)]) p.cg = cgs[key(p.name)];
     }
@@ -1655,7 +1662,7 @@
         const value = q.value || valueOf(ov, age, q.sp, t.lkey);
         ps.push({ id: PID++, name: q.name, pos: q.pos, sp: q.sp, cg: q.cg || 0, ov, age, value, wage: Math.round(value / 900), long: age > 40 ? 1 : 0 });
       }
-      if (dt.stad && !t.stadUp) t.stad = dt.stad;
+      if (dt.stad && (!t.stadUp || !s.stadV2)) { t.stad = dt.stad; t.stadUp = 0; }
       t.players = ps; t.lineup = autoLineup(t); n++;
     }
     // jogadores que eu vendi continuam no clube comprador, a menos que o elenco real já os traga em algum clube
@@ -1695,6 +1702,7 @@
         s.ext.push({ id: PID++, name: q.name, pos: q.pos, sp: q.sp, cg: q.cg || 0, ov, age, value, wage: Math.round(value / 900), long: age > 40 ? 1 : 0, club: q.club, ext: 1 });
       }
     }
+    s.stadV2 = 1;
     return { teams: n, removed, kept, left };
   }
 
