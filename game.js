@@ -33,7 +33,7 @@
     return AGE_PTS[AGE_PTS.length - 1][1];
   }
   // Prêmio de mercado por posição (ESTIMATIVA): atacantes e pontas custam mais que zagueiros e goleiros com a mesma qualidade.
-  const POS_F = { GOL: 0.8, ZAG: 0.95, LD: 1, LE: 1, VOL: 0.95, MC: 1, ME: 1.05, MD: 1.05, PD: 1.2, PE: 1.2, CA: 1.25 };
+  const POS_F = { GOL: 0.8, ZAG: 0.95, LD: 1, LE: 1, VOL: 0.95, MC: 1, MEI: 1.1, ME: 1.05, MD: 1.05, PD: 1.2, PE: 1.2, SA: 1.2, CA: 1.25 };
   // Prêmio de mercado por liga (ESTIMATIVA): os valores do Transfermarkt na Inglaterra são inflados pelo dinheiro da liga.
   const LIGA_F = { ENG1: 1.15, ENG2: 1.1 };
   const mktF = (age, sp, lkey) => ageF(age) * (POS_F[sp] || 1) * (LIGA_F[lkey] || 1);
@@ -51,7 +51,7 @@
     ov = Math.max(1, Math.round(ov)); // sem teto: só o mínimo é 1
     age = age || ri(18, 36);
     const value = valueOf(ov, age);
-    const sp = pick({ GK: ["GOL"], DEF: ["ZAG", "ZAG", "LD", "LE"], MID: ["VOL", "MC", "MC", "ME", "MD"], ATT: ["CA", "CA", "PD", "PE"] }[pos]);
+    const sp = pick({ GK: ["GOL"], DEF: ["ZAG", "ZAG", "LD", "LE"], MID: ["VOL", "MC", "MC", "ME", "MD", "MEI"], ATT: ["CA", "CA", "PD", "PE", "SA"] }[pos]);
     return { id: PID++, name: pick(FIRST) + " " + pick(LAST), pos, sp, ov, age, value, wage: Math.round(value / 900) };
   }
   function genSquad(base, small) {
@@ -70,9 +70,15 @@
   const avail = (p) => !(p.inj > 0) && !(p.sus > 0);
   const SLOTS = {
     DEF: { 3: ["ZAG", "ZAG", "ZAG"], 4: ["LE", "ZAG", "ZAG", "LD"], 5: ["LE", "ZAG", "ZAG", "ZAG", "LD"] },
-    MID: { 3: ["VOL", "MC", "MC"], 4: ["ME", "MC", "MC", "MD"], 5: ["ME", "VOL", "MC", "MC", "MD"] },
-    ATT: { 1: ["CA"], 2: ["CA", "CA"], 3: ["PE", "CA", "PD"] },
+    MID: { 3: ["VOL", "MC", "MEI"], 4: ["ME", "MC", "MC", "MD"], 5: ["ME", "VOL", "MC", "MEI", "MD"] },
+    ATT: { 1: ["CA"], 2: ["CA", "SA"], 3: ["PE", "CA", "PD"] },
   };
+  // Posições alternativas de cada jogador (além da principal do Transfermarkt): joga de graça nelas. Fora delas rende menos.
+  const ALTS = { GOL: [], ZAG: [], LE: ["LD"], LD: ["LE"], VOL: ["MC"], MC: ["VOL", "MEI"], MEI: ["MC", "SA"], ME: ["MEI", "MC", "PE"], MD: ["MEI", "MC", "PD"], PE: ["PD", "ME"], PD: ["PE", "MD"], SA: ["CA", "MEI"], CA: ["SA"] };
+  // Quem pode cobrir cada vaga quando não há o jogador exato (a posição exata sempre tem prioridade).
+  const COMPAT = {}; Object.keys(ALTS).forEach((sp) => { COMPAT[sp] = [sp].concat(Object.keys(ALTS).filter((o) => ALTS[o].includes(sp))); });
+  // Meia central e meia ofensivo cobrem a vaga de meia lateral na escalação automática (meia lateral é raro no Transfermarkt).
+  ["ME", "MD"].forEach((sp) => { COMPAT[sp] = COMPAT[sp].concat(["MEI", "MC"].filter((x) => !COMPAT[sp].includes(x))); });
   // Monta o time ideal; "miss" conta quantos jogadores ficaram fora da posição exata.
   function buildLineup(team, formation) {
     const f = FORMATIONS[formation || team.formation];
@@ -84,7 +90,13 @@
       const slots = SLOTS[pos] && SLOTS[pos][need[pos]];
       const used = new Set();
       if (slots) {
-        for (const sp of slots) { const c = pool.find((p) => !used.has(p.id) && p.sp === sp) || ((sp === "ME" || sp === "MD") ? pool.find((p) => !used.has(p.id) && p.sp === "MC") : null); if (c) { used.add(c.id); } else miss++; } // meia lateral é raro no Transfermarkt: meia central cobre sem penalidade
+        const got = slots.map((sp) => { const c = pool.find((p) => !used.has(p.id) && p.sp === sp); if (c) used.add(c.id); return c; });
+        slots.forEach((sp, i) => {
+          if (got[i]) return;
+          let c = null;
+          for (const alt of (COMPAT[sp] || [sp]).slice(1)) { c = pool.find((p) => !used.has(p.id) && p.sp === alt); if (c) break; }
+          if (c) used.add(c.id); else miss++;
+        });
       }
       const pick1 = [...used].map((id) => pool.find((p) => p.id === id));
       const rest = pool.filter((p) => !used.has(p.id)).concat(out);
@@ -1181,13 +1193,13 @@
     return true;
   }
   // Reposicionar um jogador em campo durante a partida (clique no campo). Fora da posição natural ele rende menos até o fim do jogo.
-  const SP_GROUP = { GOL: "GK", LD: "DEF", ZAG: "DEF", LE: "DEF", VOL: "MID", ME: "MID", MC: "MID", MD: "MID", PD: "ATT", PE: "ATT", CA: "ATT" };
+  const SP_GROUP = { GOL: "GK", LD: "DEF", ZAG: "DEF", LE: "DEF", VOL: "MID", ME: "MID", MC: "MID", MEI: "MID", MD: "MID", PD: "ATT", PE: "ATT", SA: "ATT", CA: "ATT" };
   function liveReposition(live, mi, side, pid, newSp) {
     const m = live.matches[mi], p = m.on[side].find((q) => q.id === pid), g = SP_GROUP[newSp];
     if (!p || !g) return false;
     if (!p.rp) p.rp = { pos: p.pos, sp: p.sp, ov: p.ov };
     const nat = p.rp, natSp = nat.sp || ({ GK: "GOL", DEF: "ZAG", MID: "MC", ATT: "CA" })[nat.pos];
-    const f = newSp === natSp ? 1 : g === nat.pos ? 0.97 : (g === "GK" || nat.pos === "GK") ? 0.6 : 0.85;
+    const f = newSp === natSp ? 1 : (ALTS[natSp] || []).includes(newSp) ? 0.99 : g === nat.pos ? 0.95 : (g === "GK" || nat.pos === "GK") ? 0.6 : 0.85;
     p.pos = g; p.sp = newSp; p.ov = Math.max(1, Math.round(nat.ov * f));
     m.ev.push({ min: live.minute, type: "pos", side, name: p.name, sp: newSp, club: (side === "h" ? m.H : m.A).name });
     liveRates(m);
@@ -1592,6 +1604,7 @@
           if (!q || !(q.value || q.ov)) continue;
           const age = q.age || p.age;
           p.ov = q.ov || Math.max(1, ovFromValue(q.value, age, q.sp || p.sp, t.lkey) + nbo(t.name, q.name));
+          if (q.sp) p.sp = q.sp;
           p.of = p.ov; p.age = age; p.value = q.value || valueOf(p.ov, age, q.sp || p.sp, t.lkey); p.wage = Math.round(p.value / 900);
           p.long = age > 40 ? 1 : 0; p.real = 1; // jogador com dado real: o Transfermarkt manda no OVR dele
         }
@@ -1701,6 +1714,6 @@
     if (s.cashes) delete s.cashes[id];
     return null;
   }
-  const api = { dupOffers, jobOffers, level, liveReposition, applyLeagues, clubCash, yearOf, startRound, liveStep, liveSub, liveTakePen, penProb, liveResolve, liveFinish, autoReorg, getStad, stadCost, upgradeStadium, autoStadium, clubRev, payroll, migrateFin, migrateOvr2, topScorers, topScorersComp, lookup, yearOf, bestFormation, avail, nextRoundClubs, myClubs, addClub, switchClub, dropClub, STATES, CONT, COUNTRIES, LEAGUES, LG, FORMATIONS, TACTICS, newGame, autoLineup, ratings, playRound, acceptOffer, market, buy, sell, auction, sellTo, applyUpdate, resetPid, migrateOvr, lineupPlayers, fixLineup, nextUserRound, sortTab, dateOf, userComps, userMatches };
+  const api = { ALTS, dupOffers, jobOffers, level, liveReposition, applyLeagues, clubCash, yearOf, startRound, liveStep, liveSub, liveTakePen, penProb, liveResolve, liveFinish, autoReorg, getStad, stadCost, upgradeStadium, autoStadium, clubRev, payroll, migrateFin, migrateOvr2, topScorers, topScorersComp, lookup, yearOf, bestFormation, avail, nextRoundClubs, myClubs, addClub, switchClub, dropClub, STATES, CONT, COUNTRIES, LEAGUES, LG, FORMATIONS, TACTICS, newGame, autoLineup, ratings, playRound, acceptOffer, market, buy, sell, auction, sellTo, applyUpdate, resetPid, migrateOvr, lineupPlayers, fixLineup, nextUserRound, sortTab, dateOf, userComps, userMatches };
   if (typeof module !== "undefined") module.exports = api; else root.Game = api;
 })(typeof window !== "undefined" ? window : globalThis);

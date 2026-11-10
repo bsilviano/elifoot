@@ -66,13 +66,13 @@ tr.me{background:color-mix(in srgb,var(--ac) 30%,transparent);font-weight:800}tr
 <header><div class="hl"><span id="crest"></span><b id="hT">Meu Elifoot</b></div><div class="hr"><span id="flag"></span><span id="hS"></span></div></header>
 <main id="app"></main>
 <nav id="nav"></nav>
-<script src="clubs.js?v=158"></script>
-<script src="game.js?v=158"></script>
+<script src="clubs.js?v=159"></script>
+<script src="game.js?v=159"></script>
 <script>
 const PREFIX="elifoot:save:",SAVE1="Elifoot"; // um único save para todos os times
 let artCan=false,S=null,tab="jogo",msg="",mf={pos:"",q:"",any:true,min:1,max:null,afford:true,ord:"ovr",dir:-1},viewKey=null;
 const $=id=>document.getElementById(id);
-const VERSAO=158;
+const VERSAO=159;
 const moneyFull=n=>(n<0?"-":"")+"R$ "+Math.round(Math.abs(n)).toLocaleString("pt-BR");
 const money=moneyFull;
 const U=()=>S.teams[S.user];
@@ -236,6 +236,7 @@ function autoBest(u){if(u.fAuto===false)return false;const b=Game.bestFormation(
 function fixSP(){
   if(S&&S.teams&&S.teams[S.user]){const u=S.teams[S.user];if(Game.fixLineup(u)|autoBest(u))save()}
   if(S&&S.spv&&!S.lv5){Game.myClubs(S).forEach(id=>{S.teams[id].lineup=Game.autoLineup(S.teams[id])});S.lv5=1;save()}
+  if(S&&SPMAP&&!S.spv3){let ch3=0;for(const t of Object.values(S.teams))for(const p of t.players){const m=SPMAP[t.name+"|"+p.name];if(m&&p.sp!==m&&!p.rp){p.sp=m;ch3=1}}S.spv3=1;Game.myClubs(S).forEach(id=>{S.teams[id].lineup=Game.autoLineup(S.teams[id])});save()}
   if(!S||S.spv||!SPMAP)return;
   const alt={GK:["GOL"],DEF:["ZAG","LD","ZAG","LE"],MID:["VOL","MC","ME","MD","MC"],ATT:["CA","PE","PD"]};
   for(const t of Object.values(S.teams)){let ch=0;
@@ -294,8 +295,8 @@ function vJogo(){
   return h;
 }
 const SPN=p=>p.sp||({GK:"GOL",DEF:"ZAG",MID:"MC",ATT:"CA"})[p.pos];
-const SPR={GOL:0,LD:1,ZAG:2,LE:3,VOL:4,ME:5,MC:6,MD:7,PD:8,PE:9,CA:10};
-const SPO={LE:0,ZAG:1,LD:2,ME:0,VOL:1,MC:2,MD:3,PE:0,CA:1,PD:2,GOL:0};
+const SPR={GOL:0,LD:1,ZAG:2,LE:3,VOL:4,ME:5,MC:6,MEI:7,MD:8,PD:9,PE:10,SA:11,CA:12};
+const SPO={LE:0,ZAG:1,LD:2,ME:0,VOL:1,MC:2,MEI:2.5,MD:3,PE:0,SA:0.9,CA:1,PD:2,GOL:0};
 function lineupCard(u){
   const set=new Set(u.lineup),order={GK:0,DEF:1,MID:2,ATT:3};
   const st=u.players.filter(p=>set.has(p.id)).sort((a,b)=>b.ov-a.ov);
@@ -475,7 +476,7 @@ function pitchLive(ps,club,mi,side){
     h+=`<div class="lin${g.length===2&&g[0].pos==="ATT"?" dup":""}">`+g.map(p=>`<div class="jog" style="cursor:pointer" onclick="LPOS=${LPOS===p.id?"null":p.id};liveRender()"><i style="background:${col};color:${tx};${LPOS===p.id?"outline:3px solid #ffd166;outline-offset:2px":""}">${p.ov}</i><span>${p.name}</span><small>${SPN(p)}${p.rp?" ↻":""}</small></div>`).join("")+`</div>`}
   h+=`</div>`;
   const sel=LPOS!=null&&ps.find(p=>p.id===LPOS);
-  if(sel)h+=`<p class="mut" style="margin:6px 0 2px">Nova posição de <b>${sel.name}</b> (fora da posição natural ele rende menos):</p><div class="row">${["GOL","LD","ZAG","LE","VOL","ME","MC","MD","PD","PE","CA"].map(x=>`<button class="s ${SPN(sel)===x?"p":""}" onclick="liveRepo(${mi},'${side}',${sel.id},'${x}')">${x}</button>`).join("")}</div>`;
+  if(sel)h+=`<p class="mut" style="margin:6px 0 2px">Nova posição de <b>${sel.name}</b> (joga em ${[SPN(sel)].concat(Game.ALTS[(sel.rp&&sel.rp.sp)||SPN(sel)]||[]).join(", ")} sem perder rendimento; fora delas rende menos):</p><div class="row">${["GOL","LD","ZAG","LE","VOL","ME","MC","MEI","MD","PD","PE","SA","CA"].map(x=>`<button class="s ${SPN(sel)===x?"p":""}" onclick="liveRepo(${mi},'${side}',${sel.id},'${x}')">${x}</button>`).join("")}</div>`;
   else h+=`<p class="mut" style="margin:6px 0 0">Toque num jogador do campo para mudar a posição dele.</p>`;
   return h;
 }
@@ -506,8 +507,8 @@ function liveEnd(){
 
 function posResumo(u,extra){
   const cnt={},out={};u.players.forEach(p=>{const k=SPN(p);if(Game.avail(p))cnt[k]=(cnt[k]||0)+1;else out[k]=(out[k]||0)+1});
-  const ln=(t,ks)=>`<div style="display:grid;grid-template-columns:52px repeat(4,1fr);font-size:13px;padding:2px 0;text-align:center"><span class="mut" style="text-align:left">${t}</span>${ks.map(k=>`<span><span class="mut">${k}</span> <b>${cnt[k]||0}</b> <span class="mut">(${out[k]||0})</span></span>`).join("")}</div>`;
-  return `<div class="card${extra?" pr":""}" style="padding:8px 10px">${ln("Defesa",["GOL","LD","ZAG","LE"])}${ln("Meio",["VOL","ME","MC","MD"])}${ln("Ataque",["PD","PE","CA"])}<div class="mut" style="text-align:center;font-size:11px;margin-top:2px">${u.players.length} jogadores</div>${extra||""}</div>`
+  const ln=(t,ks)=>`<div style="display:grid;grid-template-columns:52px repeat(${ks.length},1fr);font-size:13px;padding:2px 0;text-align:center"><span class="mut" style="text-align:left">${t}</span>${ks.map(k=>`<span><span class="mut">${k}</span> <b>${cnt[k]||0}</b> <span class="mut">(${out[k]||0})</span></span>`).join("")}</div>`;
+  return `<div class="card${extra?" pr":""}" style="padding:8px 10px">${ln("Defesa",["GOL","LD","ZAG","LE"])}${ln("Meio",["VOL","ME","MC","MEI","MD"])}${ln("Ataque",["PD","PE","SA","CA"])}<div class="mut" style="text-align:center;font-size:11px;margin-top:2px">${u.players.length} jogadores</div>${extra||""}</div>`
 }
 function vElenco(){
   const u=U(),set=new Set(u.lineup);
@@ -694,7 +695,7 @@ function vMercado(){
   const sc=Game.topScorers(S,"all",100000).map(e=>({e,f:Game.lookup(S,e.n,e.c)})).filter(x=>x.f&&Game.avail(x.f)&&(!mf.pos||SPN(x.f)===mf.pos)&&(mf.any||(x.f.ov>=mf.min&&x.f.ov<=mx))&&(!mf.afford||x.f.price<=S.cash)&&(!mf.q||(x.f.name+x.f.team).toLowerCase().includes(mf.q.toLowerCase()))).slice(0,40);
   const art=`<div class="card el3"><h2>Artilheiros de sempre</h2><p class="mut" style="margin:0 0 6px">Jogadores de outros times, com os mesmos filtros ao lado. Gols da carreira real somados aos do jogo.</p>${sc.length?sc.map(({e,f},i)=>`<div class="pl"><span><b>${i+1}º</b> <span class="pos">${SPN(f)}</span>${f.name} <span class="mut">${f.age}a · ${f.team} · ${e.g} gol${e.g>1?"s":""}</span></span><span><b>${f.ov}</b> <button class="s p" onclick="buy(${f.id})">${money(f.price)}</button></span></div>`).join(""):'<p class="mut">Nenhum artilheiro com esses filtros.</p>'}</div>`;
   return `<div class="elg"><div class="el1">`+posResumo(U())+piorCard+`<div class="card"><h2>Mercado</h2><div class="row">
-  <select onchange="mf.pos=this.value;render()"><option value="">Todas</option>${["GOL","LD","LE","ZAG","VOL","ME","MD","MC","PD","PE","CA"].map(p=>`<option ${mf.pos===p?"selected":""}>${p}</option>`).join("")}</select>
+  <select onchange="mf.pos=this.value;render()"><option value="">Todas</option>${["GOL","LD","LE","ZAG","VOL","ME","MD","MC","MEI","PD","PE","SA","CA"].map(p=>`<option ${mf.pos===p?"selected":""}>${p}</option>`).join("")}</select>
   <label class="mut" style="display:flex;align-items:center;gap:4px"><input type="checkbox" ${mf.any?"checked":""} onchange="mf.any=this.checked;render()"> OVR qualquer</label>
   <label class="mut" style="display:flex;align-items:center;gap:4px;${mf.any?"opacity:.45":""}">OVR <input type="number" ${mf.any?"disabled":""} min="1" max="${maxOvr}" value="${mf.min}" onchange="mf.min=Math.max(1,+this.value||1);render()" style="width:58px"> a <input type="number" min="1" max="${maxOvr}" value="${mx}" onchange="mf.max=this.value===""?null:+this.value;render()" style="width:58px" ${mf.any?"disabled":""}></label>
   <label class="mut" style="display:flex;align-items:center;gap:6px;flex-basis:100%"><input type="checkbox" ${mf.afford?"checked":""} onchange="mf.afford=this.checked;render()"> Só jogadores que cabem no meu caixa (${money(S.cash)})</label>
