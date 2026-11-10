@@ -66,13 +66,13 @@ tr.me{background:color-mix(in srgb,var(--ac) 30%,transparent);font-weight:800}tr
 <header><div class="hl"><span id="crest"></span><b id="hT">Meu Elifoot</b></div><div class="hr"><span id="flag"></span><span id="hS"></span></div></header>
 <main id="app"></main>
 <nav id="nav"></nav>
-<script src="clubs.js?v=170"></script>
-<script src="game.js?v=170"></script>
+<script src="clubs.js?v=171"></script>
+<script src="game.js?v=171"></script>
 <script>
 const PREFIX="elifoot:save:",SAVE1="Elifoot"; // um único save para todos os times
 let artCan=false,S=null,tab="jogo",msg="",mf={pos:"",q:"",any:true,min:1,max:null,afford:true,ord:"ovr",dir:-1},viewKey=null;
 const $=id=>document.getElementById(id);
-const VERSAO=170;
+const VERSAO=171;
 const moneyFull=n=>(n<0?"-":"")+"R$ "+Math.round(Math.abs(n)).toLocaleString("pt-BR");
 const money=moneyFull;
 const U=()=>S.teams[S.user];
@@ -344,7 +344,7 @@ function confCancel(){CONF=null;render()}
 function doPlay(){
   const x=Game.startRound(S);
   if(!x.live){showSummary(x.res);return}
-  LIVE={live:x.live,res:x.res};try{const v=+localStorage.getItem("elifoot:spd");LSPD=[900,250,-1].includes(v)?v:900}catch(e){LSPD=900};$("nav").style.display="none";liveRender();liveRun()
+  LIVE={live:x.live,res:x.res};LSPD=250;$("nav").style.display="none";liveRender();liveRun()
 }
 function showSummary(r){
   $("nav").style.display="";
@@ -426,7 +426,6 @@ function liveHtml(){const t=liveTable(),bn=liveBench(),r=liveBody();return `<div
 function liveBody(){
   const l=LIVE.live,p=l.pending[0];
   let h=`<div class="card"><h2>${l.rodada&&l.rodada.includes(" - ")?l.rodada:l.comp}</h2><p class="mut">${l.date}</p><div class="big">⏱ ${l.minute}'${l.done?" · Fim de jogo":""}</div>`;
-  if(!l.done&&!p)h+=`<div class="row"><button class="${LSPD===900?"p":""}" onclick="liveSpeed(900)">▶ Normal</button><button class="${LSPD===250?"p":""}" onclick="liveSpeed(250)">⏩ Rápido</button><button class="${LSPD===-1?"p":""}" onclick="liveSpeed(-1)">⏭ Ir ao fim</button></div>`;
   h+=`</div>`;
   if(p&&p.kind==="inj"){
     const m=l.matches[p.mi],can=m.bench[p.side].length&&m.subs[p.side]<5,ip=m.on[p.side].find(x=>x.id===p.outId),bn=m.bench[p.side].slice().sort((x,y)=>SPR[SPN(x)]-SPR[SPN(y)]||y.ov-x.ov);
