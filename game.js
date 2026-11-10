@@ -672,6 +672,7 @@
       }
       if (!silent && (isMine(s, h) || isMine(s, a))) res.reports.push({ cid: c.id, comp: c.name + (rd.n ? " · " + rd.n : ""), date: dateOf(rd.T), home: H.name, away: A.name, ...r });
     }
+    if (!silent) dupOffers(s, res);
     if (Array.isArray(s.offDue) && s.offDue.length && !silent) { const due = s.offDue; s.offDue = []; due.forEach((id) => periodicOffers(s, res, id)); }
     if (rd.k === "tab") {
       c.rDone++;
@@ -888,19 +889,33 @@
     const me = level(s, cid), SLACK = 0.1;
     const myOvr = ratings(s.teams[cid]).ovr; // nunca convida para clube com OVR menor que o do meu time
     const lv = {};
+    // Nunca convida de uma liga onde já tenho clube. Se tenho 2+ clubes na mesma divisão, os convites servem para trocar
+    // um deles por clube de outra liga (mesma divisão ou melhor, OVR parecido).
+    const held = new Set(myClubs(s).map((id) => s.teams[id].lkey));
+    const dup = myClubs(s).filter((id) => s.teams[id].lkey === s.teams[cid].lkey).length > 1;
+    const myTier = LG[s.teams[cid].lkey] ? LG[s.teams[cid].lkey].tier : 3;
     const elig = Object.values(s.teams).filter((t) => {
-      if (t.id === cid || t.local || isMine(s, t.id) || !LG[t.lkey]) return false;
+      if (t.id === cid || t.local || isMine(s, t.id) || !LG[t.lkey] || held.has(t.lkey)) return false;
       const L = (lv[t.id] = level(s, t.id));
+      if (dup) return L.tier <= myTier && ratings(t).ovr >= myOvr - 4;
       return L.esp < me.esp && L.esp >= me.atu - SLACK && ratings(t).ovr >= myOvr;
     });
-    elig.sort((a, b) => Math.abs(lv[a.id].esp - me.atu) - Math.abs(lv[b.id].esp - me.atu));
+    if (dup) elig.sort((a, b) => Math.abs(ratings(a).ovr - myOvr) - Math.abs(ratings(b).ovr - myOvr));
+    else elig.sort((a, b) => Math.abs(lv[a.id].esp - me.atu) - Math.abs(lv[b.id].esp - me.atu));
     // Um convite por país (sorteando os países), para não concentrar tudo no país com mais clubes elegíveis.
     const byC = {};
     elig.slice(0, 60).forEach((t) => { (byC[t.country] = byC[t.country] || []).push(t); });
     const picks = shuffle(Object.keys(byC)).slice(0, 3).map((k) => shuffle(byC[k].slice(0, 5))[0]);
-    const mine = picks.map((t) => ({ for: cid, forName: s.teams[cid].name, tid: t.id, name: t.name, league: LG[t.lkey].name, country: COUNTRIES[t.country].name, ovr: Math.round(ratings(t).ovr * 10) / 10, cash: clubCash(t), why: why + ` Clube com o ${lv[t.id].rk}º maior elenco da ${LG[t.lkey].name}.` }));
+    const mine = picks.map((t) => ({ for: cid, forName: s.teams[cid].name, tid: t.id, name: t.name, league: LG[t.lkey].name, country: COUNTRIES[t.country].name, ovr: Math.round(ratings(t).ovr * 10) / 10, cash: clubCash(t), why: (dup ? "Você tem 2 clubes nesta divisão: aceite para trocar este clube. " : why + " ") + `Clube com o ${lv[t.id].rk}º maior elenco da ${LG[t.lkey].name}.` }));
     s.offers = (s.offers || []).filter((o) => o.for !== cid).concat(mine);
     if (picks.length) res.notes.push(`<span class="warn">Você recebeu ${picks.length} convite(s) de clube. Veja no topo.</span>`);
+  }
+  // Dois clubes meus na mesma divisão: garante convites para trocar um deles (mesmo que o clube recuse ofertas).
+  function dupOffers(s, res) {
+    if (s.free) return;
+    const cl = myClubs(s), cnt = {};
+    cl.forEach((id) => { const k = s.teams[id].lkey; cnt[k] = (cnt[k] || 0) + 1; });
+    cl.filter((id) => cnt[s.teams[id].lkey] > 1 && !(s.offers || []).some((o) => o.for === id)).forEach((id) => jobOffers(s, "", res, id));
   }
   const jobMode = (s, id) => (s.jobModes && s.jobModes[id] != null ? s.jobModes[id] : s.jobMode || "");
   function periodicOffers(s, res, cid) {
@@ -1651,6 +1666,7 @@
     s.cashes = s.cashes || {};
     s.cashes[id] = clubCash(s.teams[id]);
     s.teams[id].lineup = autoLineup(s.teams[id]);
+    dupOffers(s, { notes: [] });
     return null;
   }
   function switchClub(s, id) {
@@ -1680,6 +1696,6 @@
     if (s.cashes) delete s.cashes[id];
     return null;
   }
-  const api = { jobOffers, level, liveReposition, applyLeagues, clubCash, yearOf, startRound, liveStep, liveSub, liveTakePen, penProb, liveResolve, liveFinish, autoReorg, getStad, stadCost, upgradeStadium, autoStadium, clubRev, payroll, migrateFin, migrateOvr2, topScorers, topScorersComp, lookup, yearOf, bestFormation, avail, nextRoundClubs, myClubs, addClub, switchClub, dropClub, STATES, CONT, COUNTRIES, LEAGUES, LG, FORMATIONS, TACTICS, newGame, autoLineup, ratings, playRound, acceptOffer, market, buy, sell, auction, sellTo, applyUpdate, resetPid, migrateOvr, lineupPlayers, fixLineup, nextUserRound, sortTab, dateOf, userComps, userMatches };
+  const api = { dupOffers, jobOffers, level, liveReposition, applyLeagues, clubCash, yearOf, startRound, liveStep, liveSub, liveTakePen, penProb, liveResolve, liveFinish, autoReorg, getStad, stadCost, upgradeStadium, autoStadium, clubRev, payroll, migrateFin, migrateOvr2, topScorers, topScorersComp, lookup, yearOf, bestFormation, avail, nextRoundClubs, myClubs, addClub, switchClub, dropClub, STATES, CONT, COUNTRIES, LEAGUES, LG, FORMATIONS, TACTICS, newGame, autoLineup, ratings, playRound, acceptOffer, market, buy, sell, auction, sellTo, applyUpdate, resetPid, migrateOvr, lineupPlayers, fixLineup, nextUserRound, sortTab, dateOf, userComps, userMatches };
   if (typeof module !== "undefined") module.exports = api; else root.Game = api;
 })(typeof window !== "undefined" ? window : globalThis);
