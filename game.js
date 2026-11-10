@@ -945,7 +945,7 @@
       if (t.id === cid || t.local || isMine(s, t.id) || !LG[t.lkey] || held.has(t.lkey)) return false;
       const L = (lv[t.id] = level(s, t.id));
       if (dup) return L.tier <= myTier && ratings(t).ovr >= myOvr - 4;
-      return L.esp < me.esp && L.esp >= me.atu - SLACK && ratings(t).ovr >= myOvr;
+      return L.esp < me.esp && L.esp >= Math.min(me.atu, me.esp) - SLACK && ratings(t).ovr >= myOvr; // clube de topo mal colocado ainda recebe convite de clube maior
     });
     if (dup) elig.sort((a, b) => Math.abs(ratings(a).ovr - myOvr) - Math.abs(ratings(b).ovr - myOvr));
     else elig.sort((a, b) => Math.abs(lv[a.id].esp - me.atu) - Math.abs(lv[b.id].esp - me.atu));
