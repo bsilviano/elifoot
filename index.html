@@ -65,13 +65,13 @@ tr.me{background:color-mix(in srgb,var(--ac) 30%,transparent);font-weight:800}tr
 <header><div class="hl"><span id="crest"></span><b id="hT">Meu Elifoot</b></div><div class="hr"><span id="flag"></span><span id="hS"></span></div></header>
 <main id="app"></main>
 <nav id="nav"></nav>
-<script src="clubs.js?v=146"></script>
-<script src="game.js?v=146"></script>
+<script src="clubs.js?v=147"></script>
+<script src="game.js?v=147"></script>
 <script>
 const PREFIX="elifoot:save:",SAVE1="Elifoot"; // um único save para todos os times
 let artCan=false,S=null,tab="jogo",msg="",mf={pos:"",q:"",any:true,min:1,max:null,afford:true,ord:"ovr",dir:-1},viewKey=null;
 const $=id=>document.getElementById(id);
-const VERSAO=146;
+const VERSAO=147;
 const moneyFull=n=>(n<0?"-":"")+"R$ "+Math.round(Math.abs(n)).toLocaleString("pt-BR");
 const money=moneyFull;
 const U=()=>S.teams[S.user];
@@ -86,7 +86,7 @@ function save(){
 }
 
 // ---- sincronização entre aparelhos (gist privado do GitHub, comprimido) ----
-const TSK="elifoot:ts:",GK="elifoot:gist",GDESC="elifoot-saves";
+const SYK="elifoot:sy:",TSK="elifoot:ts:",GK="elifoot:gist",GDESC="elifoot-saves";
 const gcfg=()=>{try{return JSON.parse(localStorage.getItem(GK)||"null")}catch(e){return null}};
 const gset=c=>localStorage.setItem(GK,JSON.stringify(c));
 const fname=n=>"save-"+encodeURIComponent(n)+".txt";
@@ -95,14 +95,31 @@ async function ungz(b64){const bin=atob(b64),b=new Uint8Array(bin.length);for(le
 async function gapi(path,method,body){const c=gcfg();const r=await fetch("https://api.github.com"+path,{method:method||"GET",headers:{Authorization:"Bearer "+c.token,Accept:"application/vnd.github+json","Content-Type":"application/json"},body:body?JSON.stringify(body):undefined});if(!r.ok)throw new Error("GitHub "+r.status);return r.json()}
 let _pt=null,SYNCST="";
 function syncSt(t){SYNCST=t;const e=document.getElementById("syncSt");if(e)e.textContent=t}
-function syncPushLater(name){if(!gcfg())return;clearTimeout(_pt);_pt=setTimeout(()=>syncPush(name),2500)}
+function syncPushLater(name){if(!gcfg())return;clearTimeout(_pt);_pt=setTimeout(()=>syncPush(name),800)}
 async function syncPush(name){
   const c=gcfg();if(!c||!c.id)return;
   try{syncSt("Enviando save para a nuvem...");const raw=localStorage.getItem(PREFIX+name);if(!raw)return;
     const ts=+localStorage.getItem(TSK+name)||Date.now();
-    await gapi("/gists/"+c.id,"PATCH",{files:{[fname(name)]:{content:ts+"|"+await gz(raw)}}});syncSt("☁️ Sincronizado ("+new Date().toLocaleTimeString("pt-BR")+")")}
+    await gapi("/gists/"+c.id,"PATCH",{files:{[fname(name)]:{content:ts+"|"+await gz(raw)}}});localStorage.setItem(SYK+name,ts);syncSt("☁️ Sincronizado ("+new Date().toLocaleTimeString("pt-BR")+")")}
   catch(e){syncSt("Falha ao enviar: "+e.message)}
 }
+// ao voltar para o app (ou focar a janela): envia o que está pendente e baixa o save mais novo da nuvem, sem pergunta, se este aparelho não tem alteração pendente
+try{for(const n of listSaves())if(localStorage.getItem(SYK+n)==null)localStorage.setItem(SYK+n,localStorage.getItem(TSK+n)||0)}catch(e){}
+let _sw=0,_sb=false;
+async function syncWatch(){
+  const c=gcfg();if(!c||!c.id||_sb||!S||LIVE||Date.now()-_sw<8000)return;_sw=Date.now();_sb=true;
+  try{
+    const nm=S.saveName;if(nm&&(+localStorage.getItem(TSK+nm)||0)>(+localStorage.getItem(SYK+nm)||0)){clearTimeout(_pt);await syncPush(nm);return}
+    const g=await gapi("/gists/"+c.id);let upd=null;
+    for(const f of Object.values(g.files)){if(!f.filename.startsWith("save-"))continue;
+      const name=decodeURIComponent(f.filename.slice(5,-4));let txt=f.content;if(f.truncated||txt==null){txt=await (await fetch(f.raw_url)).text()}
+      const i=txt.indexOf("|"),ts=+txt.slice(0,i),loc=+localStorage.getItem(TSK+name)||0,sy=+localStorage.getItem(SYK+name)||0;
+      if(ts>loc&&loc<=sy&&(!upd||ts>upd.ts))upd={name,ts,txt:txt.slice(i+1)}}
+    if(upd){localStorage.setItem(PREFIX+upd.name,await ungz(upd.txt));localStorage.setItem(TSK+upd.name,upd.ts);localStorage.setItem(SYK+upd.name,upd.ts);localStorage.setItem("elifoot:last",upd.name);const tb=tab;loadSave(upd.name);toast("☁️ Save mais novo baixado da nuvem");if(tb&&upd.name===S.saveName)tab=tb,render()}
+  }catch(e){}finally{_sb=false}
+}
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")syncWatch();else{const nm=S&&S.saveName;if(nm&&gcfg()&&(+localStorage.getItem(TSK+nm)||0)>(+localStorage.getItem(SYK+nm)||0)){clearTimeout(_pt);syncPush(nm)}}});
+window.addEventListener("focus",syncWatch);setInterval(syncWatch,60000);
 async function syncDelete(name){const c=gcfg();if(!c||!c.id)return;try{await gapi("/gists/"+c.id,"PATCH",{files:{[fname(name)]:null}})}catch(e){}}
 // baixa saves mais novos da nuvem e envia os que só existem aqui; devolve quantos vieram da nuvem
 async function syncPull(force){
@@ -115,7 +132,7 @@ async function syncPull(force){
     const name=decodeURIComponent(f.filename.slice(5,-4));seen.add(name);
     let txt=f.content;if(f.truncated||txt==null){txt=await (await fetch(f.raw_url)).text()}
     const i=txt.indexOf("|"),ts=+txt.slice(0,i),loc=+localStorage.getItem(TSK+name)||0;
-    if(force||ts>loc||!localStorage.getItem(PREFIX+name)){if(!force&&loc&&localStorage.getItem(PREFIX+name)&&!confirm(`A nuvem tem um save "${name}" mais novo (${new Date(ts).toLocaleString("pt-BR")}) que o deste aparelho (${new Date(loc).toLocaleString("pt-BR")}). OK = baixar e substituir o daqui. Cancelar = manter o daqui.`))continue;localStorage.setItem(PREFIX+name,await ungz(txt.slice(i+1)));localStorage.setItem(TSK+name,ts);if(!localStorage.getItem("elifoot:last"))localStorage.setItem("elifoot:last",name);got++}
+    if(force||ts>loc||!localStorage.getItem(PREFIX+name)){if(!force&&loc&&localStorage.getItem(PREFIX+name)&&!confirm(`A nuvem tem um save "${name}" mais novo (${new Date(ts).toLocaleString("pt-BR")}) que o deste aparelho (${new Date(loc).toLocaleString("pt-BR")}). OK = baixar e substituir o daqui. Cancelar = manter o daqui.`))continue;localStorage.setItem(PREFIX+name,await ungz(txt.slice(i+1)));localStorage.setItem(TSK+name,ts);localStorage.setItem(SYK+name,ts);if(!localStorage.getItem("elifoot:last"))localStorage.setItem("elifoot:last",name);got++}
   }
   for(const n of listSaves())if(!seen.has(n))await syncPush(n);
   newest();syncSt("☁️ Sincronizado ("+new Date().toLocaleTimeString("pt-BR")+")");return got;
