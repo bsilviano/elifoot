@@ -925,6 +925,15 @@
     }
     return { tier, esp, atu, rk: rk + 1 };
   }
+  // Porte do clube para convites: média ponderada dos percentis de OVR (45%), torcida (30%) e caixa (25%) entre todos os clubes.
+  function prestige(s) {
+    const ts = Object.values(s.teams).filter((t) => !t.local && LG[t.lkey]);
+    const pct = (f) => { const v = ts.map(f).sort((a, b) => a - b), m = {}; ts.forEach((t) => { const x = f(t); let lo = 0, hi = v.length; while (lo < hi) { const mid = (lo + hi) >> 1; if (v[mid] < x) lo = mid + 1; else hi = mid; } m[t.id] = lo / Math.max(v.length - 1, 1); }); return m; };
+    const ov = {}; ts.forEach((t) => { ov[t.id] = ratings(t).ovr; });
+    const po = pct((t) => ov[t.id]), pf = pct((t) => t.fans || 0), pc = pct((t) => clubCash(t)), out = {};
+    ts.forEach((t) => { out[t.id] = { score: 0.45 * po[t.id] + 0.3 * pf[t.id] + 0.25 * pc[t.id], ovr: ov[t.id], po: po[t.id], pf: pf[t.id], pc: pc[t.id] }; });
+    return out;
+  }
   // Convites: clubes melhores que o meu (pelo valor), desde que minha posição atual seja compatível com o valor do clube.
   // Nunca de divisão inferior (nem em outro país).
   function jobOffers(s, why, res, cid, isDup) {
@@ -941,19 +950,24 @@
     if (myClubs(s).filter((id) => s.teams[id].lkey === ownL).length === 1) held.delete(ownL);
     const dup = !!isDup;
     const myTier = LG[s.teams[cid].lkey] ? LG[s.teams[cid].lkey].tier : 3;
+    // Convite normal: o clube precisa ter porte maior (OVR, torcida e caixa juntos) e não pode ser de divisão inferior.
+    // Quanto melhor minha campanha em relação ao esperado, mais alto o porte que pode me convidar.
+    const P = dup ? null : prestige(s), mp = P && P[cid] ? P[cid] : { score: 0 };
+    const perf = Math.max(0, me.esp - me.atu), capUp = 0.25 + 1.0 * perf;
     const elig = Object.values(s.teams).filter((t) => {
       if (t.id === cid || t.local || isMine(s, t.id) || !LG[t.lkey] || held.has(t.lkey)) return false;
       const L = (lv[t.id] = level(s, t.id));
       if (dup) return L.tier <= myTier && ratings(t).ovr >= myOvr - 4;
-      return L.esp < me.esp && L.esp >= Math.min(me.atu, me.esp) - SLACK && ratings(t).ovr >= myOvr; // clube de topo mal colocado ainda recebe convite de clube maior
+      const d = P[t.id].score - mp.score;
+      return L.tier <= myTier && d > 0.03 && d <= capUp && P[t.id].ovr >= myOvr - 2;
     });
     if (dup) elig.sort((a, b) => Math.abs(ratings(a).ovr - myOvr) - Math.abs(ratings(b).ovr - myOvr));
-    else elig.sort((a, b) => Math.abs(lv[a.id].esp - me.atu) - Math.abs(lv[b.id].esp - me.atu));
+    else elig.sort((a, b) => Math.abs(P[a.id].score - mp.score - 0.1) - Math.abs(P[b.id].score - mp.score - 0.1));
     // Um convite por país (sorteando os países), para não concentrar tudo no país com mais clubes elegíveis.
     const byC = {};
     elig.slice(0, 60).forEach((t) => { (byC[t.country] = byC[t.country] || []).push(t); });
     const picks = shuffle(Object.keys(byC)).slice(0, 3).map((k) => shuffle(byC[k].slice(0, 5))[0]);
-    const mine = picks.map((t) => ({ for: cid, forName: s.teams[cid].name, tid: t.id, name: t.name, league: LG[t.lkey].name, country: COUNTRIES[t.country].name, ovr: Math.round(ratings(t).ovr * 10) / 10, cash: clubCash(t), why: (dup ? "Você tem 2 clubes nesta divisão: aceite para trocar este clube. " : why + " ") + `Clube com o ${lv[t.id].rk}º maior elenco da ${LG[t.lkey].name}.` }));
+    const mine = picks.map((t) => ({ for: cid, forName: s.teams[cid].name, tid: t.id, name: t.name, league: LG[t.lkey].name, country: COUNTRIES[t.country].name, ovr: Math.round(ratings(t).ovr * 10) / 10, cash: clubCash(t), why: (dup ? "Você tem 2 clubes nesta divisão: aceite para trocar este clube. " : why + " ") + (dup ? `Clube com o ${lv[t.id].rk}º maior elenco da ${LG[t.lkey].name}.` : `OVR ${Math.round(P[t.id].ovr * 10) / 10} (seu clube: ${Math.round(myOvr * 10) / 10}), torcida maior que ${Math.round(P[t.id].pf * 100)}% dos clubes, caixa maior que ${Math.round(P[t.id].pc * 100)}%.`) }));
     s.offers = (s.offers || []).filter((o) => o.for !== cid).concat(mine);
     if (picks.length) res.notes.push(`<span class="warn">Você recebeu ${picks.length} convite(s) de clube. Veja no topo.</span>`);
   }
@@ -1772,6 +1786,6 @@
     syncStad(s);
     return null;
   }
-  const api = { syncStad, ALTS, dupOffers, jobOffers, level, liveReposition, applyLeagues, clubCash, yearOf, startRound, liveStep, liveSub, liveTakePen, penProb, liveResolve, liveFinish, autoReorg, getStad, stadCost, upgradeStadium, autoStadium, clubRev, payroll, migrateFin, migrateOvr2, topScorers, topScorersComp, lookup, yearOf, bestFormation, avail, nextRoundClubs, myClubs, addClub, switchClub, dropClub, STATES, CONT, COUNTRIES, LEAGUES, LG, FORMATIONS, TACTICS, newGame, autoLineup, ratings, playRound, acceptOffer, market, buy, sell, auction, sellTo, applyUpdate, resetPid, migrateOvr, lineupPlayers, fixLineup, nextUserRound, sortTab, dateOf, userComps, userMatches };
+  const api = { prestige, syncStad, ALTS, dupOffers, jobOffers, level, liveReposition, applyLeagues, clubCash, yearOf, startRound, liveStep, liveSub, liveTakePen, penProb, liveResolve, liveFinish, autoReorg, getStad, stadCost, upgradeStadium, autoStadium, clubRev, payroll, migrateFin, migrateOvr2, topScorers, topScorersComp, lookup, yearOf, bestFormation, avail, nextRoundClubs, myClubs, addClub, switchClub, dropClub, STATES, CONT, COUNTRIES, LEAGUES, LG, FORMATIONS, TACTICS, newGame, autoLineup, ratings, playRound, acceptOffer, market, buy, sell, auction, sellTo, applyUpdate, resetPid, migrateOvr, lineupPlayers, fixLineup, nextUserRound, sortTab, dateOf, userComps, userMatches };
   if (typeof module !== "undefined") module.exports = api; else root.Game = api;
 })(typeof window !== "undefined" ? window : globalThis);
