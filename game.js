@@ -884,7 +884,7 @@
   }
   // Convites: clubes melhores que o meu (pelo valor), desde que minha posição atual seja compatível com o valor do clube.
   // Nunca de divisão inferior (nem em outro país).
-  function jobOffers(s, why, res, cid) {
+  function jobOffers(s, why, res, cid, isDup) {
     cid = cid != null ? cid : s.user;
     const me = level(s, cid), SLACK = 0.1;
     const myOvr = ratings(s.teams[cid]).ovr; // nunca convida para clube com OVR menor que o do meu time
@@ -892,7 +892,7 @@
     // Nunca convida de uma liga onde já tenho clube. Se tenho 2+ clubes na mesma divisão, os convites servem para trocar
     // um deles por clube de outra liga (mesma divisão ou melhor, OVR parecido).
     const held = new Set(myClubs(s).map((id) => s.teams[id].lkey));
-    const dup = myClubs(s).filter((id) => s.teams[id].lkey === s.teams[cid].lkey).length > 1;
+    const dup = !!isDup;
     const myTier = LG[s.teams[cid].lkey] ? LG[s.teams[cid].lkey].tier : 3;
     const elig = Object.values(s.teams).filter((t) => {
       if (t.id === cid || t.local || isMine(s, t.id) || !LG[t.lkey] || held.has(t.lkey)) return false;
@@ -910,12 +910,15 @@
     s.offers = (s.offers || []).filter((o) => o.for !== cid).concat(mine);
     if (picks.length) res.notes.push(`<span class="warn">Você recebeu ${picks.length} convite(s) de clube. Veja no topo.</span>`);
   }
-  // Dois clubes meus na mesma divisão: garante convites para trocar um deles (mesmo que o clube recuse ofertas).
+  // Convite de troca, uma única vez: quando um clube meu passa a ficar na mesma divisão de outro clube meu
+  // (subiu/desceu, ou foi adicionado). Só o clube que chegou recebe convites; eu escolho se saio dele.
   function dupOffers(s, res) {
     if (s.free) return;
-    const cl = myClubs(s), cnt = {};
+    const cl = myClubs(s), cnt = {}, first = !s.lk0, prev = s.lk0 || {};
     cl.forEach((id) => { const k = s.teams[id].lkey; cnt[k] = (cnt[k] || 0) + 1; });
-    cl.filter((id) => cnt[s.teams[id].lkey] > 1 && !(s.offers || []).some((o) => o.for === id)).forEach((id) => jobOffers(s, "", res, id));
+    const arrived = cl.filter((id) => prev[id] !== s.teams[id].lkey && cnt[s.teams[id].lkey] > 1);
+    s.lk0 = {}; cl.forEach((id) => { s.lk0[id] = s.teams[id].lkey; });
+    arrived.forEach((id) => jobOffers(s, "", res, id, true));
   }
   const jobMode = (s, id) => (s.jobModes && s.jobModes[id] != null ? s.jobModes[id] : s.jobMode || "");
   function periodicOffers(s, res, cid) {
