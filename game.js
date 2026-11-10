@@ -187,6 +187,48 @@
     for (let i = 0; i < n / 2; i++) p.push([alive[i], alive[n - 1 - i]]);
     return p;
   }
+  // Chaveamento por cabeça de chave (1x16, 8x9, 4x13...) para n = potência de 2; devolve [melhor, pior]
+  function seededPairs(ranked) {
+    let o = [1];
+    while (o.length < ranked.length) { const m = o.length * 2; o = o.flatMap((x) => [x, m + 1 - x]); }
+    const p = [];
+    for (let i = 0; i < o.length; i += 2) p.push([ranked[o[i] - 1], ranked[o[i + 1] - 1]]);
+    return p;
+  }
+  // Mando: jogo único = o melhor cabeça de chave joga em casa; ida e volta = o melhor decide em casa (a volta)
+  function hostPair(c, better, worse) { return c.plan[c.si].legs === 1 ? [better, worse] : [worse, better]; }
+  // Playoff da UEFA: cabeças 9-16 contra não cabeças 17-24 (9/10 x 23/24, 11/12 x 21/22, 13/14 x 19/20, 15/16 x 17/18), sorteio dentro de cada grupo
+  function uefaPlayoff(c, ranked) {
+    const r = ranked.slice(8, 24), pairs = [];
+    for (const [s1, s2, u1, u2] of [[0, 1, 14, 15], [2, 3, 12, 13], [4, 5, 10, 11], [6, 7, 8, 9]]) {
+      const us = shuffle([r[u1], r[u2]]);
+      pairs.push([us[0], r[s1]], [us[1], r[s2]]);
+    }
+    return pairs;
+  }
+  // Oitavas da UEFA: 1/2 pegam os vencedores de 15-18, 3/4 os de 13/14-19/20, 5/6 os de 11/12-21/22 e 7/8 os de 9/10-23/24; 1/2 em lados opostos da chave
+  function uefaR16(c, wins) {
+    const t = c.top8, g = (i) => shuffle([wins[2 * i], wins[2 * i + 1]]);
+    const G1 = g(0), G2 = g(1), G3 = g(2), G4 = g(3);
+    const sp = (a, b) => (Math.random() < 0.5 ? [a, b] : [b, a]);
+    const [s1, s2] = sp(t[0], t[1]), [s3, s4] = sp(t[2], t[3]), [s5, s6] = sp(t[4], t[5]), [s7, s8] = sp(t[6], t[7]);
+    return [[G4[0], s1], [G1[0], s7], [G2[0], s5], [G3[0], s3], [G4[1], s2], [G1[1], s8], [G2[1], s6], [G3[1], s4]];
+  }
+  function nextPairs(s, c, wins, alive) {
+    const rk = (id) => c.order.indexOf(id);
+    if (c.mode === "uefa" && c.si === 1) return uefaR16(c, wins);
+    if (c.mode === "uefa" || c.mode === "tree") { // a chave é fixa: o vencedor do confronto 2k enfrenta o do 2k+1
+      const p = [];
+      for (let i = 0; i + 1 < wins.length; i += 2) { const x = wins[i], y = wins[i + 1]; p.push(hostPair(c, rk(x) < rk(y) ? x : y, rk(x) < rk(y) ? y : x)); }
+      return p;
+    }
+    if (c.mode === "draw") { // sorteio puro a cada fase (Copa do Brasil)
+      const w = shuffle(wins.slice()), p = [];
+      for (let i = 0; i + 1 < w.length; i += 2) p.push([w[i], w[i + 1]]);
+      return p;
+    }
+    return pairBW(alive);
+  }
   function startStage(s, c, pairs) {
     const st = c.plan[c.si];
     if (c.ties && c.stage) (c.past = c.past || []).push({ name: c.stage, ties: c.ties }); // guarda as fases anteriores para a tabela
@@ -297,7 +339,11 @@
     const ids = byStrength(s, main.concat(locals));
     const c = newComp(s, "CDB", "Copa do Brasil " + Y, ids, "cup", { order: ids, prize: 500000, cont: true });
     c.plan = plan([["1ª fase", 1, [5]], ["2ª fase", 1, [9]], ["Oitavas", 2, [22, 24]], ["Quartas", 2, [29.5, 31.5]], ["Semifinal", 2, [36, 38]], ["Final", 2, [44, 45]]], B);
-    startStage(s, c, pairBW(ids));
+    c.mode = "draw";
+    { // 1ª fase: metade mais forte (cabeças) contra a metade mais fraca, sorteio entre elas; o menos cotado joga em casa
+      const half = Math.floor(ids.length / 2), top = shuffle(ids.slice(0, half)), bot = shuffle(ids.slice(ids.length - half));
+      startStage(s, c, top.map((t, i) => [bot[i], t]));
+    }
     createSouthCups(s, Y);
     if (Y >= 2029 && (Y - 2029) % 4 === 0) createClubWorldCup(s, Y);
   }
@@ -581,7 +627,8 @@
     }
     if (!c.closed && c.ties.every((t) => t.w !== null)) {
       c.closed = true;
-      let alive = c.ties.map((t) => t.w).sort((x, y) => c.order.indexOf(x) - c.order.indexOf(y));
+      const wins = c.ties.map((t) => t.w);
+      let alive = wins.slice().sort((x, y) => c.order.indexOf(x) - c.order.indexOf(y));
       if (c.fixedTop && c.si === 0) { alive = c.fixedTop.concat(alive); c.fixedTop = null; }
       c.si++;
       if (c.si >= c.plan.length) {
@@ -589,7 +636,7 @@
         s.honors.push({ year: yearOf(s.T), cup: c.name, club: s.teams[alive[0]].name });
         if (!silent) { const ft = c.ties.find((t) => t.w === alive[0]); res.notes.push(`<b>${c.name}</b>: campeão ${s.teams[alive[0]].name}` + (ft && ft.pens ? ` — final empatada em ${ft.agg[0]} x ${ft.agg[1]} no agregado; decidida nos pênaltis${ft.pk ? ` (${ft.pk[0]} x ${ft.pk[1]})` : ""}` : "")); }
         finishComp(s, c, res, silent, true);
-      } else startStage(s, c, c.pairs ? c.pairs(alive) : pairBW(alive));
+      } else startStage(s, c, nextPairs(s, c, wins, alive));
     }
   }
 
@@ -616,7 +663,8 @@
         const k = newComp(s, c.id + "_K", c.name + " (mata-mata)", qual, "cup", { order: qual, prize: 150000, cont: true });
         const B = c.B;
         k.plan = plan(sp ? [["Quartas", 1, [14.2]], ["Semifinal", 1, [15]], ["Final", 2, [16.2, 16.9]]] : [["Semifinal", 1, [13.5]], ["Final", 2, [15.2, 16]]], B);
-        startStage(s, k, pairBW(qual));
+        k.mode = "tree";
+        startStage(s, k, seededPairs(qual).map(([b, w]) => hostPair(k, b, w)));
         break;
       }
       case "b3": {
@@ -659,7 +707,8 @@
         const order = []; for (let i = 0; i < 8; i++) { order.push(A[i]); order.push(Z[i]); }
         const k = newComp(s, c.id + "_K", c.name + " (fase final)", order, "cup", { order, prize: 300000, cont: true });
         k.plan = plan([["Oitavas", 1, [c.kt[0]]], ["Quartas", 1, [c.kt[1]]], ["Semifinal", 1, [c.kt[2]]], ["Final", 1, [c.kt[3]]]], c.B);
-        startStage(s, k, A.map((a, i) => [a, Z[7 - i]]));
+        k.mode = "tree"; // chave fixa da Liga Profesional: 1A-8B, 4B-5A, 3A-6B, 2B-7A | 2A-7B, 3B-6A, 4A-5B, 1B-8A
+        startStage(s, k, [[A[0], Z[7]], [Z[3], A[4]], [A[2], Z[5]], [Z[1], A[6]], [A[1], Z[6]], [Z[2], A[5]], [A[3], Z[4]], [Z[0], A[7]]]);
         if (c.t === 2) {
           const ids = s.lg.ARG1, order2 = ids.slice().sort((a, b) => s.annual[b].pts - s.annual[a].pts);
           ids.forEach((id) => { const a = s.prom[id] || (s.prom[id] = [1.2, 1.2]); a.push(s.annual[id].pts / Math.max(1, s.annual[id].g)); if (a.length > 3) a.shift(); });
@@ -696,17 +745,18 @@
         const ws = sortTab(W, c.tab), rs = sortTab(R, c.tab);
         const order = ws.concat(rs);
         const k = newComp(s, c.id + "_K", c.name + " (mata-mata)", order, "cup", { order, prize: c.prize, cont: true, tab: c.tab, groups: c.groups });
-        k.plan = c.plan;
-        startStage(s, k, ws.map((w, i) => [w, rs[i ^ 1]]));
+        k.plan = c.plan; k.mode = "tree";
+        if (/^MUN/.test(c.id) && W.length === 8) startStage(s, k, [0, 2, 4, 6, 1, 3, 5, 7].map((i) => hostPair(k, W[i], R[i ^ 1]))); // A1xB2, C1xD2, E1xF2, G1xH2, B1xA2, D1xC2, F1xE2, H1xG2
+        else startStage(s, k, seededPairs(order).map(([b, w]) => hostPair(k, b, w))); // campanha: 1ºx16º, 8ºx9º, 4ºx13º, 5ºx12º...
         break;
       }
       case "euS": {
         c.done = true;
         const ranked = sortTab(c.ids, c.tab);
         c.final = ranked;
-        const k = newComp(s, c.id + "_K", c.name + " (mata-mata)", ranked, "cup", { order: ranked, prize: c.prize, cont: true, tab: c.tab, fixedTop: ranked.slice(0, 8) });
+        const k = newComp(s, c.id + "_K", c.name + " (mata-mata)", ranked, "cup", { order: ranked, prize: c.prize, cont: true, tab: c.tab, mode: "uefa", top8: ranked.slice(0, 8) });
         k.plan = c.plan;
-        startStage(s, k, pairBW(ranked.slice(8, 24)));
+        startStage(s, k, uefaPlayoff(k, ranked));
         break;
       }
     }
