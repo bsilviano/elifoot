@@ -1126,11 +1126,26 @@
       }
       // cartão amarelo (3º amarelo = suspenso na próxima rodada)
       if (m.on[side].length && Math.random() < 1.5 / 90) {
-        const p = wpickP(m.on[side], (q) => ({ GK: 0.1, DEF: 1.4, MID: 1.3, ATT: 0.9 }[q.pos]));
-        p.yc = (p.yc || 0) + 1;
-        const third = p.yc >= 3;
-        m.ev.push({ min: mn, type: "yellow", side, name: p.name, club: team.name, third });
-        if (third) { p.yc = 0; p.sus = 1; evs.push({ type: "yc3", name: p.name, n: 1 }); }
+        m.ycm = m.ycm || {};
+        let p = wpickP(m.on[side], (q) => ({ GK: 0.1, DEF: 1.4, MID: 1.3, ATT: 0.9 }[q.pos]));
+        // quem já tem amarelo na partida joga com mais cuidado: 65% das vezes o cartão vai para outro
+        if (m.ycm[p.id] >= 1 && Math.random() < 0.65) p = wpickP(m.on[side], (q) => ({ GK: 0.1, DEF: 1.4, MID: 1.3, ATT: 0.9 }[q.pos]) * (m.ycm[q.id] ? 0.2 : 1));
+        m.ycm[p.id] = (m.ycm[p.id] || 0) + 1;
+        if (m.ycm[p.id] >= 2) { // dois amarelos na mesma partida = expulso
+          m.ev.push({ min: mn, type: "yellow", side, name: p.name, club: team.name, second: true });
+          m.on[side].splice(m.on[side].indexOf(p), 1); unrole(p);
+          p.sus = 1; p.yc = 0;
+          evs.push({ type: "red", name: p.name, n: p.sus });
+          m.ev.push({ min: mn, type: "red", side, name: p.name, n: p.sus, club: team.name, second: true });
+          liveRates(m);
+          if (isMine(s, team.id)) live.pending.push({ mi: m.i, side, name: p.name, club: team.name, sp: p.sp || ({ GK: "GOL", DEF: "ZAG", MID: "MC", ATT: "CA" })[p.pos], ov: p.ov });
+          else autoReorg(m, side);
+        } else {
+          p.yc = (p.yc || 0) + 1;
+          const third = p.yc >= 3;
+          m.ev.push({ min: mn, type: "yellow", side, name: p.name, club: team.name, third });
+          if (third) { p.yc = 0; p.sus = 1; evs.push({ type: "yc3", name: p.name, n: 1 }); }
+        }
       }
     }
   }
