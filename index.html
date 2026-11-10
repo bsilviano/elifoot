@@ -65,13 +65,13 @@ tr.me{background:color-mix(in srgb,var(--ac) 30%,transparent);font-weight:800}tr
 <header><div class="hl"><span id="crest"></span><b id="hT">Meu Elifoot</b></div><div class="hr"><span id="flag"></span><span id="hS"></span></div></header>
 <main id="app"></main>
 <nav id="nav"></nav>
-<script src="clubs.js?v=136"></script>
-<script src="game.js?v=136"></script>
+<script src="clubs.js?v=137"></script>
+<script src="game.js?v=137"></script>
 <script>
 const PREFIX="elifoot:save:",SAVE1="Elifoot"; // um único save para todos os times
 let artCan=false,S=null,tab="jogo",msg="",mf={pos:"",q:"",any:true,min:1,max:null,afford:true,ord:"ovr",dir:-1},viewKey=null;
 const $=id=>document.getElementById(id);
-const VERSAO=136;
+const VERSAO=137;
 const moneyFull=n=>(n<0?"-":"")+"R$ "+Math.round(Math.abs(n)).toLocaleString("pt-BR");
 const money=moneyFull;
 const U=()=>S.teams[S.user];
@@ -525,7 +525,8 @@ function aucCard(){
 
 function compOpts(cur){
   const cs=Object.values(S.comps).filter(c=>!(c.id.endsWith("_K")&&S.comps[c.id.slice(0,-2)]));
-  const mine=cs.filter(c=>c.ids.includes(S.user)),rest=cs.filter(c=>!c.ids.includes(S.user));
+  const al=(a,b)=>a.name.localeCompare(b.name,"pt-BR");
+  const mine=cs.filter(c=>c.ids.includes(S.user)).sort(al),rest=cs.filter(c=>!c.ids.includes(S.user)).sort(al);
   const o=c=>`<option value="${c.id}" ${c.id===cur?"selected":""}>${c.name}${(S.comps[c.id+"_K"]||c).done?" ✓":""}</option>`;
   return `<optgroup label="Seu clube">${mine.map(o).join("")}</optgroup><optgroup label="Outras">${rest.map(o).join("")}</optgroup>`;
 }
@@ -644,7 +645,7 @@ function vArtM(){
 }
 let artComp=null;
 function vArtD(){
-  const cs=Object.values(S.comps).filter(c=>!c.id.endsWith("_K")&&c.ids&&c.ids.length);
+  const cs=Object.values(S.comps).filter(c=>!c.id.endsWith("_K")&&c.ids&&c.ids.length).sort((a,b)=>a.name.localeCompare(b.name,"pt-BR"));
   if(!artComp||!S.comps[artComp]){const m=cs.filter(c=>c.ids.includes(S.user));artComp=(m.find(c=>c.after==="lg")||m[0]||cs[0]||{}).id}
   const y=Game.yearOf(S.T);
   const lst=(l,sub)=>{if(artCan)l=l.filter(e=>{const f=Game.lookup(S,e.n,e.c);return f&&f.price<=S.cash});l=l.slice(0,30);
