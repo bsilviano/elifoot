@@ -905,8 +905,8 @@
       const m = rd.fx.find((m) => m[0] === s.user || m[1] === s.user);
       if (m) {
         const c = s.comps[rd.c];
-        const pos = (id) => { if (rd.k !== "tab" || !c || !c.tab || !c.tab[id] || !c.tab[id].p) return null; const grp = c.groups && c.groups.find((x) => x.includes(id)); return sortTab(grp || c.ids, c.tab).indexOf(id) + 1; };
-        return { cid: rd.c, rodada: rodLabel(c, rd), hp: pos(m[0]), ap: pos(m[1]), T: rd.T, date: dateOf(rd.T), comp: c ? c.name + (rd.n ? " · " + rd.n : "") : "", home: s.teams[m[0]], away: s.teams[m[1]] }; }
+        const pos = (id) => { if (rd.k === "ko") { const o = c && c.order ? c.order.indexOf(id) : -1; return o >= 0 ? o + 1 : null; } if (rd.k !== "tab" || !c || !c.tab || !c.tab[id]) return null; const grp = c.groups && c.groups.find((x) => x.includes(id)); return sortTab(grp || c.ids, c.tab).indexOf(id) + 1; };
+        return { cid: rd.c, ko: rd.k === "ko", fx: rd.fx.map((x) => [x[0], x[1]]), rodada: rodLabel(c, rd), hp: pos(m[0]), ap: pos(m[1]), T: rd.T, date: dateOf(rd.T), comp: c ? c.name + (rd.n ? " · " + rd.n : "") : "", home: s.teams[m[0]], away: s.teams[m[1]] }; }
     }
     return null;
   }
