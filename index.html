@@ -65,13 +65,13 @@ tr.me{background:color-mix(in srgb,var(--ac) 30%,transparent);font-weight:800}tr
 <header><div class="hl"><span id="crest"></span><b id="hT">Meu Elifoot</b></div><div class="hr"><span id="flag"></span><span id="hS"></span></div></header>
 <main id="app"></main>
 <nav id="nav"></nav>
-<script src="clubs.js?v=144"></script>
-<script src="game.js?v=144"></script>
+<script src="clubs.js?v=145"></script>
+<script src="game.js?v=145"></script>
 <script>
 const PREFIX="elifoot:save:",SAVE1="Elifoot"; // um único save para todos os times
 let artCan=false,S=null,tab="jogo",msg="",mf={pos:"",q:"",any:true,min:1,max:null,afford:true,ord:"ovr",dir:-1},viewKey=null;
 const $=id=>document.getElementById(id);
-const VERSAO=144;
+const VERSAO=145;
 const moneyFull=n=>(n<0?"-":"")+"R$ "+Math.round(Math.abs(n)).toLocaleString("pt-BR");
 const money=moneyFull;
 const U=()=>S.teams[S.user];
@@ -698,7 +698,7 @@ function vMais(){
   <label style="display:flex;gap:8px;align-items:center;padding:3px 0"><input type="checkbox" ${m==="refuse"?"checked":""} onchange="setJob(${id},'refuse',this.checked)" style="padding:0;width:20px;height:20px"> Recusar ofertas de emprego</label>
   <label style="display:flex;gap:8px;align-items:center;padding:3px 0"><input type="checkbox" ${m==="seek"?"checked":""} onchange="setJob(${id},'seek',this.checked)" style="padding:0;width:20px;height:20px"> Procurando emprego (ofertas a cada 5 jogos)</label></div>`}).join("")}
   <p class="mut">Vale para cada clube separadamente. Sem nenhuma marcada, chegam ofertas a cada 10 jogos. Os convites são de clubes maiores que o clube (pelo valor do elenco), desde que a posição atual na tabela seja compatível com o porte do clube. Nunca de divisão inferior, nem em outro país. Se você aceitar, o convite substitui aquele clube.</p></div></div><div class="mc">
-  <div class="card"><h2>Estádio</h2>${(()=>{const cap=Game.getStad(u),max=cap>=100000;return `<p>Capacidade: <b>${cap.toLocaleString("pt-BR")}</b> lugares${max?" (máximo)":""}<br><span class="mut">Mínimo 10.000 · máximo 100.000 · amplia de 10.000 em 10.000. Custo: capacidade atual × 100. Manutenção: R$ 10 por lugar por mês (${money(cap*10)}/mês). O ingresso é mais caro em competições e fases mais importantes. A renda do jogo é toda do mandante; o visitante não recebe nada. O público depende da torcida (${(u.fans*1000).toLocaleString("pt-BR")}).</span></p>${max?"":`<p><button class="p" onclick="buildStad()">Ampliar para ${(cap+10000).toLocaleString("pt-BR")} lugares (${moneyFull(Game.stadCost(u))})</button></p>`}`})()}</div>
+  <div class="card"><h2>Estádio</h2>${(()=>{const cap=Game.getStad(u),max=cap>=100000;return `<p>Capacidade: <b>${cap.toLocaleString("pt-BR")}</b> lugares${max?" (máximo)":""}<br><span class="mut">Mínimo 10.000 · máximo 100.000 · amplia de 10.000 em 10.000. Custo: capacidade atual × 100. O ingresso é mais caro em competições e fases mais importantes. A renda do jogo é toda do mandante; o visitante não recebe nada. O público depende da torcida (${(u.fans*1000).toLocaleString("pt-BR")}).</span></p>${max?"":`<p><button class="p" onclick="buildStad()">Ampliar para ${(cap+10000).toLocaleString("pt-BR")} lugares (${moneyFull(Game.stadCost(u))})</button></p>`}`})()}</div>
   <div class="card"><h2>Meus times</h2>${myS().map(id=>`<div class="pl ${id===S.user?"in":""}"><span><b>${S.teams[id].name}</b> <span class="mut">(${Game.COUNTRIES[S.teams[id].country].name})</span><br><span class="mut">Caixa ${moneyFull(id===S.user?S.cash:(S.cashes&&S.cashes[id])||0)}${id===S.user?" · ativo":""}</span></span><span>${id===S.user?"":`<button class="s p" onclick="swClub(${id})">Comandar</button> `}<button class="s d" onclick="dropClubUI(${id})">Largar</button></span></div>`).join("")}
   <div class="row" style="margin-top:8px"><select id="addSel" style="flex:1;min-width:0">${clubOpts()}</select><button class="p" onclick="addClubUI()">Adicionar time</button></div>
   <div class="row" style="margin-top:8px"><select id="addCty" style="flex:1;min-width:0"><option value="">Qualquer país</option>${cNames().map(n=>`<option>${n}</option>`).join("")}</select><button onclick="addRandomUI()">🎲 Time aleatório</button></div>

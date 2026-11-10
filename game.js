@@ -988,9 +988,6 @@
         if (id === s.user) s.cash -= amt; else { s.cashes = s.cashes || {}; s.cashes[id] = (s.cashes[id] || 0) - amt; }
         s.ledger = s.ledger || [];
         s.ledger.push({ T, id, d: `Salários de ${MESES[s.payM % 12]}/${Math.floor(s.payM / 12)}`, v: -amt });
-        const cap = getStad(s.teams[id]), man = cap * STAD_MAINT; // manutenção proporcional ao tamanho do estádio
-        if (id === s.user) s.cash -= man; else s.cashes[id] = (s.cashes[id] || 0) - man;
-        s.ledger.push({ T, id, d: `Manutenção do estádio (${cap.toLocaleString("pt-BR")} lugares)`, v: -man });
       }
     }
   }
