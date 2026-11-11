@@ -341,6 +341,16 @@ const Campo = (() => {
   function foulScript(kind, e, fside) {
     return (cur) => {
       const st = cur.steps; let fo = null, vi = null, spot = null, near = false;
+      // jogador já dentro da grande área adversária: primeiro finaliza (como em campo), e só depois vem a falta/cartão, sem "voltar" a bola
+      if (e) {
+        const c0 = ball.carrier != null && P[ball.carrier];
+        if (c0 && c0.live && c0.p.pos !== "GK" && !ball.flight && Math.abs(c0.x - (c0.side === "h" ? W : 0)) < 18 && Math.abs(c0.y - 34) < 21) {
+          const sd = c0.side; let sk = pickW(["save", "wide", "block", "post"], [5, 2.6, 1.6, 0.8]); if (sk === "save" && R() < 0.4) sk = "savec";
+          st.push(WAIT(0.2)); shotSteps(st, sd, sk, c0, c0.p.name);
+          st.push(FN(() => { q.unshift(foulScript(kind, e, fside)); let f = null; if (sk === "wide") f = goalKick(other(sd)); else if (sk === "savec") f = corner(sd); if (f) { f.ill = true; q.unshift(f); } }, 0));
+          return;
+        }
+      }
       // 0) cartão só com o time do infrator na defesa: espera a posse mudar; se não mudar, o rival fica com a bola
       if (e) {
         const holder = () => { const c = ball.carrier != null && P[ball.carrier]; return c && c.live ? c.side : poss; };
@@ -348,7 +358,7 @@ const Campo = (() => {
         // o infrator é sempre do time sem a bola: se o time dele tem a posse, o marcador mais próximo desarma antes (a posse muda) e só então vem a falta
         st.push({ dur: 9, start() {}, until() { if (holder() !== e.side) return true; if (ball.flight) return false; const opp = team(other(e.side)).filter((x) => x.p.pos !== "GK"), v = nearest(opp, ball.x, ball.y); if (!v) return true; over.run = { o: v, x: ball.x, y: ball.y }; if (Math.hypot(v.x - ball.x, v.y - ball.y) < 1.8) { over.run = null; ball.flight = null; setCarrier(v); return true; } return false; } });
         // se o lance está dentro da área, quem tem a bola sai driblando para fora dela (nada de falta na área nem bola teletransportada)
-        st.push({ dur: 16, start() {}, until() { if (!inB()) return true; if (ball.flight) return false; const c = ball.carrier != null && P[ball.carrier]; if (!c || !c.live) return true; const gx0 = ball.x < W / 2 ? 0 : W; over.run = { o: c, x: gx0 + (gx0 === 0 ? 27 : -27), y: c.y + (c.y < 34 ? -3 : 3) }; return false; } });
+        st.push({ dur: 16, start() {}, until() { if (!inB()) return true; if (ball.flight) return false; const c = ball.carrier != null && P[ball.carrier]; if (!c || !c.live) return true; if (c.p.pos === "GK") { const r = nearest(team(c.side).filter((o) => o.p.pos !== "GK"), W / 2, 34); if (!r) return true; flight(ball.x, ball.y, r.x, r.y, Math.max(0.6, Math.hypot(r.x - ball.x, r.y - ball.y) / 16), () => setCarrier(r), 2, r); return false; } const gx0 = ball.x < W / 2 ? 0 : W; over.run = { o: c, x: gx0 + (gx0 === 0 ? 27 : -27), y: c.y + (c.y < 34 ? -3 : 3) }; return false; } });
       }
       // 1) o marcador corre até quem está com a bola (nada de falta surgindo do nada)
       st.push({ dur: e ? 10 : 5, start() {
