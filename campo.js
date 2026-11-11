@@ -320,6 +320,12 @@ const Campo = (() => {
   function foulScript(kind, e, fside) {
     return (cur) => {
       const st = cur.steps; let fo = null, vi = null, spot = null;
+      // 0) cartão só com o time do infrator na defesa: espera a posse mudar; se não mudar, o rival fica com a bola
+      if (e) {
+        const holder = () => { const c = ball.carrier != null && P[ball.carrier]; return c && c.live ? c.side : poss; };
+        st.push({ dur: 7, start() {}, until() { return holder() !== e.side; } });
+        st.push(FN(() => { if (holder() !== e.side) return; const f0 = findP(e.name, e.side); const opp = team(other(e.side)).filter((x) => x.p.pos !== "GK"); const v = nearest(opp, f0 ? f0.x : ball.x, f0 ? f0.y : ball.y); if (v) { placeBall(v.x, v.y); setCarrier(v); } }, 0.05));
+      }
       // 1) o marcador corre até quem está com a bola (nada de falta surgindo do nada)
       st.push({ dur: e ? 10 : 5, start() {
         fo = (e && findP(e.name, e.side)) || null;
