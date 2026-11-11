@@ -36,7 +36,7 @@ tr.me{background:color-mix(in srgb,var(--ac) 30%,transparent);font-weight:800}tr
 .mut{color:var(--mut);font-size:12px}
 .hire{text-decoration:underline dotted;cursor:pointer}.big{font-size:20px;text-align:center;padding:8px}.tb{display:inline-block;padding:3px 9px;border-radius:8px;font-weight:700;font-size:15px;margin:2px}.mrow{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:4px;font-size:22px;font-weight:700;padding:6px 0}
 .good{color:var(--ac)}.bad{color:var(--bad)}.warn{color:var(--warn)}
-.campo{position:relative;height:clamp(310px,calc(100dvh - 375px),520px);border-radius:10px;border:2px solid #fff8;background:repeating-linear-gradient(0deg,#2e8b3d 0 43px,#287a35 43px 86px);display:flex;flex-direction:column;justify-content:space-around;padding:8px 4px;overflow:hidden}
+.campo{position:relative;min-height:clamp(310px,calc(100dvh - 375px),520px);border-radius:10px;border:2px solid #fff8;background:repeating-linear-gradient(0deg,#2e8b3d 0 43px,#287a35 43px 86px);display:flex;flex-direction:column;justify-content:space-around;padding:8px 4px;overflow:hidden}
 .campo:before{content:"";position:absolute;left:0;right:0;top:50%;border-top:2px solid #fff8}
 .campo:after{content:"";position:absolute;left:50%;top:50%;width:70px;height:70px;margin:-35px 0 0 -35px;border:2px solid #fff8;border-radius:50%}
 .lin.dup{justify-content:center;gap:14%}
@@ -58,7 +58,7 @@ tr.me{background:color-mix(in srgb,var(--ac) 30%,transparent);font-weight:800}tr
 .desk-only{display:none}
 @media(min-width:1000px){.mob-only{display:none}#app>.elg.desk-only{grid-template-columns:repeat(3,minmax(0,1fr));align-items:start}.desk-only>.card{margin:0}}
 @media(min-width:1000px){#app>.mcg{grid-column:1/-1;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;align-items:start}.mc{display:flex;flex-direction:column;gap:14px;min-width:0}.mc>.card{margin:0}}
-@media(min-width:1000px){#app>.jgl{grid-column:1/-1;grid-template-columns:minmax(0,1fr) 420px;grid-template-rows:auto 1fr;align-items:start}.jgl>.mbig{grid-column:2;grid-row:1;margin:0!important;padding:16px 14px!important}.jgl>.el1{grid-column:1;grid-row:1/span 2}.jgl>.el3{grid-column:2;grid-row:2}.jgl .campo{height:clamp(360px,calc(100dvh - 330px),950px)}.jgl .jog i{width:clamp(32px,calc((100dvh - 330px)/11),44px);height:clamp(32px,calc((100dvh - 330px)/11),44px);font-size:16px}.jgl .jog span{font-size:13px;font-weight:600;line-height:1.15}.jgl .jog small{font-size:11px;line-height:1.1}.mbig>div:first-child{font-size:22px!important;line-height:1.3}.mbig p{font-size:14px!important}}
+@media(min-width:1000px){#app>.jgl{grid-column:1/-1;grid-template-columns:minmax(0,1fr) 420px;grid-template-rows:auto 1fr;align-items:start}.jgl>.mbig{grid-column:2;grid-row:1;margin:0!important;padding:16px 14px!important}.jgl>.el1{grid-column:1;grid-row:1/span 2}.jgl>.el3{grid-column:2;grid-row:2}.jgl .campo{min-height:clamp(360px,calc(100dvh - 330px),950px)}.jgl .jog i{width:clamp(32px,calc((100dvh - 330px)/11),44px);height:clamp(32px,calc((100dvh - 330px)/11),44px);font-size:16px}.jgl .jog span{font-size:13px;font-weight:600;line-height:1.15}.jgl .jog small{font-size:11px;line-height:1.1}.mbig>div:first-child{font-size:22px!important;line-height:1.3}.mbig p{font-size:14px!important}}
 @media(min-width:1000px){.el1>.card.pr{flex:1;padding:20px 18px!important}.el1>.card.pr [style*="font-size:13px"]{font-size:18px!important;padding:6px 0!important}.el1>.card.pr [style*="font-size:11px"]{font-size:15px!important;margin-top:8px!important}.el1>.card.esc{flex:none;padding:8px 12px}.el1>.card.esc h2{font-size:14px;margin:0 0 4px}}
 @media(max-width:999px){.el3{display:none}}
 .ur{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--line)}.urk{font-weight:800;width:20px;flex:none}.urm{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;flex-wrap:wrap;font-size:16px;text-align:center}.urd{font-size:12px;flex:none;text-align:right}@media(max-width:700px){.ur{flex-wrap:wrap;gap:2px 8px}.urm{order:3;flex-basis:100%}.urd{margin-left:auto}}
@@ -68,15 +68,15 @@ tr.me{background:color-mix(in srgb,var(--ac) 30%,transparent);font-weight:800}tr
 <header><div class="hl"><span id="crest"></span><b id="hT">Meu Elifoot</b></div><div class="hr"><span id="flag"></span><span id="hS"></span></div></header>
 <main id="app"></main>
 <nav id="nav"></nav>
-<script src="clubs.js?v=228"></script>
-<script src="game.js?v=228"></script>
-<script src="campo.js?v=228"></script>
-<script src="campo3d.js?v=228"></script>
+<script src="clubs.js?v=229"></script>
+<script src="game.js?v=229"></script>
+<script src="campo.js?v=229"></script>
+<script src="campo3d.js?v=229"></script>
 <script>
 const PREFIX="elifoot:save:",SAVE1="Elifoot"; // um único save para todos os times
 let artCan=false,S=null,tab="jogo",msg="",mf={pos:"",q:"",any:true,min:1,max:null,afford:true,ord:"ovr",dir:-1},viewKey=null;
 const $=id=>document.getElementById(id);
-const VERSAO=228;
+const VERSAO=229;
 const moneyFull=n=>(n<0?"-":"")+"R$ "+Math.round(Math.abs(n)).toLocaleString("pt-BR");
 const money=moneyFull;
 const U=()=>S.teams[S.user];
