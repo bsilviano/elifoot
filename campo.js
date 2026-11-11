@@ -101,7 +101,11 @@ const Campo = (() => {
     let r = w.some((v) => v > 0) ? pickW(mates, w) : null;
     if (!r) r = mates.slice().sort((a, b) => (b.x - a.x) * dir)[0]; // nunca para trás: se ninguém está à frente, toca no mais avançado ou conduz
     if (!r) return;
-    if ((r.x - c.x) * dir < -1.5) { const dr = c.side === "h" ? 1 : -1; c.twx = 0.12; c.wt = 3; passT = 0.6; return; } // conduz a bola em direção ao gol
+    if ((r.x - c.x) * dir < -1.5 && R() < 0.8) { // ninguém à frente: em vez de conduzir até a outra área, toca de lado ou para trás
+      const wb = mates.map((o) => { const d = Math.hypot(o.x - c.x, o.y - c.y); let v = d < 5 ? 0.1 : d < 22 ? 1 : d < 30 ? 0.4 : 0.05; if (o.p.pos === "GK") v *= c.p.pos === "DEF" ? 0.3 : 0.02; return v; });
+      if (wb.some((v) => v > 0)) r = pickW(mates, wb);
+    }
+    if ((r.x - c.x) * dir < -1.5 && !(Math.hypot(r.x - c.x, r.y - c.y) > 4 && R() < 0.9)) { const dr = c.side === "h" ? 1 : -1; c.twx = 0.12; c.wt = 3; passT = 0.6; return; } // conduz a bola em direção ao gol
     const dist = Math.hypot(r.x - c.x, r.y - c.y), dur = Math.max(0.35, dist / 18);
     const club = (sd) => (sd === "h" ? M.H.name : M.A.name), prog = (c.side === "h" ? c.x : W - c.x) / W;
     if (R() < pI && opp.length) { const it = nearest(opp, (c.x + r.x) / 2, (c.y + r.y) / 2); flight(ball.x, ball.y, it.x, it.y, dur * 0.7, () => { setCarrier(it); narrate(pickW([`Desarme de ${sur(it)}! A bola é do ${club(it.side)}`, `${sur(it)} intercepta o passe de ${sur(c)}`, `${sur(it)} corta e recupera a bola`], [1, 1, 1])); }, 1.2, it); }
@@ -198,7 +202,7 @@ const Campo = (() => {
       st.push(FN(() => { over.pos = null; }, 0));
     };
   }
-  function corner(side) {
+  function corner(side, gname) {
     return (cur) => {
       const st = cur.steps, gx = side === "h" ? W : 0, cy = ball.y < H / 2 ? 0.6 : H - 0.6, cxp = gx === W ? W - 0.6 : 0.6, xg = (d) => (side === "h" ? W - d : d); let tk = null, tg = null;
       st.push(FN(() => {
@@ -210,12 +214,13 @@ const Campo = (() => {
         const dr = { DEF: 0, MID: 1, ATT: 2 }, df = fld(other(side)).sort((a, b) => dr[a.p.pos] - dr[b.p.pos]);
         df.forEach((o, i) => { if (i < 7) m[o.p.id] = [xg(2.5 + (i % 3) * 3.5), 34 + (i - 3) * 3.4]; else m[o.p.id] = [xg(38), yOf(o)]; });
         const dg = gkOf(other(side)); if (dg) m[dg.p.id] = [xg(3.5), 34];
-        over.pos = m; tg = ra[0];
+        { const sc = gname && ra.find((x) => x.p.name === gname && x.p.pos !== "GK"); if (sc) { const slot = ra[0]; if (m[slot.p.id] && sc !== slot) { m[sc.p.id] = m[slot.p.id]; m[slot.p.id] = [xg(20), 34 + 12]; } else if (!m[sc.p.id]) m[sc.p.id] = [xg(8), 34 + 3]; tg = sc; } else tg = ra[0]; }
+        over.pos = m;
       }, 3));
       st.push(FN(() => { SNAPP(); setCarrier(tk); }, 0.3));
       st.push({ fl: 1, start() { tg = tg || tk; flight(cxp, cy, tg.x, tg.y, 1.1, () => setCarrier(tg), 8, tg); } });
       st.push(WAIT(0.1));
-      st.push(FN(() => { shotSteps(cur.steps, side, pickW(["save", "wide", "block", "post"], [4, 3, 2, 0.8]), tg || tk, ""); }, 0));
+      st.push(FN(() => { shotSteps(cur.steps, side, gname ? "goal" : pickW(["save", "wide", "block", "post"], [4, 3, 2, 0.8]), tg || tk, gname || ""); }, 0));
       st.push(FN(() => { over.pos = null; }, 0));
       st.push(FN(() => { over.pos = null; }, 0));
     };
@@ -428,7 +433,7 @@ const Campo = (() => {
 
   function handle(e) {
     const s = e.side; q = q.filter((f) => !f.ill);
-    if (e.type === "goal") q.push(chance(s, { name: e.name, kind: "goal", how: e.how }));
+    if (e.type === "goal") q.push(e.how === "corner" ? corner(s, e.name) : chance(s, { name: e.name, kind: "goal", how: e.how }));
     else if (e.type === "penwin") q.push(penaltyWin(s, e));
     else if (e.type === "pen") q.push(penaltyKick(s, e));
     else if (e.type === "yellow") q.push(foulScript("yellow", e));
@@ -514,7 +519,7 @@ const Campo = (() => {
       if (c && c.live) { const d = c.side === "h" ? 1 : -1; ball.x = c.x + d * 0.9; ball.y = c.y + 0.3; }
     }
     const scripted = runScript(dt);
-    if (!scripted && !freeze && !ball.flight) { passT -= dt; if (passT <= 0) { ambient(); passT = 0.5 + R() * 0.6; } }
+    if (!scripted && !freeze && !ball.flight) { passT -= dt; if (passT <= 0) { ambient(); passT = 0.4 + R() * 0.45; } }
     stat[poss].poss += dt;
     if (capT > 0) capT -= dt;
     if (narrT > 0) narrT -= dt;
