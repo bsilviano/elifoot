@@ -115,6 +115,27 @@
     for (const p of out) { if (chosen.length >= n) break; chosen.push(p); }
     return { chosen, eff: best.eff, miss: best.miss };
   }
+  // Posição em que cada titular joga na formação (pode ser diferente da de origem): devolve { idDoJogador: "ZAG" | "VOL" | ... }
+  function slotMap(ps) {
+    const out = {};
+    for (const pos of ["GK", "DEF", "MID", "ATT"]) {
+      const grp = ps.filter((p) => p.pos === pos);
+      if (!grp.length) continue;
+      if (pos === "GK") { grp.forEach((p) => { out[p.id] = "GOL"; }); continue; }
+      const vs = VARS[pos][grp.length] || [grp.map((p) => p.sp || ({ DEF: "ZAG", MID: "MC", ATT: "CA" })[pos])];
+      let best = null;
+      for (const slots of vs) {
+        const pairs = [];
+        grp.forEach((p, pi) => slots.forEach((sl, si) => pairs.push({ pi, si, v: p.ov * fitOf(p.sp, sl) })));
+        pairs.sort((x, y) => y.v - x.v);
+        const uP = new Set(), uS = new Set(), as = {}; let eff = 0;
+        for (const q of pairs) { if (uP.has(q.pi) || uS.has(q.si)) continue; uP.add(q.pi); uS.add(q.si); as[grp[q.pi].id] = slots[q.si]; eff += q.v; }
+        if (!best || eff > best.eff) best = { as, eff };
+      }
+      Object.assign(out, best.as);
+    }
+    return out;
+  }
   // Monta o melhor onze para a formação (goleiro sempre 1; "miss" = jogadores fora de posição e fora das alternativas).
   function buildLineup(team, formation) {
     const f = FORMATIONS[formation || team.formation] || FORMATIONS["4-4-2"];
@@ -1809,6 +1830,6 @@
     syncStad(s);
     return null;
   }
-  const api = { liveNext, prestige, syncStad, ALTS, dupOffers, jobOffers, level, liveReposition, applyLeagues, clubCash, yearOf, startRound, liveStep, liveSub, liveTakePen, penProb, liveResolve, liveFinish, autoReorg, getStad, stadCost, upgradeStadium, autoStadium, clubRev, payroll, migrateFin, migrateOvr2, topScorers, topScorersComp, lookup, yearOf, bestFormation, avail, nextRoundClubs, myClubs, addClub, switchClub, dropClub, STATES, CONT, COUNTRIES, LEAGUES, LG, FORMATIONS, TACTICS, newGame, autoLineup, ratings, playRound, acceptOffer, market, buy, sell, auction, sellTo, applyUpdate, resetPid, migrateOvr, lineupPlayers, fixLineup, nextUserRound, sortTab, dateOf, userComps, userMatches };
+  const api = { slotMap, liveNext, prestige, syncStad, ALTS, dupOffers, jobOffers, level, liveReposition, applyLeagues, clubCash, yearOf, startRound, liveStep, liveSub, liveTakePen, penProb, liveResolve, liveFinish, autoReorg, getStad, stadCost, upgradeStadium, autoStadium, clubRev, payroll, migrateFin, migrateOvr2, topScorers, topScorersComp, lookup, yearOf, bestFormation, avail, nextRoundClubs, myClubs, addClub, switchClub, dropClub, STATES, CONT, COUNTRIES, LEAGUES, LG, FORMATIONS, TACTICS, newGame, autoLineup, ratings, playRound, acceptOffer, market, buy, sell, auction, sellTo, applyUpdate, resetPid, migrateOvr, lineupPlayers, fixLineup, nextUserRound, sortTab, dateOf, userComps, userMatches };
   if (typeof module !== "undefined") module.exports = api; else root.Game = api;
 })(typeof window !== "undefined" ? window : globalThis);

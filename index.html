@@ -30,8 +30,8 @@ th:first-child,td:first-child,td.l,th.l{text-align:left}
 tr.me{background:color-mix(in srgb,var(--ac) 30%,transparent);font-weight:800}tr.me td:first-child{border-left:5px solid var(--ac);padding-left:6px}
 .z1{border-left:3px solid var(--ac)}.z2{border-left:3px solid var(--bad)}
 .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-.pos{display:inline-block;width:38px;font-size:11px;color:var(--mut)}
-.ctlr{justify-content:center;flex-wrap:wrap}.ctlr select,.ctlr button{padding:6px 10px;font-size:13px}.ctlr select,.ctlr button{margin:0}.rt{display:flex;align-items:center;gap:5px;flex:none;white-space:nowrap}.ovc{width:22px;text-align:right}.vl{width:82px;text-align:right;font-size:11px}.rt button{padding:5px 8px}.pl>span:first-child{min-width:0;flex:1;padding-right:6px}.pc{flex:none!important;width:38px;padding:0!important;display:flex;flex-direction:column;align-items:center;line-height:1.25;font-size:11px}.pc .pos{margin:0;min-width:0;width:auto}.nm{flex:1;min-width:0;padding:0 6px}.pl{display:flex;justify-content:space-between;align-items:center;padding:7px 4px;border-bottom:1px solid var(--line)}
+.pos{display:inline-block;min-width:38px;font-size:11px;color:var(--mut)}
+.ctlr{justify-content:center;flex-wrap:wrap}.ctlr select,.ctlr button{padding:6px 10px;font-size:13px}.ctlr select,.ctlr button{margin:0}.rt{display:flex;align-items:center;gap:5px;flex:none;white-space:nowrap}.ovc{width:22px;text-align:right}.vl{width:82px;text-align:right;font-size:11px}.rt button{padding:5px 8px}.pl>span:first-child{min-width:0;flex:1;padding-right:6px}.pc{flex:none!important;width:100px;padding:0!important;display:flex;flex-direction:column;align-items:center;line-height:1.25;font-size:11px}.pc .pos{margin:0;min-width:0;width:auto}.nm{flex:1;min-width:0;padding:0 6px}.pl{display:flex;justify-content:space-between;align-items:center;padding:7px 4px;border-bottom:1px solid var(--line)}
 .pl.in{background:var(--hl)}
 .mut{color:var(--mut);font-size:12px}
 .hire{text-decoration:underline dotted;cursor:pointer}.big{font-size:20px;text-align:center;padding:8px}.tb{display:inline-block;padding:3px 9px;border-radius:8px;font-weight:700;font-size:15px;margin:2px}.mrow{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:4px;font-size:22px;font-weight:700;padding:6px 0}
@@ -67,15 +67,15 @@ tr.me{background:color-mix(in srgb,var(--ac) 30%,transparent);font-weight:800}tr
 <header><div class="hl"><span id="crest"></span><b id="hT">Meu Elifoot</b></div><div class="hr"><span id="flag"></span><span id="hS"></span></div></header>
 <main id="app"></main>
 <nav id="nav"></nav>
-<script src="clubs.js?v=219"></script>
-<script src="game.js?v=219"></script>
-<script src="campo.js?v=219"></script>
-<script src="campo3d.js?v=219"></script>
+<script src="clubs.js?v=220"></script>
+<script src="game.js?v=220"></script>
+<script src="campo.js?v=220"></script>
+<script src="campo3d.js?v=220"></script>
 <script>
 const PREFIX="elifoot:save:",SAVE1="Elifoot"; // um único save para todos os times
 let artCan=false,S=null,tab="jogo",msg="",mf={pos:"",q:"",any:true,min:1,max:null,afford:true,ord:"ovr",dir:-1},viewKey=null;
 const $=id=>document.getElementById(id);
-const VERSAO=219;
+const VERSAO=220;
 const moneyFull=n=>(n<0?"-":"")+"R$ "+Math.round(Math.abs(n)).toLocaleString("pt-BR");
 const money=moneyFull;
 const U=()=>S.teams[S.user];
@@ -292,7 +292,7 @@ function vJogo(){
     h+=`<div style="text-align:center;font-weight:700;font-size:16px">${n.home.name}${n.hp?` (${n.hp}º)`:""} x ${n.away.name}${n.ap?` (${n.ap}º)`:""}</div><p class="mut" style="text-align:center;margin:2px 0 0;font-size:12px">${n.date} · ${n.rodada&&n.rodada.includes(" - ")?n.rodada:n.comp}</p>`;
   }else h+=`<p style="margin:0">Sem jogos agendados. Clique para avançar o calendário.</p>`;
   const inl=new Set(u.lineup),bn=u.players.filter(p=>!inl.has(p.id)).sort((a,b)=>SPR[SPN(a)]-SPR[SPN(b)]||b.ov-a.ov);
-  const bench=`<div class="card el3"><h2>Banco e reservas</h2><p class="mut" style="margin:0 0 6px">${bn.length} jogadores fora da escalação</p>${bn.map(p=>`<div class="pl"><span class="pc"><span class="pos">${SPN(p)}</span><span class="mut">${p.age}a</span></span><span class="nm">${p.name}${p.inj>0?` <span class="bad">🚑 ${p.inj}</span>`:""}${p.sus>0?` <span class="bad">🟥 susp.</span>`:""}</span><span class="rt"><b class="ovc">${p.ov}</b></span></div>`).join("")}</div>`;
+  const bench=`<div class="card el3"><h2>Banco e reservas</h2><p class="mut" style="margin:0 0 6px">${bn.length} jogadores fora da escalação</p>${bn.map(p=>`<div class="pl"><span class="pc"><span class="pos" style="width:auto;white-space:nowrap">${SPX(p)}</span><span class="mut">${p.age}a</span></span><span class="nm">${p.name}${p.inj>0?` <span class="bad">🚑 ${p.inj}</span>`:""}${p.sus>0?` <span class="bad">🟥 susp.</span>`:""}</span><span class="rt"><b class="ovc">${p.ov}</b></span></div>`).join("")}</div>`;
   let side=bench;
   const nc=n&&S.comps[n.cid];
   if(n&&n.ko){const mi2=mineIds();
@@ -303,12 +303,13 @@ function vJogo(){
   return h;
 }
 const SPN=p=>p.sp||({GK:"GOL",DEF:"ZAG",MID:"MC",ATT:"CA"})[p.pos];
+let PLY=null;const SPL=p=>(p.rp?p.sp:PLY&&PLY[p.id])||SPN(p);const SPX=p=>{const a=(Game.ALTS[SPN(p)]||[]);return SPN(p)+(a.length?` <span class="mut">(${a.join(", ")})</span>`:"")};
 const SPR={GOL:0,LD:1,ZAG:2,LE:3,VOL:4,ME:5,MC:6,MEI:7,MD:8,PD:9,PE:10,SA:11,CA:12};
 const SPO={LE:0,ZAG:1,LD:2,ME:0,VOL:1,MC:2,MEI:2.5,MD:3,PE:0,SA:0.9,CA:1,PD:2,GOL:0};
 function lineupCard(u){
   const set=new Set(u.lineup),order={GK:0,DEF:1,MID:2,ATT:3};
   const st=u.players.filter(p=>set.has(p.id)).sort((a,b)=>b.ov-a.ov);
-  const res=u.players.filter(p=>!set.has(p.id)).sort((a,b)=>b.ov-a.ov).slice(0,7).sort((a,b)=>SPR[SPN(a)]-SPR[SPN(b)]);
+  const res=u.players.filter(p=>!set.has(p.id)).sort((a,b)=>b.ov-a.ov).slice(0,7).sort((a,b)=>SPR[SPL(a)]-SPR[SPL(b)]);
   const col=(TEAM_COLORS[u.name]||themeFor(u.name).ac);
   const l=[1,3,5].map(i=>parseInt(col.substr(i,2),16)),tx=(0.3*l[0]+0.59*l[1]+0.11*l[2])>150?"#111":"#fff";
   const short=n=>{const w=n.split(" ");return w.length>1?w[w.length-1]:n};
@@ -317,16 +318,16 @@ function lineupCard(u){
   let h=`<div class="card" style="padding:8px 10px;margin-bottom:8px"><h2 style="margin:0 0 6px;font-size:15px">Sua escalação<span class="mut" style="font-size:13px;font-weight:600"> · OVR ${Math.round(Game.ratings(u).ovr)}</span></h2>${ctl}`;
   if(!st.length)return h+`<p class="mut">Nenhum titular escalado. Toque em Auto na aba Elenco.</p><p><button class="s" onclick="setTab('elenco')">Mudar escalação</button></p></div>`;
   h+=`<div class="campo">`;
-  const mids=st.filter(p=>p.pos==="MID");
-  let m1=mids.filter(p=>SPN(p)!=="VOL"),m2=mids.filter(p=>SPN(p)==="VOL");
+  PLY=Game.slotMap(st);const mids=st.filter(p=>p.pos==="MID");
+  let m1=mids.filter(p=>SPL(p)!=="VOL"),m2=mids.filter(p=>SPL(p)==="VOL");
   if(!m1.length){m1=m2;m2=[]}
   const atts=st.filter(p=>p.pos==="ATT");
-  let a1=atts.filter(p=>!["PE","PD"].includes(SPN(p))),a2=atts.filter(p=>["PE","PD"].includes(SPN(p)));
+  let a1=atts.filter(p=>!["PE","PD"].includes(SPL(p))),a2=atts.filter(p=>["PE","PD"].includes(SPL(p)));
   if(!a1.length||atts.length!==3){a1=atts;a2=[]}
   const rows=[a1,a2,m1,m2,st.filter(p=>p.pos==="DEF"),st.filter(p=>p.pos==="GK")];
   for(const g of rows){if(!g.length)continue;
-    g.sort((a,b)=>(SPO[SPN(a)]-SPO[SPN(b)])||a.name.localeCompare(b.name));
-    h+=`<div class="lin${g.length===2&&g[0].pos==="ATT"?" dup":""}">`+g.map(p=>`<div class="jog"><i style="background:${col};color:${tx}">${p.ov}</i><span>${p.name}</span><small>${SPN(p)}</small></div>`).join("")+`</div>`}
+    g.sort((a,b)=>(SPO[SPL(a)]-SPO[SPL(b)])||a.name.localeCompare(b.name));
+    h+=`<div class="lin${g.length===2&&g[0].pos==="ATT"?" dup":""}">`+g.map(p=>`<div class="jog"><i style="background:${col};color:${tx}">${p.ov}</i><span>${p.name}</span><small>${SPL(p)}</small></div>`).join("")+`</div>`}
   h+=`</div>`;
   if(res.length)h+=`<p class="mut" style="margin:8px 0 0">Banco: ${res.map(p=>`${p.name} (${SPN(p)} ${p.ov})`).join(", ")}</p>`;
   return h+`</div>`;
@@ -484,13 +485,13 @@ function liveBody(){
 let LPOS=null;
 function pitchLive(ps,club,mi,side){
   const col=(TEAM_COLORS[club]||themeFor(club).ac),l=[1,3,5].map(i=>parseInt(col.substr(i,2),16)),tx=(0.3*l[0]+0.59*l[1]+0.11*l[2])>150?"#111":"#fff";
-  const st=ps.slice(),mids=st.filter(p=>p.pos==="MID");
-  let m1=mids.filter(p=>SPN(p)!=="VOL"),m2=mids.filter(p=>SPN(p)==="VOL");if(!m1.length){m1=m2;m2=[]}
-  const atts=st.filter(p=>p.pos==="ATT");let a1=atts.filter(p=>!["PE","PD"].includes(SPN(p))),a2=atts.filter(p=>["PE","PD"].includes(SPN(p)));if(!a1.length||atts.length!==3){a1=atts;a2=[]}
+  const st=ps.slice();PLY=Game.slotMap(st);const mids=st.filter(p=>p.pos==="MID");
+  let m1=mids.filter(p=>SPL(p)!=="VOL"),m2=mids.filter(p=>SPL(p)==="VOL");if(!m1.length){m1=m2;m2=[]}
+  const atts=st.filter(p=>p.pos==="ATT");let a1=atts.filter(p=>!["PE","PD"].includes(SPL(p))),a2=atts.filter(p=>["PE","PD"].includes(SPL(p)));if(!a1.length||atts.length!==3){a1=atts;a2=[]}
   const rows=[a1,a2,m1,m2,st.filter(p=>p.pos==="DEF"),st.filter(p=>p.pos==="GK")];
   let h=`<div class="campo">`;
-  for(const g of rows){if(!g.length)continue;g.sort((a,b)=>(SPO[SPN(a)]-SPO[SPN(b)])||a.name.localeCompare(b.name));
-    h+=`<div class="lin${g.length===2&&g[0].pos==="ATT"?" dup":""}">`+g.map(p=>`<div class="jog" style="cursor:pointer" onclick="LPOS=${LPOS===p.id?"null":p.id};liveRender()"><i style="background:${col};color:${tx};${LPOS===p.id?"outline:3px solid #ffd166;outline-offset:2px":""}">${p.ov}</i><span>${p.name}</span><small>${SPN(p)}${p.rp?" ↻":""}</small></div>`).join("")+`</div>`}
+  for(const g of rows){if(!g.length)continue;g.sort((a,b)=>(SPO[SPL(a)]-SPO[SPL(b)])||a.name.localeCompare(b.name));
+    h+=`<div class="lin${g.length===2&&g[0].pos==="ATT"?" dup":""}">`+g.map(p=>`<div class="jog" style="cursor:pointer" onclick="LPOS=${LPOS===p.id?"null":p.id};liveRender()"><i style="background:${col};color:${tx};${LPOS===p.id?"outline:3px solid #ffd166;outline-offset:2px":""}">${p.ov}</i><span>${p.name}</span><small>${SPL(p)}${p.rp?" ↻":""}</small></div>`).join("")+`</div>`}
   h+=`</div>`;
   const sel=LPOS!=null&&ps.find(p=>p.id===LPOS);
   if(sel)h+=`<p class="mut" style="margin:6px 0 2px">Nova posição de <b>${sel.name}</b> (joga em ${[SPN(sel)].concat(Game.ALTS[(sel.rp&&sel.rp.sp)||SPN(sel)]||[]).join(", ")} sem perder rendimento; fora delas rende menos):</p><div class="row">${["GOL","LD","ZAG","LE","VOL","ME","MC","MEI","MD","PD","PE","SA","CA"].map(x=>`<button class="s ${SPN(sel)===x?"p":""}" onclick="liveRepo(${mi},'${side}',${sel.id},'${x}')">${x}</button>`).join("")}</div>`;
@@ -540,7 +541,7 @@ function vElenco(){
     return l.map((e,i)=>`<div class="pl"><span><b>${i+1}º</b> ${e.n}</span><span><b>${e.g}</b> gol${e.g===1?"":"s"}</span></div>`).join("")};
   const art=`<div class="card el3"><h2>Artilheiros do time</h2><p class="mut" style="margin:0 0 4px"><b>Temporada ${y}</b></p>${sl(mn("season"))}<p class="mut" style="margin:10px 0 4px"><b>De sempre</b></p>${sl(mn("all"))}</div>`;
   return `<div class="elg"><div class="el1">`+aucCard()+resumo+`<div class="card esc"><h2>Escalação (${u.lineup.length}/11)</h2>
-  <div class="row"><button class="s" onclick="U().lineup=Game.autoLineup(U());save();render()">Auto</button><span class="mut">Toque para titular/reserva</span></div></div></div><div class="el2"><div class="card">${ps.map(p=>`<div class="pl ${set.has(p.id)?"in":""}" onclick="tog(${p.id})"><span class="pc"><span class="pos">${SPN(p)}</span><span class="mut">${p.age}a</span></span><span class="nm">${p.name}${p.inj>0?` <span class="bad">🚑 ${p.inj} jogo${p.inj>1?"s":""}</span>`:""}${p.sus>0?` <span class="bad">🟥 susp. ${p.sus}</span>`:""}${p.yc?` <span class="mut">🟨${p.yc}</span>`:""}</span><span class="rt"><b class="ovc">${p.ov}</b><button class="s d" onclick="event.stopPropagation();sell(${p.id})">Vender</button><span class="mut vl" title="Valor mínimo de venda">${money(p.value)}</span></span></div>`).join("")}</div></div>${art}</div>`;
+  <div class="row"><button class="s" onclick="U().lineup=Game.autoLineup(U());save();render()">Auto</button><span class="mut">Toque para titular/reserva</span></div></div></div><div class="el2"><div class="card">${ps.map(p=>`<div class="pl ${set.has(p.id)?"in":""}" onclick="tog(${p.id})"><span class="pc"><span class="pos" style="width:auto;white-space:nowrap">${SPX(p)}</span><span class="mut">${p.age}a</span></span><span class="nm">${p.name}${p.inj>0?` <span class="bad">🚑 ${p.inj} jogo${p.inj>1?"s":""}</span>`:""}${p.sus>0?` <span class="bad">🟥 susp. ${p.sus}</span>`:""}${p.yc?` <span class="mut">🟨${p.yc}</span>`:""}</span><span class="rt"><b class="ovc">${p.ov}</b><button class="s d" onclick="event.stopPropagation();sell(${p.id})">Vender</button><span class="mut vl" title="Valor mínimo de venda">${money(p.value)}</span></span></div>`).join("")}</div></div>${art}</div>`;
 }
 function destaques(u){
   if(!u.players.length)return"";
