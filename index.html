@@ -48,7 +48,7 @@ tr.me{background:color-mix(in srgb,var(--ac) 30%,transparent);font-weight:800}tr
 .brk{display:flex;gap:22px;overflow-x:auto;padding:4px 2px 8px;align-items:stretch}.bc{display:flex;flex-direction:column;min-width:200px;flex:none}.bl{flex:1;display:flex;flex-direction:column;justify-content:space-around;gap:12px;padding-top:8px}.bh{font-size:12px;color:var(--mut);text-align:center;font-weight:700;text-transform:uppercase;letter-spacing:.5px}.bt{position:relative;background:var(--btn);border:1px solid var(--line);border-radius:10px;overflow:visible}.bt>div{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:5px 8px}.bt>div+div{border-top:1px solid var(--line)}.bt .tb{font-size:13px;margin:0;padding:2px 7px}.bt .l{opacity:.5}.bt.m{border-color:var(--ac)}.bp{display:flex;flex-direction:column;gap:6px;background:rgba(255,255,255,.05);border-radius:12px;padding:6px}.bn{font-size:10px;color:var(--mut);padding:0 4px}
 .lv{display:flex;flex-direction:column}.lvb{order:1}.lvr{order:2}.lva{order:3}
 @media(min-width:1000px){main{max-width:1680px;padding:14px 24px 84px}#app{display:grid;grid-template-columns:repeat(auto-fill,minmax(440px,1fr));gap:14px;align-items:start}#app>.card{margin-bottom:0}#app>*:not(.card),#app>.card.wide{grid-column:1/-1}.lv{display:grid;grid-template-columns:minmax(300px,.8fr) minmax(420px,1.3fr) minmax(380px,1fr);gap:14px;align-items:start;grid-column:1/-1}.lva{grid-column:1;grid-row:1}.lvb{grid-column:2;grid-row:1}.lvr{grid-column:3;grid-row:1}.lva>.card,.lvb>.card{margin-bottom:12px}.lvr{position:sticky;top:64px;max-height:calc(100vh - 140px);overflow:auto}.mg{display:grid;grid-template-columns:repeat(auto-fill,minmax(380px,1fr));gap:12px;align-items:start}.mg>.card{margin-bottom:0}.lvl>.card{margin-bottom:12px}}
-@media(min-width:1000px){.lv.lvw{grid-template-columns:minmax(600px,2.4fr) minmax(360px,1fr)}.lv.lvw .lvb{grid-column:1;grid-row:1}.lv.lvw .lvr{grid-column:2;grid-row:1}.lv.lvw .lva{display:none}.lv.lvw .lvb canvas{width:min(100%,calc((100vh - 190px)*1.329))!important;margin:0 auto}}
+@media(min-width:1000px){.lv.lvw{grid-template-columns:minmax(600px,2.4fr) minmax(360px,1fr)}.lv.lvw .lvb{grid-column:1;grid-row:1}.lv.lvw .lvr{grid-column:2;grid-row:1}.lv.lvw .lva{display:none}.lv.lvw .lvb canvas{width:100%!important;height:max(460px,calc(100vh - 175px))!important;aspect-ratio:auto!important}}
 @media(min-width:1000px){.lvb>.card.mine{padding:18px}.lvb>.card.mine .mrow{font-size:34px}.lvb>.card.mine .mrow .tb{font-size:22px;padding:6px 12px}.lvb>.card.mine .evg{font-size:17px!important;gap:10px!important}.lva .mrow{font-size:20px}.lva .mrow .tb{font-size:14px;padding:3px 8px}.lvb>.card:first-child .big{font-size:30px}.lvr .pl{font-size:15px}}
 @media(min-width:1000px){#app>.elg{grid-column:1/-1;display:grid;grid-template-columns:minmax(340px,1fr) minmax(460px,1.4fr) minmax(300px,1fr);gap:14px;align-items:stretch}.elg>div{min-width:0}.el1{display:flex;flex-direction:column;gap:14px}.el1>.card{margin:0}.el1>.card:last-child{flex:1}.el2>.card,.elg>.el3{margin:0}.elg>.el3{align-self:start}}
 @media(min-width:1000px){.tbw table{font-size:16px}.tbw td,.tbw th{padding:7px 10px}.tbw td:not(.l),.tbw th:not(.l){width:8%}}
@@ -68,15 +68,15 @@ tr.me{background:color-mix(in srgb,var(--ac) 30%,transparent);font-weight:800}tr
 <header><div class="hl"><span id="crest"></span><b id="hT">Meu Elifoot</b></div><div class="hr"><span id="flag"></span><span id="hS"></span></div></header>
 <main id="app"></main>
 <nav id="nav"></nav>
-<script src="clubs.js?v=225"></script>
-<script src="game.js?v=225"></script>
-<script src="campo.js?v=225"></script>
-<script src="campo3d.js?v=225"></script>
+<script src="clubs.js?v=226"></script>
+<script src="game.js?v=226"></script>
+<script src="campo.js?v=226"></script>
+<script src="campo3d.js?v=226"></script>
 <script>
 const PREFIX="elifoot:save:",SAVE1="Elifoot"; // um único save para todos os times
 let artCan=false,S=null,tab="jogo",msg="",mf={pos:"",q:"",any:true,min:1,max:null,afford:true,ord:"ovr",dir:-1},viewKey=null;
 const $=id=>document.getElementById(id);
-const VERSAO=225;
+const VERSAO=226;
 const moneyFull=n=>(n<0?"-":"")+"R$ "+Math.round(Math.abs(n)).toLocaleString("pt-BR");
 const money=moneyFull;
 const U=()=>S.teams[S.user];

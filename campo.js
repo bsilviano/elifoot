@@ -611,7 +611,7 @@ const Campo = (() => {
   // ---------- desenho ----------
   function draw() {
     const w = cv.clientWidth; if (!w) return;
-    const dpr = Math.min(2, window.devicePixelRatio || 1), pw = Math.round(w * dpr), ph = Math.round(w * (H + 2 * M_ + BAND) / (W + 2 * M_) * dpr);
+    const dpr = Math.min(2, window.devicePixelRatio || 1), pw = Math.round(w * dpr), ph = Math.round((cv.clientHeight || w * (H + 2 * M_ + BAND) / (W + 2 * M_)) * dpr);
     if (cv.width !== pw || cv.height !== ph) { cv.width = pw; cv.height = ph; }
     hh = cv.clientHeight;
     const s = cv.width / (W + 2 * M_), bandPx = BAND * s; let X = (x) => (x + M_) * s, Y = (y) => (y + M_ + BAND) * s;
