@@ -92,7 +92,7 @@
     },
     ATT: { 1: [["CA"]], 2: [["CA", "SA"], ["CA", "CA"], ["SA", "SA"]], 3: [["PE", "CA", "PD"], ["PE", "SA", "PD"], ["CA", "SA", "CA"]], 4: [["PE", "CA", "SA", "PD"], ["PE", "CA", "CA", "PD"]] },
   };
-  const fitOf = (sp, slot) => (sp === slot ? 1 : (COMPAT[slot] || []).includes(sp) ? 0.99 : 0.95);
+  const fitOf = (sp, slot) => (sp === slot || (ALTS[sp] || []).includes(slot) ? 1 : 0.95); // posição principal ou secundária: mantém o OVR; fora delas rende menos
   // Escolhe, para um setor, os jogadores e a variante de vagas que somam mais qualidade (ov x encaixe). Retorna {chosen, eff, miss}.
   function pickGroup(pool, out, n, pos) {
     const vs = VARS[pos][n] || [new Array(n).fill(null)];
@@ -171,7 +171,10 @@
   }
   function avg(ps, d) { return ps.length ? ps.reduce((s, p) => s + p.ov, 0) / ps.length : d; }
   function ratings(team) { return ratingsL(lineupPlayers(team)); }
-  function ratingsL(L) {
+  const DEFSP = { GK: "GOL", DEF: "ZAG", MID: "MC", ATT: "CA" };
+  function ratingsL(L0) {
+    // quem joga fora da posição principal e das secundárias perde OVR (mesma regra de liveReposition); com secundária mantém o OVR
+    const sm = slotMap(L0), L = L0.map((p) => { const sl = sm[p.id], sp = p.sp || DEFSP[p.pos]; if (!sl || p.rp || sl === sp || (ALTS[sp] || []).includes(sl)) return p; const g = SP_GROUP[sl]; const f = g === p.pos ? 0.95 : (g === "GK" || p.pos === "GK") ? 0.6 : 0.85; return { pos: p.pos, ov: Math.max(1, Math.round(p.ov * f)) }; });
     const by = (pos) => L.filter((p) => p.pos === pos);
     // A formação mexe no jogo: mais defensores = mais defesa e menos ataque (e vice-versa); meias contam para os dois lados.
     // Soma zero em relação a 4-4-2/4-3-3 (4 defensores, 3,5 meias, 2,5 atacantes), então a calibração geral não muda.
@@ -1296,7 +1299,7 @@
     if (!p || !g) return false;
     if (!p.rp) p.rp = { pos: p.pos, sp: p.sp, ov: p.ov };
     const nat = p.rp, natSp = nat.sp || ({ GK: "GOL", DEF: "ZAG", MID: "MC", ATT: "CA" })[nat.pos];
-    const f = newSp === natSp ? 1 : (ALTS[natSp] || []).includes(newSp) ? 0.99 : g === nat.pos ? 0.95 : (g === "GK" || nat.pos === "GK") ? 0.6 : 0.85;
+    const f = newSp === natSp ? 1 : (ALTS[natSp] || []).includes(newSp) ? 1 : g === nat.pos ? 0.95 : (g === "GK" || nat.pos === "GK") ? 0.6 : 0.85;
     p.pos = g; p.sp = newSp; p.ov = Math.max(1, Math.round(nat.ov * f));
     m.ev.push({ min: live.minute, type: "pos", side, name: p.name, sp: newSp, club: (side === "h" ? m.H : m.A).name });
     liveRates(m);
