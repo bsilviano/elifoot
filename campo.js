@@ -93,6 +93,8 @@ const Campo = (() => {
   function ambient() {
     const c = ball.carrier != null && P[ball.carrier];
     if (!c || !c.live) { setCarrier(nearest(team(poss).filter((o) => o.p.pos !== "GK"), ball.x, ball.y) || nearest(team(poss), ball.x, ball.y)); return; }
+    const gxx = c.side === "h" ? W : 0, dgl = Math.hypot(c.x - gxx, c.y - 34);
+    if (c.p.pos !== "GK" && dgl < 21 && lag < 4000) { const sd = c.side, fn = (cu) => { const st = cu.steps; st.push(WAIT(0.2)); const kind = pickW(["save", "wide", "block", "post"], [5, 2.6, 1.6, 0.8]); shotSteps(st, sd, kind, c, c.p.name); st.push(FN(() => { let f = null; if (kind === "wide") f = goalKick(other(sd)); else if ((kind === "save" || kind === "block") && R() < 0.4) f = corner(sd); if (f) { f.ill = true; q.unshift(f); } }, 0)); }; fn.ill = true; if (R() < 0.7) { q.push(fn); passT = 1; return; } }
     const mates = team(c.side).filter((o) => o !== c), opp = team(other(c.side)), dir = c.side === "h" ? 1 : -1;
     const sh = c.side === "h" ? share : 1 - share, pI = clamp(0.15 * (1 - sh) / sh, 0.06, 0.3);
     const w = mates.map((o) => { const dx = (o.x - c.x) * dir, dy = Math.abs(o.y - c.y), d = Math.hypot(dx, dy); let v = d < 5 ? 0.05 : d < 12 ? 1.4 : d < 20 ? 1.2 : d < 28 ? 0.45 : 0.1; v *= dx > 0 ? 1.6 : dx > -8 ? 1 : 0.5; if (o.p.pos === "GK") v *= c.p.pos === "DEF" ? 0.4 : 0.03; return v; });
@@ -390,7 +392,7 @@ const Campo = (() => {
       if (M.px) share = clamp(M.px.h / Math.max(M.px.h + M.px.a, 1e-9), 0.3, 0.7);
       for (const side of ["h", "a"]) {
         const sh = side === "h" ? share : 1 - share;
-        if (q.length < 2 && !freeze && lag < 2500 && side === "h" && R() < 0.06) { const fn = throwIn(other(poss)); fn.ill = true; q.push(fn); }
+        if (q.length < 2 && !freeze && lag < 2500 && side === "h" && Math.abs(ball.y - H / 2) > 27 && ball.carrier != null && R() < 0.5) { const fn = throwIn(other(poss)); fn.ill = true; q.push(fn); }
         if (q.length < 2 && !freeze && lag < 2500 && side === "h" && R() < 0.03) { const fn = foulScript("plain", null); fn.ill = true; q.push(fn); }
         if (q.length < 2 && !freeze && lag < 2500 && R() < 0.06 * 2 * sh) { // chance ilustrativa (sem gol)
           const kind = pickW(["save", "wide", "block", "post"], [5, 2.6, 1.6, 0.8]);
@@ -421,6 +423,7 @@ const Campo = (() => {
     for (const id in P) {
       const o = P[id]; if (!o.live) continue;
       if (o.kick > 0) o.kick -= dt;
+      if (o.wait) { o.waitT = (o.waitT || 0) + dt; if (o.waitT > 12) { o.wait = false; o.waitT = 0; } }
       if (halt || o.wait) continue;
       o.wt -= dt;
       if (o.wt <= 0) {
@@ -453,7 +456,7 @@ const Campo = (() => {
       if (c && c.live) { const d = c.side === "h" ? 1 : -1; ball.x = c.x + d * 0.9; ball.y = c.y + 0.3; }
     }
     const scripted = runScript(dt);
-    if (!scripted && !freeze && !ball.flight) { passT -= dt; if (passT <= 0) { ambient(); passT = 0.8 + R() * 0.8; } }
+    if (!scripted && !freeze && !ball.flight) { passT -= dt; if (passT <= 0) { ambient(); passT = 0.5 + R() * 0.6; } }
     stat[poss].poss += dt;
     if (capT > 0) capT -= dt;
     if (narrT > 0) narrT -= dt;
