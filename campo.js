@@ -666,7 +666,7 @@ const Campo = (() => {
     cx.fillStyle = "#fff"; cx.strokeStyle = "#111"; cx.lineWidth = Math.max(1, 0.15 * s); cx.beginPath(); cx.arc(bx, by - z, br, 0, 7); cx.fill(); cx.stroke();
     }
     // placar fora do campo, em uma faixa acima dele
-    const f1 = Math.max(14, Math.round(3.1 * s)), f2s = Math.max(11, Math.round(2.0 * s));
+    const f1 = Math.max(17, Math.round(3.8 * s)), f2s = Math.max(11, Math.round(2.0 * s));
     const nm1 = M.H.name, nm2 = M.A.name, scr = ` ${shown.h} x ${shown.a} `;
     cx.font = "800 " + f1 + "px sans-serif"; const wN1 = cx.measureText(nm1).width, wN2 = cx.measureText(nm2).width, wS = cx.measureText(scr).width + 10, rr = f1 * 0.42;
     const sub = [L && L.rodada, L && L.date].filter(Boolean).join("  ·  "), clk = L && L.done && !busy() ? "Fim de jogo" : "⏱ " + fmtMin(M.min || 0) + "'";
@@ -679,7 +679,7 @@ const Campo = (() => {
     }
     cx.textAlign = "center"; cx.fillStyle = "#ffd166"; cx.fillText(scr, mid, cy1);
     cx.font = "700 " + f2s + "px sans-serif"; cx.textAlign = "center"; cx.fillStyle = "#cfd8e0"; cx.fillText(sub, mid, bandPx * 0.78);
-    { const fc = Math.max(13, Math.round(2.6 * s)); cx.font = "800 " + fc + "px sans-serif"; const wc = cx.measureText(clk).width + 18, hc = fc * 1.5, xc = cv.width - wc - 10, yc = cy1 - hc / 2; cx.fillStyle = "rgba(0,0,0,.72)"; cx.fillRect(xc, yc, wc, hc); cx.strokeStyle = "#ffd166"; cx.lineWidth = 2; cx.strokeRect(xc, yc, wc, hc); cx.fillStyle = "#fff"; cx.textAlign = "center"; cx.textBaseline = "middle"; cx.fillText(clk, xc + wc / 2, yc + hc / 2); }
+    { const fc = Math.max(16, Math.round(3.3 * s)); cx.font = "800 " + fc + "px sans-serif"; const wc = cx.measureText(clk).width + 18, hc = fc * 1.5, xc = cv.width - wc - 10, yc = cy1 - hc / 2; cx.fillStyle = "rgba(0,0,0,.72)"; cx.fillRect(xc, yc, wc, hc); cx.strokeStyle = "#ffd166"; cx.lineWidth = 2; cx.strokeRect(xc, yc, wc, hc); cx.fillStyle = "#fff"; cx.textAlign = "center"; cx.textBaseline = "middle"; cx.fillText(clk, xc + wc / 2, yc + hc / 2); }
     // narração e avisos de lance: sempre na mesma faixa, no topo do campo, em letra grande
     const evTxt = capT > 0 && cap && !capBig ? cap : narrT > 0 && narr ? narr : "";
     if (evTxt && !(capT > 0 && cap && capBig)) {
