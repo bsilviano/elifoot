@@ -539,7 +539,7 @@ const Campo = (() => {
       if (ball.carrier === o.p.id) {
         cx.strokeStyle = "#ffd166"; cx.lineWidth = Math.max(2, u * 0.07); cx.beginPath(); cx.ellipse(g[0], g[1], u * 0.5, u * 0.19, 0, 0, 7); cx.stroke();
         const nm = o.p.name.split(" ").slice(-1)[0], fs = Math.max(10, Math.round(u * 0.36)); cx.font = "600 " + fs + "px sans-serif"; const tw = cx.measureText(nm).width + 8;
-        cx.fillStyle = "rgba(0,0,0,.65)"; cx.fillRect(g[0] - tw / 2, g[1] - u * 1.45 - fs - 14, tw, fs + 4); cx.fillStyle = "#fff"; cx.textAlign = "center"; cx.textBaseline = "top"; cx.fillText(nm, g[0], g[1] - u * 1.45 - fs - 12);
+        const bc = k[o.p.side] || "#000", lt = lum(bc) > 150; cx.fillStyle = bc; cx.fillRect(g[0] - tw / 2, g[1] - u * 1.45 - fs - 14, tw, fs + 4); cx.strokeStyle = lt ? "#111" : "#fff"; cx.lineWidth = 1.5; cx.strokeRect(g[0] - tw / 2, g[1] - u * 1.45 - fs - 14, tw, fs + 4); cx.fillStyle = lt ? "#111" : "#fff"; cx.textAlign = "center"; cx.textBaseline = "top"; cx.fillText(nm, g[0], g[1] - u * 1.45 - fs - 12);
       }
     }
     for (const m of marks) {
@@ -620,10 +620,12 @@ const Campo = (() => {
     const sub = (L && L.done && !busy() ? "⏱ Fim de jogo" : "⏱ " + fmtMin(M.min || 0) + "'") + (L && L.rodada ? "  ·  " + L.rodada : "") + (L && L.date ? "  ·  " + L.date : "");
     const mid = cv.width / 2, cy1 = bandPx * 0.38;
     cx.textBaseline = "middle"; cx.font = "800 " + f1 + "px sans-serif";
-    cx.textAlign = "right"; cx.fillStyle = "#fff"; cx.fillText(nm1, mid - wS / 2, cy1);
+    const pd = f1 * 0.35, bh = f1 * 1.35;
+    for (const [sd, bx0, w0, t0, al] of [["h", mid - wS / 2 - wN1 - pd * 2, wN1 + pd * 2, nm1, "right"], ["a", mid + wS / 2, wN2 + pd * 2, nm2, "left"]]) {
+      const bc = k[sd], lt = lum(bc) > 150; cx.fillStyle = bc; cx.fillRect(bx0, cy1 - bh / 2, w0, bh); cx.strokeStyle = lt ? "#111" : "#fff"; cx.lineWidth = 2; cx.strokeRect(bx0, cy1 - bh / 2, w0, bh);
+      cx.fillStyle = lt ? "#111" : "#fff"; cx.textAlign = "center"; cx.fillText(t0, bx0 + w0 / 2, cy1);
+    }
     cx.textAlign = "center"; cx.fillStyle = "#ffd166"; cx.fillText(scr, mid, cy1);
-    cx.textAlign = "left"; cx.fillStyle = "#fff"; cx.fillText(nm2, mid + wS / 2, cy1);
-    for (const [sd, xx] of [["h", mid - wS / 2 - wN1 - rr * 1.8], ["a", mid + wS / 2 + wN2 + rr * 1.8]]) { cx.fillStyle = k[sd]; cx.beginPath(); cx.arc(xx, cy1, rr, 0, 7); cx.fill(); cx.strokeStyle = "#fff"; cx.lineWidth = Math.max(1.5, rr * 0.2); cx.stroke(); }
     cx.font = "700 " + f2s + "px sans-serif"; cx.textAlign = "center"; cx.fillStyle = "#cfd8e0"; cx.fillText(sub, mid, bandPx * 0.78);
     // narração e avisos de lance: sempre na mesma faixa, no topo do campo, em letra grande
     const evTxt = capT > 0 && cap && !capBig ? cap : narrT > 0 && narr ? "🎙️ " + narr : "";

@@ -103,7 +103,7 @@ const Campo3D = (() => {
     const c = document.createElement("canvas"); c.width = 256; c.height = 96; const x = c.getContext("2d");
     if (kind === "n") { x.font = "bold 70px sans-serif"; x.textAlign = "center"; x.textBaseline = "middle"; x.lineWidth = 9; x.strokeStyle = "#000"; x.strokeText(text, 128, 48); x.fillStyle = "#fff"; x.fillText(text, 128, 48); }
     else if (kind === "m") { x.fillStyle = text === "red" ? "#e11" : text === "inj" ? "#fff" : "#ffd400"; x.fillRect(80, 4, 96, 88); x.strokeStyle = "#000"; x.lineWidth = 5; x.strokeRect(80, 4, 96, 88); if (text === "inj") { x.fillStyle = "#d33"; x.fillRect(110, 30, 36, 36); } }
-    else { x.fillStyle = "rgba(0,0,0,.7)"; x.fillRect(0, 10, 256, 70); x.font = "bold 58px sans-serif"; x.textAlign = "center"; x.textBaseline = "middle"; x.fillStyle = "#fff"; x.fillText(text, 128, 46, 244); }
+    else { const bc = id || "#000"; x.fillStyle = bc; x.fillRect(0, 10, 256, 70); x.strokeStyle = lum(bc) > 150 ? "#111" : "#fff"; x.lineWidth = 6; x.strokeRect(3, 13, 250, 64); x.font = "bold 58px sans-serif"; x.textAlign = "center"; x.textBaseline = "middle"; x.fillStyle = lum(bc) > 150 ? "#111" : "#fff"; x.fillText(text, 128, 46, 236); }
     const m = new T.Sprite(new T.SpriteMaterial({ map: new T.CanvasTexture(c), depthTest: false, transparent: true })); m.renderOrder = 10; spr[key] = m; scene.add(m); return m;
   }
 
@@ -181,7 +181,7 @@ const Campo3D = (() => {
       if (p.cel && B.la) { B.la.rotateZ(1.9); B.ra.rotateZ(-1.9); B.lf.rotateY(0.3); o.root.position.y += Math.abs(Math.sin(clock3 * 9 + p.id)) * 0.28; }
       const col = p.kitCol || (p.gk ? (p.side === "h" ? S.k.gh : S.k.ga) : S.k[p.side]); if (o.col !== col) { o.col = col; const sh = lum(col) > 150 ? "#202020" : "#f4f4f4"; o.mats.forEach((m) => { if (m.userData.body) m.geometry = kitGeom(m.userData.src, col, p.gk ? "#111111" : sh); }); }
       if (p.n !== "" && !p.down) { const n = sprite(String(p.n), "n", p.id); n.visible = true; n.position.set(X, 2.35, Z); n.scale.set(1.6, 0.6, 1); p._s = n; }
-      if (p.carrier) { ring.visible = true; ring.position.x = X; ring.position.z = Z; const nm = sprite(p.name, "t"); nm.visible = true; nm.position.set(X, 3.3, Z); nm.scale.set(5.4, 2.0, 1); p._t = nm; }
+      if (p.carrier) { ring.visible = true; ring.position.x = X; ring.position.z = Z; const nm = sprite(p.name, "t", S.k[p.side]); nm.visible = true; nm.position.set(X, 3.3, Z); nm.scale.set(5.4, 2.0, 1); p._t = nm; }
     }
     if (!S.players.some((p) => p.carrier)) ring.visible = false;
     for (const id in pl) if (!seen[id]) pl[id].root.visible = false;
