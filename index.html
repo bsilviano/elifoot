@@ -67,15 +67,15 @@ tr.me{background:color-mix(in srgb,var(--ac) 30%,transparent);font-weight:800}tr
 <header><div class="hl"><span id="crest"></span><b id="hT">Meu Elifoot</b></div><div class="hr"><span id="flag"></span><span id="hS"></span></div></header>
 <main id="app"></main>
 <nav id="nav"></nav>
-<script src="clubs.js?v=210"></script>
-<script src="game.js?v=210"></script>
-<script src="campo.js?v=210"></script>
-<script src="campo3d.js?v=210"></script>
+<script src="clubs.js?v=211"></script>
+<script src="game.js?v=211"></script>
+<script src="campo.js?v=211"></script>
+<script src="campo3d.js?v=211"></script>
 <script>
 const PREFIX="elifoot:save:",SAVE1="Elifoot"; // um único save para todos os times
 let artCan=false,S=null,tab="jogo",msg="",mf={pos:"",q:"",any:true,min:1,max:null,afford:true,ord:"ovr",dir:-1},viewKey=null;
 const $=id=>document.getElementById(id);
-const VERSAO=210;
+const VERSAO=211;
 const moneyFull=n=>(n<0?"-":"")+"R$ "+Math.round(Math.abs(n)).toLocaleString("pt-BR");
 const money=moneyFull;
 const U=()=>S.teams[S.user];
@@ -384,7 +384,7 @@ function liveRun(){clearInterval(LTM);LTM=null;if(!LIVE||LIVE.live.done||LIVE.li
   if(LSPD===-1){const l=LIVE.live;while(!l.done&&!l.pending.length)Game.liveStep(S,l,1);liveRender();liveAutoEnd();return}
   LTM=setInterval(()=>{LV+=100;{const l0=LIVE.live;Campo.setLag(LV-liveDue(l0.minute+1))}if(Campo.busy())return;const l=LIVE.live;if(LSPD>0&&LV<liveDue(l.minute+1))return;Game.liveStep(S,l,1);Campo.sync();liveRender();liveAutoEnd();if(l.done||l.pending.length||l.wait||!LSPD){clearInterval(LTM);LTM=null}if(l.wait)liveWaitBtn();if(l.pending.length)livePendWait()},LSPD>0?100:LSPD)}
 let LWT=null;
-let LPW=null;function livePendWait(){clearInterval(LPW);LPW=setInterval(()=>{if(!LIVE||!LIVE.live.pending.length){clearInterval(LPW);return}if(!Campo.busy()){clearInterval(LPW);liveRender()}},250)}
+let LPW=null;function livePendWait(){clearInterval(LPW);LPW=setInterval(()=>{if(!LIVE||!LIVE.live.pending.length){clearInterval(LPW);return}if(Campo.decisionOK()){clearInterval(LPW);liveRender()}},250)}
 function liveWaitBtn(){clearInterval(LWT);LWT=setInterval(()=>{if(!LIVE||!LIVE.live.wait){clearInterval(LWT);return}if(!Campo.busy()){clearInterval(LWT);LREADY=true;liveRender();window.scrollTo(0,0)}},300)}
 function liveNextUI(){const l=LIVE.live;LREADY=false;LV=0;Game.liveNext(l);Campo.start(l);liveRender();liveRun();window.scrollTo(0,0)}
 function liveSpeed(v){LSPD=v;try{localStorage.setItem("elifoot:spd",v)}catch(e){}liveRun();liveRender()}
@@ -441,7 +441,7 @@ function liveBench(){
   return h}
 function liveHtml(){const t=liveTable(),bn=liveBench(),r=liveBody();return `<div class="lv"><div class="lvb">${r.b}</div><div class="lva">${r.a}</div><div class="lvr">${t}</div></div>`}
 function liveBody(){
-  const l=LIVE.live,p=Campo.busy()?null:l.pending[0];
+  const l=LIVE.live,p=Campo.decisionOK()?l.pending[0]:null;
   let h=l.done&&LREADY?`<div class="card" style="border-color:var(--ac)"><button class="p" style="width:100%;font-size:19px;padding:14px" onclick="liveEnd()">Continuar</button></div>`:l.wait&&LREADY?(()=>{const nx=l.matches[l.stages[l.stage+1][0]];return `<div class="card" style="border-color:var(--ac)"><p class="mut" style="margin:0 0 8px">Fim do jogo. O próximo começa em outro horário.</p><button class="p" style="width:100%;font-size:19px;padding:14px" onclick="liveNextUI()">Próximo jogo: ${nx.H.name} x ${nx.A.name}</button></div>`})():"";
   if(p&&p.kind==="inj"){
     const m=l.matches[p.mi],can=m.bench[p.side].length&&m.subs[p.side]<5,ip=m.on[p.side].find(x=>x.id===p.outId),bn=m.bench[p.side].slice().sort((x,y)=>SPR[SPN(x)]-SPR[SPN(y)]||y.ov-x.ov);
