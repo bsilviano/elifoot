@@ -67,15 +67,15 @@ tr.me{background:color-mix(in srgb,var(--ac) 30%,transparent);font-weight:800}tr
 <header><div class="hl"><span id="crest"></span><b id="hT">Meu Elifoot</b></div><div class="hr"><span id="flag"></span><span id="hS"></span></div></header>
 <main id="app"></main>
 <nav id="nav"></nav>
-<script src="clubs.js?v=206"></script>
-<script src="game.js?v=206"></script>
-<script src="campo.js?v=206"></script>
-<script src="campo3d.js?v=206"></script>
+<script src="clubs.js?v=207"></script>
+<script src="game.js?v=207"></script>
+<script src="campo.js?v=207"></script>
+<script src="campo3d.js?v=207"></script>
 <script>
 const PREFIX="elifoot:save:",SAVE1="Elifoot"; // um único save para todos os times
 let artCan=false,S=null,tab="jogo",msg="",mf={pos:"",q:"",any:true,min:1,max:null,afford:true,ord:"ovr",dir:-1},viewKey=null;
 const $=id=>document.getElementById(id);
-const VERSAO=206;
+const VERSAO=207;
 const moneyFull=n=>(n<0?"-":"")+"R$ "+Math.round(Math.abs(n)).toLocaleString("pt-BR");
 const money=moneyFull;
 const U=()=>S.teams[S.user];
@@ -413,7 +413,11 @@ function liveEv(e){
   return tline(e.club,t);
 }
 function liveTable(){
-  const l=LIVE.live,rd=l.rd,c=S.comps[rd.c];if(!c||rd.k!=="tab"||!c.tab)return "";
+  const l=LIVE.live,rd=l.rd,c=S.comps[rd.c];
+  if(!c||rd.k!=="tab"||!c.tab){ // mata-mata ou fase sem tabela: mostra os confrontos da rodada com o placar ao vivo
+    const lm=l.matches.filter(m=>!m.hold);if(!lm.length)return "";
+    const G=m=>Campo.score(m)||[m.gh,m.ga],mi=mineIds();
+    return `<div class="card"><h2>${(c&&c.name)||l.comp||"Rodada"} — confrontos ao vivo</h2>${lm.map(m=>{const g=G(m),mine=mi.includes(m.hid)||mi.includes(m.aid);return `<div class="pl" ${mine?'style="background:rgba(255,255,255,.08)"':""}><span style="flex:1;text-align:right">${tbox(m.H.name)}</span><b style="padding:0 10px">${g[0]} x ${g[1]}</b><span style="flex:1">${tbox(m.A.name)}</span></div>`}).join("")}</div>`}
   const lm=l.matches.filter(m=>!m.hold),play=new Set();lm.forEach(m=>{play.add(m.hid);play.add(m.aid)});
   const mi=mineIds(),sc={};const G=m=>Campo.score(m)||[m.gh,m.ga];lm.forEach(m=>{const g=G(m);sc[m.hid]=g[0]+"x"+g[1];sc[m.aid]=g[1]+"x"+g[0]});
   let lists=[c.ids];if(c.groups)lists=c.groups.filter(g=>g.some(i=>play.has(i))).sort((x,y)=>(y.some(t=>mi.includes(t))?1:0)-(x.some(t=>mi.includes(t))?1:0));
