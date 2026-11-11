@@ -1218,6 +1218,15 @@
       rd.dec = 1;
     }
     live.matches.forEach(liveRates);
+    // Se mais de um jogo é meu nesta rodada, eles acontecem um de cada vez (como se fossem em horários diferentes);
+    // os jogos dos outros times acontecem junto do meu último jogo.
+    const my = live.matches.filter((m) => m.mine.h || m.mine.a).map((m) => m.i);
+    if (my.length > 1) {
+      live.stages = my.slice(0, -1).map((i) => [i]);
+      live.stages.push(live.matches.map((m) => m.i).filter((i) => !my.slice(0, -1).includes(i)));
+      live.stage = 0;
+      live.matches.forEach((m) => { if (!live.stages[0].includes(m.i)) m.hold = true; });
+    }
     return live;
   }
   function startRound(s) {
@@ -1402,11 +1411,25 @@
     }
   }
   function liveStep(s, live, n) {
-    for (let k = 0; k < n && !live.done && !live.pending.length; k++) {
+    for (let k = 0; k < n && !live.done && !live.pending.length && !live.wait; k++) {
       live.minute++;
-      for (const m of live.matches) liveMinute(s, live, m);
-      if (live.minute >= 90) { live.done = true; prepShoot(s, live); }
+      for (const m of live.matches) if (!m.hold && !m.fin) liveMinute(s, live, m);
+      if (live.minute === 90 && live.added == null) { // acréscimos: crescem com substituições, cartões, lesões e gols
+        let n = 0;
+        for (const m of live.matches) if (!m.hold && !m.fin) n += m.subs.h + m.subs.a + m.ev.filter((e) => ["yellow", "red", "inj", "goal", "pen"].includes(e.type)).length;
+        live.added = clamp(Math.round(0.7 + n * 0.25 + Math.random() * 2), 1, 8);
+      }
+      if (live.minute >= 90 + (live.added || 0)) {
+        if (live.stages && live.stage < live.stages.length - 1) { live.stages[live.stage].forEach((i) => { live.matches[i].fin = true; }); live.wait = true; } // fim de um dos meus jogos; o próximo começa quando o técnico mandar
+        else { live.done = true; prepShoot(s, live); }
+      }
     }
+  }
+  function liveNext(live) { // começa o próximo jogo da fila
+    if (!live || !live.wait) return false;
+    live.stage++; live.stages[live.stage].forEach((i) => { live.matches[i].hold = false; });
+    live.wait = false; live.minute = 0; live.added = null;
+    return true;
   }
   function liveResolve(live) { // fecha a tela de expulsão/lesão: o lesionado não substituído sai e o auxiliar garante um goleiro em campo
     const p = live.pending.shift();
@@ -1786,6 +1809,6 @@
     syncStad(s);
     return null;
   }
-  const api = { prestige, syncStad, ALTS, dupOffers, jobOffers, level, liveReposition, applyLeagues, clubCash, yearOf, startRound, liveStep, liveSub, liveTakePen, penProb, liveResolve, liveFinish, autoReorg, getStad, stadCost, upgradeStadium, autoStadium, clubRev, payroll, migrateFin, migrateOvr2, topScorers, topScorersComp, lookup, yearOf, bestFormation, avail, nextRoundClubs, myClubs, addClub, switchClub, dropClub, STATES, CONT, COUNTRIES, LEAGUES, LG, FORMATIONS, TACTICS, newGame, autoLineup, ratings, playRound, acceptOffer, market, buy, sell, auction, sellTo, applyUpdate, resetPid, migrateOvr, lineupPlayers, fixLineup, nextUserRound, sortTab, dateOf, userComps, userMatches };
+  const api = { liveNext, prestige, syncStad, ALTS, dupOffers, jobOffers, level, liveReposition, applyLeagues, clubCash, yearOf, startRound, liveStep, liveSub, liveTakePen, penProb, liveResolve, liveFinish, autoReorg, getStad, stadCost, upgradeStadium, autoStadium, clubRev, payroll, migrateFin, migrateOvr2, topScorers, topScorersComp, lookup, yearOf, bestFormation, avail, nextRoundClubs, myClubs, addClub, switchClub, dropClub, STATES, CONT, COUNTRIES, LEAGUES, LG, FORMATIONS, TACTICS, newGame, autoLineup, ratings, playRound, acceptOffer, market, buy, sell, auction, sellTo, applyUpdate, resetPid, migrateOvr, lineupPlayers, fixLineup, nextUserRound, sortTab, dateOf, userComps, userMatches };
   if (typeof module !== "undefined") module.exports = api; else root.Game = api;
 })(typeof window !== "undefined" ? window : globalThis);
