@@ -87,7 +87,7 @@ const Campo = (() => {
   }
 
   // ---------- bola ----------
-  function flight(x0, y0, x1, y1, dur, done, h, ref) { { const kc = ball.carrier != null && P[ball.carrier]; if (kc) kc.kick = 0.45; } ball.carrier = null; ball.flight = { x0, y0, x1, y1, t: 0, dur, done, h: h == null ? 2 : h, ref }; }
+  function flight(x0, y0, x1, y1, dur, done, h, ref) { sndKick(h > 2.5 || dur < 0.5 ? 1.4 : 0.8); { const kc = ball.carrier != null && P[ball.carrier]; if (kc) kc.kick = 0.45; } ball.carrier = null; ball.flight = { x0, y0, x1, y1, t: 0, dur, done, h: h == null ? 2 : h, ref }; }
   function setCarrier(o) { if (!o) return; ball.carrier = o.p.id; poss = o.side; }
   function restart(side) { ball.flight = null; ball.x = W / 2; ball.y = H / 2; setCarrier(nearest(team(side).filter((o) => o.p.pos !== "GK"), W / 2, H / 2)); passT = 0.5; }
   function ambient() {
@@ -117,7 +117,24 @@ const Campo = (() => {
   const PASS = (to, side) => ({ fl: 1, start() { poss = side; const dist = Math.hypot(to.x - ball.x, to.y - ball.y); flight(ball.x, ball.y, to.x, to.y, Math.max(0.35, dist / 18), () => setCarrier(to), 1.5, to); } });
   const sur = (o) => o.p.name.split(" ").slice(-1)[0];
   function narrate(t) { narr = t; narrT = 2.4; }
-  function say(t, big, ms) { cap = t; capBig = !!big; capT = ms || 2.6; }
+  // som: torcida, apito, chute e gol (WebAudio sintetizado, sem arquivos)
+  let SND = { on: true, ctx: null, crowd: null, noise: null };
+  try { SND.on = localStorage.getItem("campoSom") !== "0"; } catch (e) {}
+  function sndInit() {
+    if (SND.ctx || !SND.on) { if (SND.ctx && SND.ctx.state === "suspended") SND.ctx.resume(); return; }
+    try {
+      const A = window.AudioContext || window.webkitAudioContext; if (!A) return; const c = new A(); SND.ctx = c;
+      const len = c.sampleRate * 2, buf = c.createBuffer(1, len, c.sampleRate), d = buf.getChannelData(0); for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1; SND.noise = buf;
+      const src = c.createBufferSource(); src.buffer = buf; src.loop = true; const f = c.createBiquadFilter(); f.type = "bandpass"; f.frequency.value = 520; f.Q.value = 0.6; const g = c.createGain(); g.gain.value = 0.0; src.connect(f); f.connect(g); g.connect(c.destination); src.start(); SND.crowd = g;
+    } catch (e) { SND.ctx = null; }
+  }
+  try { document.addEventListener("pointerdown", sndInit); } catch (e) {}
+  function sndNoise(dur, freq, vol, type) { const c = SND.ctx; if (!c || !SND.on) return; const src = c.createBufferSource(); src.buffer = SND.noise; const f = c.createBiquadFilter(); f.type = type || "lowpass"; f.frequency.value = freq; const g = c.createGain(); const t = c.currentTime; g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur); src.connect(f); f.connect(g); g.connect(c.destination); src.start(t, Math.random()); src.stop(t + dur + 0.05); }
+  function sndWhistle(n) { const c = SND.ctx; if (!c || !SND.on) return; const t = c.currentTime; for (let i = 0; i < (n || 1); i++) { const o = c.createOscillator(), o2 = c.createOscillator(), g = c.createGain(); o.type = "square"; o2.type = "square"; const t0 = t + i * 0.42; o.frequency.setValueAtTime(2900, t0); o2.frequency.setValueAtTime(3050, t0); o2.frequency.linearRampToValueAtTime(2980, t0 + 0.3); g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(0.07, t0 + 0.02); g.gain.setValueAtTime(0.07, t0 + 0.28); g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.34); o.connect(g); o2.connect(g); g.connect(c.destination); o.start(t0); o2.start(t0); o.stop(t0 + 0.36); o2.stop(t0 + 0.36); } }
+  function sndKick(v) { sndNoise(0.12, 380, 0.22 * (v || 1), "lowpass"); }
+  function sndGoal() { sndNoise(2.8, 900, 0.35, "bandpass"); if (SND.crowd) { const t = SND.ctx.currentTime; SND.crowd.gain.cancelScheduledValues(t); SND.crowd.gain.setValueAtTime(0.5, t); SND.crowd.gain.exponentialRampToValueAtTime(0.06, t + 4); } }
+  function sndTick() { if (!SND.ctx || !SND.crowd) return; const base = 0.05 + (shotT > 0 ? 0.08 : 0) + (flash > 0 ? 0.2 : 0); if (!(flash > 0)) SND.crowd.gain.setTargetAtTime(SND.on ? base : 0, SND.ctx.currentTime, 0.4); }
+  function say(t, big, ms) { if (big && SND.ctx) { if (/Gol|GOO/i.test(t)) {} else sndWhistle(/p[êe]nalti|Fim|Come/i.test(t) ? 2 : 1); } cap = t; capBig = !!big; capT = ms || 2.6; }
   function addFeed(txt) { feed.unshift({ m: M.min || 0, t: txt }); if (feed.length > 14) feed.pop(); }
   const NEAR = (o, side, d) => ({ dur: 11, start() {}, until: () => Math.hypot(o.x - (side === "h" ? W : 0), o.y - 34) <= d });
   const SNAP = (o, side, d) => FN(() => { const gx = side === "h" ? W : 0, dx = Math.abs(o.x - gx); if (dx > d + 14) { o.x = gx + (side === "h" ? -d : d); } if (ball.carrier === o.p.id) { ball.x = o.x; } }, 0);
@@ -133,7 +150,7 @@ const Campo = (() => {
     }
     st.push({ fl: 1, start() { shotT = 2.4; shotGx = gx; if (kind === "goal") slow = 1.7; over.run = null; if (gk) over.gk = { side: oside, y: ty }; flight(ball.x, ball.y, gx, ty, 0.38, () => {}, 1); } });
     if (kind === "goal") {
-      st.push(FN(() => { flash = 1.6; shownGoalSide = side; shown[side]++; say("⚽ GOOOL! " + name, true, 3.2); addFeed(`⚽ <b>GOL!</b> ${esc(name)}`); }, 2));
+      st.push(FN(() => { flash = 1.6; sndGoal(); shownGoalSide = side; shown[side]++; say("⚽ GOOOL! " + name, true, 3.2); addFeed(`⚽ <b>GOL!</b> ${esc(name)}`); }, 2));
       st.push(FN(() => {
         const sc = shooter, m = {}; if (sc && sc.p) {
           const fx = side === "h" ? W - 7 : 7, fy = sc.y < 34 ? 5 : H - 5; m[sc.p.id] = [fx, fy];
@@ -632,8 +649,8 @@ const Campo = (() => {
     if (evTxt && !(capT > 0 && cap && capBig)) {
       const fn = Math.max(14, Math.round(3.0 * s)); cx.font = "700 " + fn + "px sans-serif";
       const wn = Math.min(cv.width - 10, cx.measureText(evTxt).width + 26), yn = bandPx + (cv.height - bandPx) / 2 - (fn + 14) / 2;
-      cx.globalAlpha = Math.min(1, (capT > 0 && cap && !capBig ? capT : narrT) * 1.5); cx.fillStyle = "rgba(0,0,0,.62)"; cx.fillRect(cv.width / 2 - wn / 2, yn, wn, fn + 14);
-      cx.fillStyle = "#fff"; cx.textAlign = "center"; cx.textBaseline = "middle"; cx.fillText(evTxt, cv.width / 2, yn + (fn + 14) / 2, cv.width - 14); cx.globalAlpha = 1;
+      cx.globalAlpha = Math.min(1, (capT > 0 && cap && !capBig ? capT : narrT) * 1.5); const nbc = k[poss] || "#000", nlt = lum(nbc) > 150; cx.fillStyle = nbc; cx.fillRect(cv.width / 2 - wn / 2, yn, wn, fn + 14); cx.strokeStyle = nlt ? "#111" : "#fff"; cx.lineWidth = 2; cx.strokeRect(cv.width / 2 - wn / 2, yn, wn, fn + 14);
+      cx.fillStyle = nlt ? "#111" : "#fff"; cx.textAlign = "center"; cx.textBaseline = "middle"; cx.fillText(evTxt, cv.width / 2, yn + (fn + 14) / 2, cv.width - 14); cx.globalAlpha = 1;
     }
     if (capT > 0 && cap && capBig) {
       const f2 = capBig ? Math.round(f1 * 1.5) : Math.round(f1 * 0.95);
@@ -647,7 +664,7 @@ const Campo = (() => {
   let shownGoalSide = "h";
 
   function frame(ts) {
-    raf = requestAnimationFrame(frame);
+    raf = requestAnimationFrame(frame); sndTick();
     if (!M) return;
     const dt = Math.min(0.05, last ? (ts - last) / 1000 : 0.016); last = ts;
     lastDt = dt; try { step(dt); draw(); } catch (e) { console.error("campo", e); cur = null; q = []; ball.flight = null; }
@@ -679,6 +696,7 @@ const Campo = (() => {
     dbgPose() { q = []; cur = null; halt = true; const a = team("h").filter((o) => o.p.pos !== "GK").slice(0, 3); a.forEach((o, i) => { o.x = ball.x + 3 + i * 3; o.y = 26; if (i === 0) o.kick = 0.22; if (i === 1) o.down = true; if (i === 2) o.cel = true; }); },
     piece(k, side) { q = []; cur = null; over.pos = null; halt = false; q.push({ goal: goalKick, corner, kickoff, throw: throwIn }[k](side)); },
     score(m) { return m === M ? [shown.h, shown.a] : null; },
+    som() { SND.on = !SND.on; try { localStorage.setItem("campoSom", SND.on ? "1" : "0"); } catch (e) {} if (SND.on) sndInit(); const b = document.getElementById("csb"); if (b) b.textContent = SND.on ? "🔊 Som" : "🔇 Mudo"; },
     toggle() { v3 = !v3; if (v3 && typeof Campo3D !== "undefined") Campo3D.load(); try { localStorage.setItem('campo3d', v3 ? '1' : '0'); } catch (e) {} const b = document.getElementById('c3b'); if (b) b.textContent = v3 ? '🎥 Voltar ao 2D' : '🎥 Ver em 3D'; },
     kitsFor,
     dbg() { return { ball: { x: ball.x, y: ball.y, f: !!ball.flight }, pl: Object.values(P).filter((o) => o.live).map((o) => [o.x, o.y]) }; },
@@ -687,7 +705,7 @@ const Campo = (() => {
     fmtMin,
     sync,
     attach() { const h = document.getElementById("pcvh"); if (h && cv.parentNode !== h) h.appendChild(cv); },
-    card() { return `<div class="card" style="padding:8px 8px 6px"><div style="text-align:right;margin:0 0 6px"><button id="c4b" onclick="Campo.camNext()" style="font-size:13px;padding:4px 10px;border-radius:8px;margin-right:6px">${camLbl()}</button><button id="c3b" onclick="Campo.toggle()" style="font-size:13px;padding:4px 10px;border-radius:8px">${v3 ? "🎥 Voltar ao 2D" : "🎥 Ver em 3D"}</button></div><div id="pcvh" style="min-height:${hh}px"></div><div style="font-size:13px;margin-top:6px;max-height:150px;overflow:auto">${feed.slice(0, 8).map((f) => `<div style="padding:1px 0"><span class="mut">${fmtMin(f.m)}'</span> ${f.t}</div>`).join("") || '<span class="mut">Sem lances ainda.</span>'}</div><p class="mut" style="font-size:11px;margin:4px 0 0">Gols, pênaltis, cartões, lesões e trocas são os lances reais. Chutes sem gol são ilustrativos.</p></div>`; },
+    card() { return `<div class="card" style="padding:8px 8px 6px"><div style="text-align:right;margin:0 0 6px"><button id="csb" onclick="Campo.som()" style="font-size:13px;padding:4px 10px;border-radius:8px;margin-right:6px">${SND.on ? "🔊 Som" : "🔇 Mudo"}</button><button id="c4b" onclick="Campo.camNext()" style="font-size:13px;padding:4px 10px;border-radius:8px;margin-right:6px">${camLbl()}</button><button id="c3b" onclick="Campo.toggle()" style="font-size:13px;padding:4px 10px;border-radius:8px">${v3 ? "🎥 Voltar ao 2D" : "🎥 Ver em 3D"}</button></div><div id="pcvh" style="min-height:${hh}px"></div><div style="font-size:13px;margin-top:6px;max-height:150px;overflow:auto">${feed.slice(0, 8).map((f) => `<div style="padding:1px 0"><span class="mut">${fmtMin(f.m)}'</span> ${f.t}</div>`).join("") || '<span class="mut">Sem lances ainda.</span>'}</div><p class="mut" style="font-size:11px;margin:4px 0 0">Gols, pênaltis, cartões, lesões e trocas são os lances reais. Chutes sem gol são ilustrativos.</p></div>`; },
   };
   function camLbl() { return "📹 " + ({ auto: "Câmera: automática", side: "Câmera: lateral", aerial: "Câmera: aérea", end: "Câmera: atrás do gol" }[camMode]); }
   function busy() { return !!M && (!!cur || q.length > 0); }

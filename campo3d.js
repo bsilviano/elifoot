@@ -98,6 +98,8 @@ const Campo3D = (() => {
     ren = new T.WebGLRenderer({ antialias: true, alpha: false, preserveDrawingBuffer: true }); ren.shadowMap.enabled = true; ren.shadowMap.type = T.PCFSoftShadowMap; ren.setPixelRatio(1);
   }
 
+  let trs = [], trUse = 0;
+  function teamRing(col) { let r = trs[trUse]; if (!r) { r = new T.Mesh(new T.RingGeometry(0.5, 0.68, 24), new T.MeshBasicMaterial({ color: 0xffffff, side: T.DoubleSide })); r.rotation.x = -Math.PI / 2; scene.add(r); trs[trUse] = r; } trUse++; if (r._c !== col) { r._c = col; r.material.color.set(col); } return r; }
   function sprite(text, kind, id) { // número e nome em placas que olham sempre para a câmera
     const key = kind + text + (id == null ? "" : "#" + id); if (spr[key]) return spr[key];
     const c = document.createElement("canvas"); c.width = 256; c.height = 96; const x = c.getContext("2d");
@@ -167,6 +169,7 @@ const Campo3D = (() => {
     sun.position.set(cX + 18, 40, -22); sun.target.position.set(cX, 0, 0);
     const seen = {}, dt = Math.max(0.001, S.dt); clock3 += dt;
     if (crowdT) { const fl = S.flash > 0 ? Math.min(1, S.flash) : 0; crowdT.offset.y = Math.sin(clock3 * (5 + fl * 9)) * (0.006 + fl * 0.03); crowdM.color.setScalar(0.62 + fl * 0.38); }
+    trUse = 0;
     for (const p of S.players) {
       seen[p.id] = 1; const o = pl[p.id] || mkPlayer(p.id), X = wx(p.x), Z = wz(p.y);
       o.root.visible = true; o.root.position.set(X, 0, Z);
@@ -180,10 +183,12 @@ const Campo3D = (() => {
       if (p.kick >= 0 && B.ru) { const u = Math.sin(Math.PI * clamp(p.kick, 0, 1)); B.ru.rotateX(-1.15 * u); B.rl.rotateX(1.1 * u); }
       if (p.cel && B.la) { B.la.rotateZ(1.9); B.ra.rotateZ(-1.9); B.lf.rotateY(0.3); o.root.position.y += Math.abs(Math.sin(clock3 * 9 + p.id)) * 0.28; }
       const col = p.kitCol || (p.gk ? (p.side === "h" ? S.k.gh : S.k.ga) : S.k[p.side]); if (o.col !== col) { o.col = col; const sh = lum(col) > 150 ? "#202020" : "#f4f4f4"; o.mats.forEach((m) => { if (m.userData.body) m.geometry = kitGeom(m.userData.src, col, p.gk ? "#111111" : sh); }); }
+      if (p.side === "h" || p.side === "a") { const tr = teamRing(S.k[p.side]); tr.visible = true; tr.position.set(X, 0.04, Z); }
       if (p.n !== "" && !p.down) { const n = sprite(String(p.n), "n", p.id); n.visible = true; n.position.set(X, 2.35, Z); n.scale.set(1.6, 0.6, 1); p._s = n; }
       if (p.carrier) { ring.visible = true; ring.position.x = X; ring.position.z = Z; const nm = sprite(p.name, "t", S.k[p.side]); nm.visible = true; nm.position.set(X, 3.3, Z); nm.scale.set(5.4, 2.0, 1); p._t = nm; }
     }
     if (!S.players.some((p) => p.carrier)) ring.visible = false;
+    for (let i = trUse; i < trs.length; i++) trs[i].visible = false;
     for (const id in pl) if (!seen[id]) pl[id].root.visible = false;
     for (const k in spr) { const sp = spr[k]; sp._keep = false; }
     S.players.forEach((p) => { if (p._s) p._s._keep = true; if (p._t) p._t._keep = true; });
