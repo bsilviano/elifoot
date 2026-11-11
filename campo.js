@@ -1,0 +1,303 @@
+// Campo animado da partida ao vivo. O motor do jogo é estatístico (não calcula a posição de cada jogador),
+// então o campo é uma animação guiada pelos lances REAIS da partida (gols, pênaltis, cartões, lesões, substituições).
+// As chances sem gol (defesa, trave, chute pra fora) são ilustrativas: não alteram o placar nem as estatísticas.
+const Campo = (() => {
+  const W = 105, H = 68, R = Math.random, M_ = 2; // M_ = margem (m) ao redor do gramado
+  const cv = document.createElement("canvas");
+  cv.id = "campoCv";
+  cv.style.cssText = "width:100%;display:block;border-radius:10px;aspect-ratio:" + (W + 2 * M_) + "/" + (H + 2 * M_);
+  const cx = cv.getContext("2d");
+  let M = null, seen = 0, P = {}, ball, q = [], cur = null, feed = [], cap = "", capT = 0, capBig = false, marks = [];
+  let shown = { h: 0, a: 0 }, raf = 0, last = 0, passT = 0, poss = "h", share = 0.5, flash = 0, over = {}, freeze = false, lastMin = -1, hh = 0, clock = 0;
+  ball = { x: W / 2, y: H / 2, carrier: null, flight: null };
+
+  const BASE = { GOL: [0.04, 0.5], ZAG: [0.2, 0.5, 1], LD: [0.24, 0.88], LE: [0.24, 0.12], VOL: [0.38, 0.5, 1], MC: [0.5, 0.5, 1], MEI: [0.62, 0.5, 1], ME: [0.5, 0.14], MD: [0.5, 0.86], PE: [0.78, 0.14], PD: [0.78, 0.86], SA: [0.7, 0.5, 1], CA: [0.84, 0.5, 1] };
+  const pt = (side, ax, ay) => (side === "h" ? [ax * W, ay * H] : [(1 - ax) * W, (1 - ay) * H]);
+  const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+  const esc = (x) => String(x == null ? "" : x).replace(/&/g, "&amp;").replace(/</g, "&lt;");
+  function pickW(a, w) { if (!a.length) return null; let t = w.reduce((x, y) => x + y, 0), r = R() * t; for (let i = 0; i < a.length; i++) { r -= w[i]; if (r <= 0) return a[i]; } return a[a.length - 1]; }
+  const team = (side) => Object.values(P).filter((o) => o.live && o.side === side);
+  const other = (side) => (side === "h" ? "a" : "h");
+  function nearest(list, x, y) { let b = null, bd = 1e9; for (const o of list) { const d = Math.hypot(o.x - x, o.y - y); if (d < bd) { bd = d; b = o; } } return b; }
+  function findP(name, side) { return Object.values(P).find((o) => o.p.name === name && (!side || o.side === side)); }
+
+  // ---------- cores ----------
+  function col(name) { try { const c = (typeof TEAM_COLORS !== "undefined" && TEAM_COLORS[name]) || themeFor(name).ac; return /^#[0-9a-f]{6}$/i.test(c) ? c : "#c8102e"; } catch (e) { return "#c8102e"; } }
+  const rgb = (c) => [1, 3, 5].map((i) => parseInt(c.substr(i, 2), 16));
+  const lum = (c) => { const l = rgb(c); return 0.3 * l[0] + 0.59 * l[1] + 0.11 * l[2]; };
+  function kits() { let h = col(M.H.name), a = col(M.A.name); const x = rgb(h), y = rgb(a); if (Math.hypot(x[0] - y[0], x[1] - y[1], x[2] - y[2]) < 110) a = "#f4f4f4"; return { h, a }; }
+
+  // ---------- escalação em campo ----------
+  function layout() {
+    for (const id in P) P[id].live = 0;
+    for (const side of ["h", "a"]) {
+      const groups = {};
+      M.on[side].forEach((p) => { const k = (typeof SPN === "function" ? SPN(p) : p.sp) || "MC"; (groups[k] = groups[k] || []).push(p); });
+      for (const k in groups) {
+        const g = groups[k].sort((a, b) => a.id - b.id), b = BASE[k] || BASE.MC, n = g.length;
+        g.forEach((p, i) => {
+          let ax = b[0], ay = b[1];
+          if (b[2]) { const sp = n <= 3 ? 0.3 : 0.6 / (n - 1); ay = 0.5 + (i - (n - 1) / 2) * sp; } else if (n > 1) { ay += (i - (n - 1) / 2) * 0.12 * (b[1] < 0.5 ? 1 : -1); ax -= i * 0.04; }
+          ay = clamp(ay, 0.05, 0.95);
+          let o = P[p.id];
+          if (!o) { o = P[p.id] = { x: 0, y: 0, init: 0 }; }
+          o.side = side; o.ax = ax; o.ay = ay; o.p = p; o.live = 1;
+          if (!o.init) { const t = pt(side, ax, ay); o.x = t[0]; o.y = t[1]; o.init = 1; }
+        });
+      }
+    }
+  }
+  function target(o) {
+    const gk = o.p.pos === "GK";
+    if (gk && over.gk && over.gk.side === o.side) { const t = pt(o.side, 0.03, 0.5); return [t[0], over.gk.y]; }
+    const bp = (o.side === "h" ? ball.x : W - ball.x) / W, by = ball.y / H, byN = o.side === "h" ? by : 1 - by;
+    const k = gk ? 0.08 : o.p.pos === "DEF" ? 0.6 : o.p.pos === "MID" ? 1 : 0.9;
+    let ax = o.ax + (bp - 0.5) * 0.38 * k + (gk ? 0 : poss === o.side ? 0.04 : -0.03) + (ball.carrier === o.p.id ? 0.02 : 0);
+    const ay = o.ay + (byN - o.ay) * (gk ? 0.1 : 0.2);
+    ax = clamp(ax, 0.03, 0.97); if (gk) ax = Math.min(ax, 0.12);
+    return pt(o.side, ax, clamp(ay, 0.04, 0.96));
+  }
+
+  // ---------- bola ----------
+  function flight(x0, y0, x1, y1, dur, done, h, ref) { ball.carrier = null; ball.flight = { x0, y0, x1, y1, t: 0, dur, done, h: h == null ? 2 : h, ref }; }
+  function setCarrier(o) { if (!o) return; ball.carrier = o.p.id; poss = o.side; }
+  function restart(side) { ball.flight = null; ball.x = W / 2; ball.y = H / 2; setCarrier(nearest(team(side).filter((o) => o.p.pos !== "GK"), W / 2, H / 2)); passT = 0.5; }
+  function ambient() {
+    const c = ball.carrier != null && P[ball.carrier];
+    if (!c || !c.live) { setCarrier(nearest(team(poss).filter((o) => o.p.pos !== "GK"), ball.x, ball.y) || nearest(team(poss), ball.x, ball.y)); return; }
+    const mates = team(c.side).filter((o) => o !== c), opp = team(other(c.side)), dir = c.side === "h" ? 1 : -1;
+    const sh = c.side === "h" ? share : 1 - share, pI = clamp(0.15 * (1 - sh) / sh, 0.06, 0.3);
+    const w = mates.map((o) => { const dx = (o.x - c.x) * dir, dy = Math.abs(o.y - c.y), d = Math.hypot(dx, dy); let v = d < 6 ? 0.1 : d > 34 ? 0.2 : 1; v *= dx > 0 ? 1.6 : dx > -8 ? 1 : 0.5; if (o.p.pos === "GK") v *= c.p.pos === "DEF" ? 0.4 : 0.03; return v; });
+    const r = pickW(mates, w); if (!r) return;
+    const dist = Math.hypot(r.x - c.x, r.y - c.y), dur = Math.max(0.3, dist / 26);
+    if (R() < pI && opp.length) { const it = nearest(opp, (c.x + r.x) / 2, (c.y + r.y) / 2); flight(ball.x, ball.y, it.x, it.y, dur * 0.7, () => setCarrier(it), 1.2, it); } else flight(ball.x, ball.y, r.x, r.y, dur, () => setCarrier(r), 1.5, r);
+  }
+
+  // ---------- roteiros de lances ----------
+  const FN = (f, d) => ({ start: f, dur: d || 0 });
+  const WAIT = (d) => ({ start() {}, dur: d });
+  const PASS = (to, side) => ({ fl: 1, start() { poss = side; const dist = Math.hypot(to.x - ball.x, to.y - ball.y); flight(ball.x, ball.y, to.x, to.y, Math.max(0.24, dist / 34), () => setCarrier(to), 1.5, to); } });
+  function say(t, big, ms) { cap = t; capBig = !!big; capT = ms || 2.6; }
+  function addFeed(txt) { feed.unshift({ m: M.min || 0, t: txt }); if (feed.length > 14) feed.pop(); }
+  function shotSteps(st, side, kind, shooter, name) {
+    const oside = other(side), gx = side === "h" ? W : 0, gk = team(oside).find((x) => x.p.pos === "GK"), opp = team(oside).filter((x) => x.p.pos !== "GK");
+    const ty = 34 + (kind === "wide" ? (R() < 0.5 ? -1 : 1) * (5 + R() * 4) : kind === "post" ? (R() < 0.5 ? -1 : 1) * 3.66 : (R() - 0.5) * 5.4);
+    if (kind === "block") {
+      const d = nearest(opp, shooter.x + (side === "h" ? 6 : -6), shooter.y);
+      st.push({ fl: 1, start() { flight(ball.x, ball.y, d.x, d.y, 0.25, () => setCarrier(d), 1, d); } });
+      st.push(FN(() => { say("🧱 Bloqueio da zaga!"); addFeed(`🧱 Chute de ${name} é bloqueado`); }, 0.6));
+      return;
+    }
+    st.push({ fl: 1, start() { if (gk) over.gk = { side: oside, y: ty }; flight(ball.x, ball.y, gx, ty, 0.38, () => {}, 1); } });
+    if (kind === "goal") {
+      st.push(FN(() => { flash = 1.6; shownGoalSide = side; shown[side]++; say("⚽ GOOOL! " + name, true, 3.2); addFeed(`⚽ <b>GOL!</b> ${esc(name)}`); }, 2));
+      st.push(FN(() => { over.gk = null; restart(oside); }, 0.1));
+    } else if (kind === "save") {
+      st.push(FN(() => { over.gk = null; if (gk) setCarrier(gk); say("🧤 Defesa" + (gk ? " de " + gk.p.name : "") + "!"); addFeed(`🧤 Chute de ${esc(name)}, defesa${gk ? " de " + esc(gk.p.name) : ""}`); }, 0.8));
+    } else if (kind === "wide") {
+      st.push({ fl: 1, start() { flight(ball.x, ball.y, gx + (side === "h" ? 4 : -4), ball.y + (ball.y > 34 ? 2 : -2), 0.25, () => {}, 0.5); } });
+      st.push(FN(() => { over.gk = null; if (gk) setCarrier(gk); say("Pra fora!"); addFeed(`🎯 Chute de ${esc(name)} passa perto`); }, 0.7));
+    } else if (kind === "post") {
+      st.push({ fl: 1, start() { flight(ball.x, ball.y, gx + (side === "h" ? -7 : 7), 34 + (ty > 34 ? 9 : -9), 0.45, () => {}, 2); } });
+      st.push(FN(() => { over.gk = null; const d = nearest(opp, ball.x, ball.y); if (d) setCarrier(d); say("🥅 NA TRAVE!", true); addFeed(`🥅 Na trave! ${esc(name)}`); }, 1));
+    }
+  }
+  function chance(side, o) {
+    return (cur) => {
+      poss = side;
+      const me = team(side), atk = me.filter((x) => x.p.pos !== "GK"), st = cur.steps;
+      const shooter = (o.name && atk.find((x) => x.p.name === o.name)) || pickW(atk, atk.map((x) => ({ ATT: 3, MID: 1.3, DEF: 0.25 }[x.p.pos] || 1) * x.p.ov));
+      if (!shooter) return;
+      const mids = atk.filter((x) => x !== shooter && x.p.pos !== "DEF"), a1 = pickW(mids, mids.map((x) => x.p.ov));
+      const m2 = mids.filter((x) => x !== a1), a2 = pickW(m2, m2.map((x) => x.p.ov));
+      [a1, a2, shooter].filter(Boolean).forEach((t) => st.push(PASS(t, side)));
+      st.push(WAIT(0.15));
+      shotSteps(st, side, o.kind, shooter, o.name || shooter.p.name);
+    };
+  }
+  function penaltyWin(side, e) {
+    return (cur) => {
+      const sx = side === "h" ? W - 11 : 11;
+      cur.steps.push(FN(() => { poss = side; say("🎯 PÊNALTI para o " + e.club + "!", true, 3); addFeed(`🎯 Pênalti para o ${esc(e.club)}`); flight(ball.x, ball.y, sx, 34, 0.6, () => {}, 2); }, 1.2));
+      cur.steps.push(FN(() => { freeze = true; }, 0));
+    };
+  }
+  function penaltyKick(side, e) {
+    return (cur) => {
+      freeze = false;
+      const sx = side === "h" ? W - 11 : 11, st = cur.steps;
+      const k = findP(e.name, side) || pickW(team(side), team(side).map((x) => x.p.ov));
+      st.push(FN(() => { poss = side; ball.flight = null; ball.carrier = null; ball.x = sx; ball.y = 34; say("Cobrança: " + e.name); if (k) { k.x = sx + (side === "h" ? -5 : 5); k.y = 34; } }, 0.9));
+      shotSteps(st, side, e.ok ? "goal" : R() < 0.6 ? "save" : "wide", k || { x: sx, y: 34 }, e.name);
+      if (!e.ok) st.push(FN(() => addFeed(`❌ <b>Pênalti perdido</b> ${esc(e.name)}`), 0));
+    };
+  }
+  function cardScript(kind, e) {
+    return (cur) => {
+      cur.steps.push(FN(() => {
+        const o = findP(e.name, e.side);
+        if (o) marks.push({ x: o.x, y: o.y, k: kind, t: 0 });
+        const t = kind === "yellow" ? `🟨 Cartão amarelo: ${e.name}` : kind === "red" ? `🟥 Expulso: ${e.name}` : `🚑 Lesão: ${e.name}`;
+        say(t, false, 2.4); addFeed(`${t.replace(e.name, "<b>" + esc(e.name) + "</b>")} (${esc(e.club)})`);
+      }, kind === "red" ? 1.6 : 0.9));
+    };
+  }
+  function subScript(e) { return (cur) => { cur.steps.push(FN(() => { say(`🔁 Entra ${e.name}, sai ${e.out}`); addFeed(`🔁 Entra ${esc(e.name)}, sai ${esc(e.out)} (${esc(e.club)})`); }, 1)); }; }
+
+  function handle(e) {
+    const s = e.side;
+    if (e.type === "goal") q.push(chance(s, { name: e.name, kind: "goal" }));
+    else if (e.type === "penwin") q.push(penaltyWin(s, e));
+    else if (e.type === "pen") q.push(penaltyKick(s, e));
+    else if (e.type === "yellow") q.push(cardScript("yellow", e));
+    else if (e.type === "red") q.push(cardScript("red", e));
+    else if (e.type === "inj") q.push(cardScript("inj", e));
+    else if (e.type === "sub") q.push(subScript(e));
+  }
+  function sync() {
+    if (!M) return;
+    while (seen < M.ev.length) handle(M.ev[seen++]);
+    if (M.min != null && M.min !== lastMin) {
+      lastMin = M.min;
+      if (M.px) share = clamp(M.px.h / Math.max(M.px.h + M.px.a, 1e-9), 0.3, 0.7);
+      for (const side of ["h", "a"]) {
+        const sh = side === "h" ? share : 1 - share;
+        if (q.length < 2 && !freeze && R() < 0.06 * 2 * sh) { // chance ilustrativa (sem gol)
+          const kind = pickW(["save", "wide", "block", "post"], [5, 2.6, 1.6, 0.8]);
+          q.push(chance(side, { kind }));
+        }
+      }
+    }
+  }
+  function finishCur() { cur = null; }
+  function runScript(dt) {
+    if (!cur) { if (!q.length) return false; cur = { steps: [], i: 0, age: 0 }; q.shift()(cur); if (!cur.steps.length) { cur = null; return false; } }
+    cur.age += dt;
+    if (cur.age > 16) { ball.flight = null; over.gk = null; finishCur(); return false; }
+    const s = cur.steps[cur.i];
+    if (!s) { finishCur(); return false; }
+    if (!s.on) { s.on = 1; s.t = 0; s.start(); }
+    s.t += dt;
+    if (s.fl ? !ball.flight : s.t >= s.dur) cur.i++;
+    return true;
+  }
+
+  // ---------- quadro a quadro ----------
+  function step(dt) {
+    dt *= 1.4; clock += dt;
+    sync(); layout();
+    for (const id in P) {
+      const o = P[id]; if (!o.live) continue;
+      const t = target(o), k = Math.min(1, dt * (ball.carrier === o.p.id ? 3.2 : o.p.pos === "GK" && over.gk ? 6 : 2));
+      o.x += (t[0] - o.x) * k; o.y += (t[1] - o.y) * k;
+    }
+    const b = ball.flight;
+    if (b) {
+      if (b.ref) { b.x1 = b.ref.x; b.y1 = b.ref.y; }
+      b.t += dt; const f = Math.min(1, b.t / b.dur);
+      ball.x = b.x0 + (b.x1 - b.x0) * f; ball.y = b.y0 + (b.y1 - b.y0) * f; ball.z = Math.sin(Math.PI * f) * b.h;
+      if (f >= 1) { ball.flight = null; ball.z = 0; b.done && b.done(); }
+    } else {
+      ball.z = 0;
+      const c = ball.carrier != null && P[ball.carrier];
+      if (c && c.live) { const d = c.side === "h" ? 1 : -1; ball.x = c.x + d * 0.9; ball.y = c.y + 0.3; }
+    }
+    const scripted = runScript(dt);
+    if (!scripted && !freeze && !ball.flight) { passT -= dt; if (passT <= 0) { ambient(); passT = 0.5 + R() * 0.4; } }
+    if (capT > 0) capT -= dt;
+    if (flash > 0) flash -= dt;
+    marks.forEach((m) => (m.t += dt)); marks = marks.filter((m) => m.t < 2.6);
+  }
+
+  // ---------- desenho ----------
+  function draw() {
+    const w = cv.clientWidth; if (!w) return;
+    const dpr = Math.min(2, window.devicePixelRatio || 1), pw = Math.round(w * dpr), ph = Math.round(w * (H + 2 * M_) / (W + 2 * M_) * dpr);
+    if (cv.width !== pw || cv.height !== ph) { cv.width = pw; cv.height = ph; }
+    hh = cv.clientHeight;
+    const s = cv.width / (W + 2 * M_), X = (x) => (x + M_) * s, Y = (y) => (y + M_) * s;
+    cx.setTransform(1, 0, 0, 1, 0, 0);
+    cx.fillStyle = "#24703a"; cx.fillRect(0, 0, cv.width, cv.height);
+    const n = 14;
+    for (let i = 0; i < n; i++) { cx.fillStyle = i % 2 ? "#2d8b43" : "#2a8040"; cx.fillRect(X(i * W / n), Y(0), Math.ceil(W / n * s) + 1, H * s); }
+    cx.strokeStyle = "rgba(255,255,255,.85)"; cx.lineWidth = Math.max(1, 0.25 * s);
+    const line = (a, b, c, d) => { cx.beginPath(); cx.moveTo(X(a), Y(b)); cx.lineTo(X(c), Y(d)); cx.stroke(); };
+    cx.strokeRect(X(0), Y(0), W * s, H * s); line(W / 2, 0, W / 2, H);
+    cx.beginPath(); cx.arc(X(W / 2), Y(H / 2), 9.15 * s, 0, 7); cx.stroke();
+    cx.beginPath(); cx.arc(X(W / 2), Y(H / 2), 0.45 * s, 0, 7); cx.fillStyle = "#fff"; cx.fill();
+    for (const sd of [0, 1]) {
+      const f = (x) => (sd ? W - x : x), dirx = sd ? -1 : 1;
+      cx.strokeRect(X(sd ? W - 16.5 : 0), Y((H - 40.32) / 2), 16.5 * s, 40.32 * s);
+      cx.strokeRect(X(sd ? W - 5.5 : 0), Y((H - 18.32) / 2), 5.5 * s, 18.32 * s);
+      cx.beginPath(); cx.arc(X(f(11)), Y(H / 2), 0.4 * s, 0, 7); cx.fill();
+      const a = Math.acos(5.5 / 9.15);
+      cx.beginPath(); cx.arc(X(f(11)), Y(H / 2), 9.15 * s, sd ? Math.PI - a : -a, sd ? Math.PI + a : a); cx.stroke();
+      cx.fillStyle = flash > 0 && ((sd && shownGoalSide === "h") || (!sd && shownGoalSide === "a")) ? "rgba(255,230,90," + Math.min(1, flash) + ")" : "rgba(255,255,255,.25)";
+      cx.fillRect(X(sd ? W : -M_ + 0.2), Y((H - 7.32) / 2), (M_ - 0.2) * s, 7.32 * s);
+    }
+    const k = kits();
+    const ordered = Object.values(P).filter((o) => o.live).sort((a, b) => a.y - b.y), r = 1.45 * s;
+    for (const o of ordered) {
+      const px = X(o.x + Math.sin(clock * 1.7 + o.p.id) * 0.25), py = Y(o.y + Math.cos(clock * 1.3 + o.p.id) * 0.25), gk = o.p.pos === "GK";
+      const fill = gk ? (o.side === "h" ? "#ffd23f" : "#3fd0ff") : k[o.side];
+      cx.fillStyle = "rgba(0,0,0,.25)"; cx.beginPath(); cx.ellipse(px, py + r * 0.7, r * 0.95, r * 0.4, 0, 0, 7); cx.fill();
+      cx.fillStyle = fill; cx.beginPath(); cx.arc(px, py, r, 0, 7); cx.fill();
+      cx.lineWidth = Math.max(1, 0.2 * s); cx.strokeStyle = "#fff"; cx.stroke();
+      if (r >= 6) { cx.fillStyle = lum(fill) > 150 ? "#111" : "#fff"; cx.font = "bold " + Math.round(r * 1.0) + "px sans-serif"; cx.textAlign = "center"; cx.textBaseline = "middle"; cx.fillText(o.p.ov, px, py + 0.5); }
+      if (ball.carrier === o.p.id) {
+        cx.strokeStyle = "#ffd166"; cx.lineWidth = Math.max(2, 0.35 * s); cx.beginPath(); cx.arc(px, py, r + 0.6 * s, 0, 7); cx.stroke();
+        const nm = o.p.name.split(" ").slice(-1)[0], fs = Math.max(9, Math.round(1.7 * s));
+        cx.font = "600 " + fs + "px sans-serif"; const tw = cx.measureText(nm).width + 8;
+        cx.fillStyle = "rgba(0,0,0,.6)"; cx.fillRect(px - tw / 2, py - r - fs - 6, tw, fs + 4);
+        cx.fillStyle = "#fff"; cx.textAlign = "center"; cx.textBaseline = "top"; cx.fillText(nm, px, py - r - fs - 4);
+      }
+    }
+    for (const m of marks) {
+      const mx = X(m.x), my = Y(m.y) - r * 2.4 - Math.min(m.t, 0.4) * 10, a = m.t > 2 ? 1 - (m.t - 2) / 0.6 : 1;
+      cx.globalAlpha = Math.max(0, a);
+      if (m.k === "inj") { cx.fillStyle = "#fff"; cx.beginPath(); cx.arc(mx, my, r * 0.95, 0, 7); cx.fill(); cx.fillStyle = "#d33"; cx.fillRect(mx - r * 0.55, my - r * 0.15, r * 1.1, r * 0.3); cx.fillRect(mx - r * 0.15, my - r * 0.55, r * 0.3, r * 1.1); }
+      else { cx.fillStyle = m.k === "red" ? "#e11" : "#ffd400"; cx.fillRect(mx - r * 0.55, my - r * 0.85, r * 1.1, r * 1.7); cx.strokeStyle = "#000"; cx.lineWidth = 1; cx.strokeRect(mx - r * 0.55, my - r * 0.85, r * 1.1, r * 1.7); }
+      cx.globalAlpha = 1;
+    }
+    const bx = X(ball.x), by = Y(ball.y), z = (ball.z || 0) * s * 0.5, br = Math.max(3, 0.8 * s);
+    cx.fillStyle = "rgba(0,0,0,.3)"; cx.beginPath(); cx.ellipse(bx, by + br * 0.5, br, br * 0.45, 0, 0, 7); cx.fill();
+    cx.fillStyle = "#fff"; cx.strokeStyle = "#111"; cx.lineWidth = Math.max(1, 0.15 * s); cx.beginPath(); cx.arc(bx, by - z, br, 0, 7); cx.fill(); cx.stroke();
+    // placar e relógio
+    const fs = Math.max(11, Math.round(2.1 * s)), sc = `${M.H.name} ${shown.h} x ${shown.a} ${M.A.name}   ${M.min || 0}'`;
+    cx.font = "700 " + fs + "px sans-serif"; const tw = cx.measureText(sc).width + 16;
+    cx.fillStyle = "rgba(0,0,0,.62)"; cx.fillRect(X(1), Y(1), tw, fs + 10); cx.fillStyle = "#fff"; cx.textAlign = "left"; cx.textBaseline = "middle"; cx.fillText(sc, X(1) + 8, Y(1) + (fs + 10) / 2);
+    if (capT > 0 && cap) {
+      const f2 = capBig ? Math.round(fs * 1.7) : Math.round(fs * 1.1);
+      cx.font = "800 " + f2 + "px sans-serif"; const w2 = cx.measureText(cap).width + 24, yy = capBig ? cv.height / 2 - f2 : cv.height - f2 - 18;
+      cx.globalAlpha = Math.min(1, capT * 2);
+      cx.fillStyle = capBig ? "rgba(0,0,0,.7)" : "rgba(0,0,0,.65)"; cx.fillRect(cv.width / 2 - w2 / 2, yy, w2, f2 + 12);
+      cx.fillStyle = capBig ? "#ffd166" : "#fff"; cx.textAlign = "center"; cx.textBaseline = "middle"; cx.fillText(cap, cv.width / 2, yy + (f2 + 12) / 2);
+      cx.globalAlpha = 1;
+    }
+  }
+  let shownGoalSide = "h";
+
+  function frame(ts) {
+    raf = requestAnimationFrame(frame);
+    if (!M) return;
+    const dt = Math.min(0.05, last ? (ts - last) / 1000 : 0.016); last = ts;
+    try { step(dt); draw(); } catch (e) { console.error("campo", e); cur = null; q = []; ball.flight = null; }
+  }
+
+  return {
+    start(live) {
+      stopLoop();
+      M = live.matches.find((m) => m.mine.h || m.mine.a) || live.matches[0];
+      P = {}; q = []; cur = null; feed = []; marks = []; over = {}; freeze = false; cap = ""; capT = 0; flash = 0; lastMin = -1; poss = "h"; share = 0.5;
+      seen = M.ev.length; shown = { h: M.gh || 0, a: M.ga || 0 };
+      layout(); restart("h"); last = 0;
+      raf = requestAnimationFrame(frame);
+    },
+    stop() { stopLoop(); M = null; q = []; cur = null; },
+    busy() { return !!M && (!!cur || q.length > 0); },
+    sync,
+    attach() { const h = document.getElementById("pcvh"); if (h && cv.parentNode !== h) h.appendChild(cv); },
+    card() { return `<div class="card" style="padding:8px 8px 6px"><div id="pcvh" style="min-height:${hh}px"></div><div style="font-size:13px;margin-top:6px;max-height:150px;overflow:auto">${feed.slice(0, 8).map((f) => `<div style="padding:1px 0"><span class="mut">${f.m}'</span> ${f.t}</div>`).join("") || '<span class="mut">Sem lances ainda.</span>'}</div><p class="mut" style="font-size:11px;margin:4px 0 0">Gols, pênaltis, cartões, lesões e trocas são os lances reais. Chutes sem gol são ilustrativos.</p></div>`; },
+  };
+  function stopLoop() { if (raf) cancelAnimationFrame(raf); raf = 0; }
+})();

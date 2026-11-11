@@ -66,13 +66,14 @@ tr.me{background:color-mix(in srgb,var(--ac) 30%,transparent);font-weight:800}tr
 <header><div class="hl"><span id="crest"></span><b id="hT">Meu Elifoot</b></div><div class="hr"><span id="flag"></span><span id="hS"></span></div></header>
 <main id="app"></main>
 <nav id="nav"></nav>
-<script src="clubs.js?v=173"></script>
-<script src="game.js?v=173"></script>
+<script src="clubs.js?v=174"></script>
+<script src="game.js?v=174"></script>
+<script src="campo.js?v=174"></script>
 <script>
 const PREFIX="elifoot:save:",SAVE1="Elifoot"; // um único save para todos os times
 let artCan=false,S=null,tab="jogo",msg="",mf={pos:"",q:"",any:true,min:1,max:null,afford:true,ord:"ovr",dir:-1},viewKey=null;
 const $=id=>document.getElementById(id);
-const VERSAO=173;
+const VERSAO=174;
 const moneyFull=n=>(n<0?"-":"")+"R$ "+Math.round(Math.abs(n)).toLocaleString("pt-BR");
 const money=moneyFull;
 const U=()=>S.teams[S.user];
@@ -349,7 +350,7 @@ function confCancel(){CONF=null;render()}
 function doPlay(){
   const x=Game.startRound(S);
   if(!x.live){showSummary(x.res);return}
-  LIVE={live:x.live,res:x.res};LSPD=250;$("nav").style.display="none";liveRender();liveRun()
+  LIVE={live:x.live,res:x.res};LSPD=250;Campo.start(x.live);$("nav").style.display="none";liveRender();liveRun()
 }
 function showSummary(r){
   $("nav").style.display="";
@@ -375,10 +376,10 @@ let PTM=null;
 function penRun(){const sh=LIVE&&LIVE.live.shoot;if(!sh||PTM||sh.shown>=sh.kicks.length)return;
   if(LSPD===-1){sh.shown=sh.kicks.length;liveRender();return}
   PTM=setInterval(()=>{if(!LIVE){clearInterval(PTM);PTM=null;return}sh.shown++;liveRender();if(sh.shown>=sh.kicks.length){clearInterval(PTM);PTM=null;liveAutoEnd()}},LSPD===250?600:1400)}
-function liveAutoEnd(){if(LIVE&&LIVE.live.done&&LIVE.live.shoot&&LIVE.live.shoot.shown<LIVE.live.shoot.kicks.length){clearInterval(LTM);penRun();return}if(LIVE&&LIVE.live.done&&!LIVE.live.pending.length&&!LEND){clearInterval(LTM);LEND=setTimeout(()=>{LEND=null;if(LIVE&&LIVE.live.done)liveEnd()},1500)}}
+function liveAutoEnd(){if(LIVE&&LIVE.live.done&&LIVE.live.shoot&&LIVE.live.shoot.shown<LIVE.live.shoot.kicks.length){clearInterval(LTM);penRun();return}if(LIVE&&LIVE.live.done&&!LIVE.live.pending.length&&!LEND){clearInterval(LTM);LEND=setTimeout(()=>{LEND=null;if(Campo.busy()){liveAutoEnd();return}if(LIVE&&LIVE.live.done)liveEnd()},1500)}}
 function liveRun(){clearInterval(LTM);LTM=null;if(!LIVE||LIVE.live.done||LIVE.live.pending.length||LSPD===0)return;
   if(LSPD===-1){const l=LIVE.live;while(!l.done&&!l.pending.length)Game.liveStep(S,l,1);liveRender();liveAutoEnd();return}
-  LTM=setInterval(()=>{const l=LIVE.live;Game.liveStep(S,l,1);liveRender();liveAutoEnd();if(l.done||l.pending.length||!LSPD){clearInterval(LTM);LTM=null}},LSPD)}
+  LTM=setInterval(()=>{if(Campo.busy())return;const l=LIVE.live;Game.liveStep(S,l,1);Campo.sync();liveRender();liveAutoEnd();if(l.done||l.pending.length||!LSPD){clearInterval(LTM);LTM=null}},LSPD)}
 function liveSpeed(v){LSPD=v;try{localStorage.setItem("elifoot:spd",v)}catch(e){}liveRun();liveRender()}
 const LI={goal:"⚽",red:"🟥",inj:"🚑",yellow:"🟨",sub:"🔁"};
 const qa=x=>String(x).replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;");
@@ -455,6 +456,7 @@ function liveBody(){
   const hd=h;let ms="",os="";
   for(const m of l.matches.slice().sort((a,b)=>(b.mine.h||b.mine.a)-(a.mine.h||a.mine.a))){let h="";
     const mine=m.mine.h||m.mine.a;
+    if(mine&&!ms)ms+=Campo.card();
     h+=`<div class="card${mine?" mine":""}" ${mine?'style="border-color:var(--ac)"':""}><div class="mrow">${tbox(m.H.name)} <span>${m.gh} x ${m.ga}</span> ${tbox(m.A.name)}</div>`;
     if(m.ida){const [ra,rb]=m.ida.r,hi=m.ida.home===0?ra:rb,ai=m.ida.home===0?rb:ra;h+=`<p class="mut" style="text-align:center;margin:4px 0;font-size:12px">Ida: ${m.A.name} ${ai} x ${hi} ${m.H.name}</p>`}
     if(mine)h+=`<p class="mut">🏟️ Público ${m.gate.att.toLocaleString("pt-BR")} de ${m.gate.cap.toLocaleString("pt-BR")} · ingresso ${money(m.gate.price)}</p>`;
@@ -489,7 +491,7 @@ let _lp=null,LSEL=null;
 function liveRender(){
   if(!LIVE)return;
   const sy=window.scrollY,sel=document.getElementById("liveSel");
-  $("app").innerHTML=liveHtml();
+  $("app").innerHTML=liveHtml();Campo.attach();
   if(LIVE.live.pending.length&&_lp!==LIVE.live.pending[0]){_lp=LIVE.live.pending[0];window.scrollTo(0,0)}else window.scrollTo(0,sy);
 }
 function liveSubUI(mi,side,outId){
@@ -502,7 +504,7 @@ function liveAuto(){const l=LIVE.live,p=l.pending[0];if(!p)return;const m=l.matc
 function livePen(mi,side,id){if(!Game.liveTakePen(LIVE.live,mi,side,id)){alert("Escolha inválida.");return}liveRender();liveAutoEnd();liveRun()}
 function liveCont(){Game.liveResolve(LIVE.live);liveRender();liveAutoEnd();liveRun()}
 function liveEnd(){
-  clearInterval(LTM);const L=LIVE;LIVE=null;_lp=null;
+  clearInterval(LTM);const L=LIVE;LIVE=null;_lp=null;Campo.stop();
   Game.liveFinish(S,L.live,L.res);
   const hm=LHIRE.map(id=>{const f=Game.market(S).find(p=>p.id===id);if(!f)return null;const e=Game.buy(S,id);return e?`${f.name}: ${e}`:`✅ ${f.name} contratado por ${moneyFull(Math.round(f.value*1.15))}.`}).filter(Boolean);LHIRE=[];
   if(hm.length){save();setTimeout(()=>alert(hm.join("\n")),600)}
