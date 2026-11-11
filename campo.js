@@ -278,7 +278,17 @@ const Campo = (() => {
         st.push(PASS(nx, side)); st.push(WAIT(0.25)); c = nx;
       }
       st.push(PASS(shooter, side));
-      st.push(NEAR(shooter, side, 21)); st.push(SNAP(shooter, side, 22));
+      const fkd = o.how === "fk" && o.kind === "goal" ? 26 : 21; st.push(NEAR(shooter, side, fkd)); st.push(SNAP(shooter, side, fkd + 1));
+      if (o.how === "fk" && o.kind === "goal") { // gol de falta: falta na entrada da área, barreira e cobrança direta
+        st.push(FN(() => {
+          const gxx = side === "h" ? W : 0, a = Math.atan2(34 - shooter.y, gxx - shooter.x), dgl = Math.hypot(shooter.x - gxx, shooter.y - 34);
+          ball.carrier = null; ball.flight = null; ball.x = shooter.x + (side === "h" ? 0.9 : -0.9) * 0 + Math.cos(a) * 0.8; ball.y = shooter.y + Math.sin(a) * 0.8; poss = side; halt = true; over.run = null;
+          const def = team(other(side)).filter((x) => x.p.pos !== "GK").sort((p1, p2) => Math.hypot(p1.x - ball.x, p1.y - ball.y) - Math.hypot(p2.x - ball.x, p2.y - ball.y)).slice(0, dgl < 24 ? 5 : 4), bx = ball.x + 9.5 * Math.cos(a), by = ball.y + 9.5 * Math.sin(a), m = {};
+          def.forEach((x, i) => { const off = (i - (def.length - 1) / 2) * 1.15; m[x.p.id] = [bx - Math.sin(a) * off, by + Math.cos(a) * off]; });
+          over.pos = m; say("🚩 Falta perigosa!", false, 2.4); narrate("Falta perigosa na entrada da área: " + sur(shooter) + " vai cobrar"); addFeed(`🚩 Falta perigosa na entrada da área, ${esc(shooter.p.name)} vai cobrar`);
+        }, 2.4));
+        st.push(FN(() => { halt = false; setCarrier(shooter); }, 0.2));
+      }
       st.push(WAIT(0.15));
       const kd = o.kind === "save" && R() < 0.4 ? "savec" : o.kind;
       shotSteps(st, side, kd, shooter, o.name || shooter.p.name);
@@ -416,7 +426,7 @@ const Campo = (() => {
 
   function handle(e) {
     const s = e.side; q = q.filter((f) => !f.ill);
-    if (e.type === "goal") q.push(chance(s, { name: e.name, kind: "goal" }));
+    if (e.type === "goal") q.push(chance(s, { name: e.name, kind: "goal", how: e.how }));
     else if (e.type === "penwin") q.push(penaltyWin(s, e));
     else if (e.type === "pen") q.push(penaltyKick(s, e));
     else if (e.type === "yellow") q.push(foulScript("yellow", e));
@@ -578,7 +588,7 @@ const Campo = (() => {
       if (u > 20) { cx.fillStyle = lum(fill) > 150 ? "#111" : "#fff"; cx.font = "bold " + Math.round(u * 0.3) + "px sans-serif"; cx.textAlign = "center"; cx.textBaseline = "middle"; cx.fillText(o.n, g[0], g[1] - u * 0.93); }
       if (ball.carrier === o.p.id) {
         cx.strokeStyle = "#ffd166"; cx.lineWidth = Math.max(2, u * 0.07); cx.beginPath(); cx.ellipse(g[0], g[1], u * 0.5, u * 0.19, 0, 0, 7); cx.stroke();
-        const nm = o.p.name.split(" ").slice(-1)[0], fs = Math.max(10, Math.round(u * 0.36)); cx.font = "600 " + fs + "px sans-serif"; const tw = cx.measureText(nm).width + 8;
+        const nm = o.p.name, fs = Math.max(10, Math.round(u * 0.36)); cx.font = "600 " + fs + "px sans-serif"; const tw = cx.measureText(nm).width + 8;
         const bc = k[o.p.side] || "#000", lt = lum(bc) > 150; cx.fillStyle = bc; cx.fillRect(g[0] - tw / 2, g[1] - u * 1.45 - fs - 14, tw, fs + 4); cx.strokeStyle = lt ? "#111" : "#fff"; cx.lineWidth = 1.5; cx.strokeRect(g[0] - tw / 2, g[1] - u * 1.45 - fs - 14, tw, fs + 4); cx.fillStyle = lt ? "#111" : "#fff"; cx.textAlign = "center"; cx.textBaseline = "top"; cx.fillText(nm, g[0], g[1] - u * 1.45 - fs - 12);
       }
     }
@@ -602,7 +612,7 @@ const Campo = (() => {
     const k = kits();
     cx.fillStyle = "#15202b"; cx.fillRect(0, 0, cv.width, cv.height);
     if (v3 && typeof Campo3D !== "undefined" && Campo3D.ready()) {
-      const gw = cv.width, gh2 = cv.height - bandPx, st3 = { w: gw, h: gh2, dt: lastDt, k, ball, marks, focus, flip, cam: camMode, pen: penCam, zoom: zoomF, flash, shot: shotT > 0 ? { gx: shotGx } : null, players: Object.values(P).filter((o) => o.live).concat(leaving.filter((o) => !o.live)).map((o) => ({ id: o.p.id, x: o.x, y: o.y, side: o.side, gk: o.p.pos === "GK", n: o.n, name: o.p.name.split(" ").slice(-1)[0], carrier: ball.carrier === o.p.id, kick: o.kick > 0 ? 1 - o.kick / 0.45 : -1, down: !!o.down, cel: !!o.cel })).concat(meds.map((m, i) => ({ id: "med" + i, x: m.x, y: m.y, side: "m", gk: false, n: "", name: "", carrier: false, kick: -1, down: false, cel: false, kitCol: "#f4f4f4" }))) };
+      const gw = cv.width, gh2 = cv.height - bandPx, st3 = { w: gw, h: gh2, dt: lastDt, k, ball, marks, focus, flip, cam: camMode, pen: penCam, zoom: zoomF, flash, shot: shotT > 0 ? { gx: shotGx } : null, players: Object.values(P).filter((o) => o.live).concat(leaving.filter((o) => !o.live)).map((o) => ({ id: o.p.id, x: o.x, y: o.y, side: o.side, gk: o.p.pos === "GK", n: o.n, name: o.p.name, carrier: ball.carrier === o.p.id, kick: o.kick > 0 ? 1 - o.kick / 0.45 : -1, down: !!o.down, cel: !!o.cel })).concat(meds.map((m, i) => ({ id: "med" + i, x: m.x, y: m.y, side: "m", gk: false, n: "", name: "", carrier: false, kick: -1, down: false, cel: false, kitCol: "#f4f4f4" }))) };
       const im = Campo3D.render(st3); if (im) cx.drawImage(im, 0, bandPx, gw, gh2);
     } else if (v3) { field3d(s, bandPx, k); if (typeof Campo3D !== "undefined" && Campo3D.state() === "loading") { cx.fillStyle = "rgba(0,0,0,.6)"; cx.fillRect(0, cv.height - 28, cv.width, 28); cx.fillStyle = "#fff"; cx.font = "600 14px sans-serif"; cx.textAlign = "center"; cx.textBaseline = "middle"; cx.fillText("Carregando 3D...", cv.width / 2, cv.height - 14); } } else {
     cx.fillStyle = "#24703a"; cx.fillRect(0, bandPx, cv.width, cv.height - bandPx);
@@ -635,7 +645,7 @@ const Campo = (() => {
       if (r >= 6) { cx.fillStyle = lum(fill) > 150 ? "#111" : "#fff"; cx.font = "bold " + Math.round(r * 1.0) + "px sans-serif"; cx.textAlign = "center"; cx.textBaseline = "middle"; cx.fillText(o.n, px, py + 0.5); }
       if (ball.carrier === o.p.id) {
         cx.strokeStyle = "#ffd166"; cx.lineWidth = Math.max(2, 0.35 * s); cx.beginPath(); cx.arc(px, py, r + 0.6 * s, 0, 7); cx.stroke();
-        const nm = o.p.name.split(" ").slice(-1)[0], fs = Math.max(14, Math.round(2.7 * s));
+        const nm = o.p.name, fs = Math.max(14, Math.round(2.7 * s));
         cx.font = "600 " + fs + "px sans-serif"; const tw = cx.measureText(nm).width + 8;
         cx.fillStyle = "rgba(0,0,0,.65)"; cx.fillRect(px - tw / 2, py + r + 3, tw, fs + 4);
         cx.fillStyle = "#fff"; cx.textAlign = "center"; cx.textBaseline = "top"; cx.fillText(nm, px, py + r + 5);

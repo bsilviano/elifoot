@@ -1319,7 +1319,7 @@
       if (m.on[side].length && Math.random() < m.px[side]) {
         const p = wpickP(m.on[side], (q) => ({ ATT: 3, MID: 1.5, DEF: 0.4, GK: 0.01 }[q.pos] * q.ov));
         if (side === "h") { m.gh++; m.sh.push(p.name); } else { m.ga++; m.sa.push(p.name); }
-        m.ev.push({ min: mn, type: "goal", side, name: p.name, club: team.name });
+        m.ev.push({ min: mn, type: "goal", side, name: p.name, club: team.name, how: Math.random() < 0.07 ? "fk" : undefined }); // how:"fk" = gol de falta (só na animação)
       }
       // pênalti (o técnico escolhe o batedor no próprio time; os outros times usam o melhor batedor)
       if (m.on[side].length > 8 && Math.random() < 0.14 / 90) {
