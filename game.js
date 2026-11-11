@@ -33,8 +33,8 @@
     for (let i = 1; i < AGE_PTS.length; i++) if (age <= AGE_PTS[i][0]) { const [a0, f0] = AGE_PTS[i - 1], [a1, f1] = AGE_PTS[i]; return f0 + (f1 - f0) * (age - a0) / (a1 - a0); }
     return AGE_PTS[AGE_PTS.length - 1][1];
   }
-  // Prêmio de mercado por posição (ESTIMATIVA): atacantes e pontas custam mais que zagueiros e goleiros com a mesma qualidade.
-  const POS_F = { GOL: 0.8, ZAG: 0.95, LD: 1, LE: 1, VOL: 0.95, MC: 1, MEI: 1.1, ME: 1.05, MD: 1.05, PD: 1.2, PE: 1.2, SA: 1.2, CA: 1.25 };
+  // Prêmio de mercado por posição (calibrado nos dados reais): atacantes e pontas custam mais que zagueiros e goleiros com a mesma qualidade.
+  const POS_F = { GOL: 0.7, ZAG: 1.05, LD: 0.99, LE: 0.99, VOL: 1.04, MC: 1.1, MEI: 1.1, ME: 1.05, MD: 1.05, PD: 1.15, PE: 1.2, SA: 1.2, CA: 1.15 }; // calibrado (11/11/2026) com os 11.645 jogadores reais do elencos.json: OVR médio igualado entre posições (correção de 60%)
   // Prêmio de mercado por liga (ESTIMATIVA): os valores do Transfermarkt na Inglaterra são inflados pelo dinheiro da liga.
   const LIGA_F = { ENG1: 1.15, ENG2: 1.1 };
   const mktF = (age, sp, lkey) => ageF(age) * (POS_F[sp] || 1) * (LIGA_F[lkey] || 1);
