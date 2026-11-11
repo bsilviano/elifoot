@@ -589,7 +589,7 @@ const Campo = (() => {
       if (r >= 6) { cx.fillStyle = lum(fill) > 150 ? "#111" : "#fff"; cx.font = "bold " + Math.round(r * 1.0) + "px sans-serif"; cx.textAlign = "center"; cx.textBaseline = "middle"; cx.fillText(o.n, px, py + 0.5); }
       if (ball.carrier === o.p.id) {
         cx.strokeStyle = "#ffd166"; cx.lineWidth = Math.max(2, 0.35 * s); cx.beginPath(); cx.arc(px, py, r + 0.6 * s, 0, 7); cx.stroke();
-        const nm = o.p.name.split(" ").slice(-1)[0], fs = Math.max(9, Math.round(1.7 * s));
+        const nm = o.p.name.split(" ").slice(-1)[0], fs = Math.max(14, Math.round(2.7 * s));
         cx.font = "600 " + fs + "px sans-serif"; const tw = cx.measureText(nm).width + 8;
         cx.fillStyle = "rgba(0,0,0,.65)"; cx.fillRect(px - tw / 2, py + r + 3, tw, fs + 4);
         cx.fillStyle = "#fff"; cx.textAlign = "center"; cx.textBaseline = "top"; cx.fillText(nm, px, py + r + 5);
@@ -663,6 +663,7 @@ const Campo = (() => {
       return `<div class="card"><h2>Estatísticas do jogo</h2><div style="display:grid;grid-template-columns:1fr auto 1fr;gap:3px 10px;align-items:center;text-align:center;font-size:14px"><b style="text-align:left">${dot(k.h)} ${esc(M.H.name)}</b><span></span><b style="text-align:right">${esc(M.A.name)} ${dot(k.a)}</b>${rows.map((r) => `<b style="text-align:left;font-size:17px">${r[1]}</b><span class="mut">${r[0]}</span><b style="text-align:right;font-size:17px">${r[2]}</b>`).join("")}</div><div style="display:flex;height:8px;border-radius:4px;overflow:hidden;margin:10px 0 2px;border:1px solid #fff5"><div style="width:${ph}%;background:${k.h}"></div><div style="flex:1;background:${k.a}"></div></div>${M.gate ? `<p class="mut" style="margin:8px 0 0;font-size:13px">🏟️ Público ${M.gate.att.toLocaleString("pt-BR")} de ${M.gate.cap.toLocaleString("pt-BR")} · ingresso ${typeof money === "function" ? money(M.gate.price) : M.gate.price}</p>` : ""}<p class="mut" style="font-size:11px;margin:6px 0 0">Posse e finalizações vêm da animação (ilustrativas). Gols, cartões, lesões, pênaltis e trocas são reais.</p></div>`;
     },
     isTracked(m) { return m === M; },
+    dbgCarrier() { const o = team("h").filter((x) => x.p.pos !== "GK")[0]; if (o) { setCarrier(o); ball.flight = null; } },
     dbgBall(x, y) { q = []; cur = null; halt = true; placeBall(x, y); team("h").filter((o) => o.p.pos !== "GK").slice(0, 4).forEach((o, i) => { o.x = x + (i - 1) * 3; o.y = y + 1.5 + (i % 2) * 2; }); team("a").filter((o) => o.p.pos !== "GK").slice(0, 3).forEach((o, i) => { o.x = x + i * 3 - 2; o.y = y + 3; }); },
     setLag(v) { lag = v; },
     dbgFocus(f) { focus = f; },
