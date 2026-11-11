@@ -621,9 +621,9 @@ const Campo = (() => {
     cx.font = "700 " + f2s + "px sans-serif"; cx.textAlign = "center"; cx.fillStyle = "#cfd8e0"; cx.fillText(sub, mid, bandPx * 0.78);
     // narração e avisos de lance: sempre na mesma faixa, no topo do campo, em letra grande
     const evTxt = capT > 0 && cap && !capBig ? cap : narrT > 0 && narr ? "🎙️ " + narr : "";
-    if (evTxt) {
+    if (evTxt && !(capT > 0 && cap && capBig)) {
       const fn = Math.max(14, Math.round(3.0 * s)); cx.font = "700 " + fn + "px sans-serif";
-      const wn = Math.min(cv.width - 10, cx.measureText(evTxt).width + 26), yn = bandPx + 8;
+      const wn = Math.min(cv.width - 10, cx.measureText(evTxt).width + 26), yn = bandPx + (cv.height - bandPx) / 2 - (fn + 14) / 2;
       cx.globalAlpha = Math.min(1, (capT > 0 && cap && !capBig ? capT : narrT) * 1.5); cx.fillStyle = "rgba(0,0,0,.62)"; cx.fillRect(cv.width / 2 - wn / 2, yn, wn, fn + 14);
       cx.fillStyle = "#fff"; cx.textAlign = "center"; cx.textBaseline = "middle"; cx.fillText(evTxt, cv.width / 2, yn + (fn + 14) / 2, cv.width - 14); cx.globalAlpha = 1;
     }
