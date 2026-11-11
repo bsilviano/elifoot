@@ -163,6 +163,7 @@ const Campo3D = (() => {
       else if (mode === "end") { const gx = S.shot ? S.shot.gx : (S.ball.x > W / 2 ? W : 0), dr = gx > W / 2 ? 1 : -1; tp = [wx(gx + dr * 17), 6.5, wz(34)]; tl = [wx(gx - dr * 24), 1.2, wz(34)]; }
       else { tp = [cX0, 13, -H / 2 - 20]; tl = [cX0, 0, clamp(bz * 0.5, -12, 12)]; }
     }
+    { const zf = S.zoom || 1; if (zf !== 1) tp = [tl[0] + (tp[0] - tl[0]) / zf, tl[1] + (tp[1] - tl[1]) / zf, tl[2] + (tp[2] - tl[2]) / zf]; }
     if (!cpos) { cpos = tp.slice(); clook = tl.slice(); }
     const kk = Math.min(1, Math.max(0.001, S.dt) * 3.2); for (let i = 0; i < 3; i++) { cpos[i] += (tp[i] - cpos[i]) * kk; clook[i] += (tl[i] - clook[i]) * kk; }
     const cX = cpos[0]; cam.position.set(cpos[0], cpos[1], cpos[2]); cam.lookAt(clook[0], clook[1], clook[2]);
