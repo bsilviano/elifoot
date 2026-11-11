@@ -7,7 +7,7 @@ const Campo = (() => {
   cv.id = "campoCv";
   cv.style.cssText = "width:100%;display:block;border-radius:10px;aspect-ratio:" + (W + 2 * M_) + "/" + (H + 2 * M_ + BAND);
   const cx = cv.getContext("2d");
-  let lag = 0, flip = false, focus = null, leaving = [], meds = [], mounted = false, halfDone = false, ended = false, lastDt = 0.016, v3 = false, camX = W / 2; try { v3 = localStorage.getItem('campo3d') === '1'; } catch (e) {}
+  let camMode = "auto", shotT = 0, shotGx = 0, slow = 0, lag = 0, flip = false, focus = null, leaving = [], meds = [], mounted = false, halfDone = false, ended = false, lastDt = 0.016, v3 = false, camX = W / 2; try { v3 = localStorage.getItem('campo3d') === '1'; } catch (e) {}
   let M = null, L = null, seen = 0, P = {}, ball, q = [], cur = null, feed = [], cap = "", capT = 0, capBig = false, marks = [];
   let lastAdded = null, stat = { h: { poss: 0, shots: 0, onT: 0 }, a: { poss: 0, shots: 0, onT: 0 } }, NUM = {}, USED = { h: {}, a: {} }, narr = "", narrT = 0, press = {}, shown = { h: 0, a: 0 }, raf = 0, last = 0, passT = 0, poss = "h", share = 0.5, flash = 0, over = {}, freeze = false, halt = false, lastMin = -1, hh = 0, clock = 0;
   ball = { x: W / 2, y: H / 2, carrier: null, flight: null };
@@ -131,7 +131,7 @@ const Campo = (() => {
       st.push(FN(() => { say("🧱 Bloqueio da zaga!"); addFeed(`🧱 Chute de ${name} é bloqueado`); }, 0.6));
       return;
     }
-    st.push({ fl: 1, start() { over.run = null; if (gk) over.gk = { side: oside, y: ty }; flight(ball.x, ball.y, gx, ty, 0.38, () => {}, 1); } });
+    st.push({ fl: 1, start() { shotT = 2.4; shotGx = gx; if (kind === "goal") slow = 1.7; over.run = null; if (gk) over.gk = { side: oside, y: ty }; flight(ball.x, ball.y, gx, ty, 0.38, () => {}, 1); } });
     if (kind === "goal") {
       st.push(FN(() => { flash = 1.6; shownGoalSide = side; shown[side]++; say("⚽ GOOOL! " + name, true, 3.2); addFeed(`⚽ <b>GOL!</b> ${esc(name)}`); }, 2));
       st.push(FN(() => {
@@ -421,6 +421,7 @@ const Campo = (() => {
 
   // ---------- quadro a quadro ----------
   function step(dt) {
+    if (shotT > 0) shotT -= dt; if (slow > 0) { slow -= dt; dt *= 0.35; }
     dt *= 0.85 * (1 + clamp(lag / 8000, 0, 1.3)); clock += dt;
     sync(); layout();
     if (L && L.done && !cur && !q.length) { if (!ended) { ended = true; say("🏁 Fim de jogo", true, 4); narrate("Apita o árbitro: fim de jogo"); addFeed("🏁 Fim de jogo"); ball.flight = null; over.run = null; over.pos = null; } halt = true; freeze = true; }
@@ -561,7 +562,7 @@ const Campo = (() => {
     const k = kits();
     cx.fillStyle = "#15202b"; cx.fillRect(0, 0, cv.width, cv.height);
     if (v3 && typeof Campo3D !== "undefined" && Campo3D.ready()) {
-      const gw = cv.width, gh2 = cv.height - bandPx, st3 = { w: gw, h: gh2, dt: lastDt, k, ball, marks, focus, flip, players: Object.values(P).filter((o) => o.live).concat(leaving.filter((o) => !o.live)).map((o) => ({ id: o.p.id, x: o.x, y: o.y, side: o.side, gk: o.p.pos === "GK", n: o.n, name: o.p.name.split(" ").slice(-1)[0], carrier: ball.carrier === o.p.id, kick: o.kick > 0 ? 1 - o.kick / 0.45 : -1, down: !!o.down, cel: !!o.cel })).concat(meds.map((m, i) => ({ id: "med" + i, x: m.x, y: m.y, side: "m", gk: false, n: "", name: "", carrier: false, kick: -1, down: false, cel: false, kitCol: "#f4f4f4" }))) };
+      const gw = cv.width, gh2 = cv.height - bandPx, st3 = { w: gw, h: gh2, dt: lastDt, k, ball, marks, focus, flip, cam: camMode, flash, shot: shotT > 0 ? { gx: shotGx } : null, players: Object.values(P).filter((o) => o.live).concat(leaving.filter((o) => !o.live)).map((o) => ({ id: o.p.id, x: o.x, y: o.y, side: o.side, gk: o.p.pos === "GK", n: o.n, name: o.p.name.split(" ").slice(-1)[0], carrier: ball.carrier === o.p.id, kick: o.kick > 0 ? 1 - o.kick / 0.45 : -1, down: !!o.down, cel: !!o.cel })).concat(meds.map((m, i) => ({ id: "med" + i, x: m.x, y: m.y, side: "m", gk: false, n: "", name: "", carrier: false, kick: -1, down: false, cel: false, kitCol: "#f4f4f4" }))) };
       const im = Campo3D.render(st3); if (im) cx.drawImage(im, 0, bandPx, gw, gh2);
     } else if (v3) { field3d(s, bandPx, k); if (typeof Campo3D !== "undefined" && Campo3D.state() === "loading") { cx.fillStyle = "rgba(0,0,0,.6)"; cx.fillRect(0, cv.height - 28, cv.width, 28); cx.fillStyle = "#fff"; cx.font = "600 14px sans-serif"; cx.textAlign = "center"; cx.textBaseline = "middle"; cx.fillText("Carregando 3D...", cv.width / 2, cv.height - 14); } } else {
     cx.fillStyle = "#24703a"; cx.fillRect(0, bandPx, cv.width, cv.height - bandPx);
@@ -668,6 +669,7 @@ const Campo = (() => {
       return `<div class="card"><h2>Estatísticas do jogo</h2><div style="display:grid;grid-template-columns:1fr auto 1fr;gap:3px 10px;align-items:center;text-align:center;font-size:14px"><b style="text-align:left">${dot(k.h)} ${esc(M.H.name)}</b><span></span><b style="text-align:right">${esc(M.A.name)} ${dot(k.a)}</b>${rows.map((r) => `<b style="text-align:left;font-size:17px">${r[1]}</b><span class="mut">${r[0]}</span><b style="text-align:right;font-size:17px">${r[2]}</b>`).join("")}</div><div style="display:flex;height:8px;border-radius:4px;overflow:hidden;margin:10px 0 2px;border:1px solid #fff5"><div style="width:${ph}%;background:${k.h}"></div><div style="flex:1;background:${k.a}"></div></div>${M.gate ? `<p class="mut" style="margin:8px 0 0;font-size:13px">🏟️ Público ${M.gate.att.toLocaleString("pt-BR")} de ${M.gate.cap.toLocaleString("pt-BR")} · ingresso ${typeof money === "function" ? money(M.gate.price) : M.gate.price}</p>` : ""}<p class="mut" style="font-size:11px;margin:6px 0 0">Posse e finalizações vêm da animação (ilustrativas). Gols, cartões, lesões, pênaltis e trocas são reais.</p></div>`;
     },
     isTracked(m) { return m === M; },
+    camNext() { const L3 = ["auto", "side", "aerial", "end"]; camMode = L3[(L3.indexOf(camMode) + 1) % 4]; const b = document.getElementById("c4b"); if (b) b.textContent = camLbl(); },
     dbgCarrier() { const o = team("h").filter((x) => x.p.pos !== "GK")[0]; if (o) { setCarrier(o); ball.flight = null; } },
     dbgBall(x, y) { q = []; cur = null; halt = true; placeBall(x, y); team("h").filter((o) => o.p.pos !== "GK").slice(0, 4).forEach((o, i) => { o.x = x + (i - 1) * 3; o.y = y + 1.5 + (i % 2) * 2; }); team("a").filter((o) => o.p.pos !== "GK").slice(0, 3).forEach((o, i) => { o.x = x + i * 3 - 2; o.y = y + 3; }); },
     setLag(v) { lag = v; },
@@ -683,8 +685,9 @@ const Campo = (() => {
     fmtMin,
     sync,
     attach() { const h = document.getElementById("pcvh"); if (h && cv.parentNode !== h) h.appendChild(cv); },
-    card() { return `<div class="card" style="padding:8px 8px 6px"><div style="text-align:right;margin:0 0 6px"><button id="c3b" onclick="Campo.toggle()" style="font-size:13px;padding:4px 10px;border-radius:8px">${v3 ? "🎥 Voltar ao 2D" : "🎥 Ver em 3D"}</button></div><div id="pcvh" style="min-height:${hh}px"></div><div style="font-size:13px;margin-top:6px;max-height:150px;overflow:auto">${feed.slice(0, 8).map((f) => `<div style="padding:1px 0"><span class="mut">${fmtMin(f.m)}'</span> ${f.t}</div>`).join("") || '<span class="mut">Sem lances ainda.</span>'}</div><p class="mut" style="font-size:11px;margin:4px 0 0">Gols, pênaltis, cartões, lesões e trocas são os lances reais. Chutes sem gol são ilustrativos.</p></div>`; },
+    card() { return `<div class="card" style="padding:8px 8px 6px"><div style="text-align:right;margin:0 0 6px"><button id="c4b" onclick="Campo.camNext()" style="font-size:13px;padding:4px 10px;border-radius:8px;margin-right:6px">${camLbl()}</button><button id="c3b" onclick="Campo.toggle()" style="font-size:13px;padding:4px 10px;border-radius:8px">${v3 ? "🎥 Voltar ao 2D" : "🎥 Ver em 3D"}</button></div><div id="pcvh" style="min-height:${hh}px"></div><div style="font-size:13px;margin-top:6px;max-height:150px;overflow:auto">${feed.slice(0, 8).map((f) => `<div style="padding:1px 0"><span class="mut">${fmtMin(f.m)}'</span> ${f.t}</div>`).join("") || '<span class="mut">Sem lances ainda.</span>'}</div><p class="mut" style="font-size:11px;margin:4px 0 0">Gols, pênaltis, cartões, lesões e trocas são os lances reais. Chutes sem gol são ilustrativos.</p></div>`; },
   };
+  function camLbl() { return "📹 " + ({ auto: "Câmera: automática", side: "Câmera: lateral", aerial: "Câmera: aérea", end: "Câmera: atrás do gol" }[camMode]); }
   function busy() { return !!M && (!!cur || q.length > 0); }
   function stopLoop() { if (raf) cancelAnimationFrame(raf); raf = 0; }
 })();

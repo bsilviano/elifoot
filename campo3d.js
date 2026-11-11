@@ -2,7 +2,7 @@
 // As bibliotecas ficam em lib/ e só são carregadas quando o jogador aperta "Ver em 3D".
 const Campo3D = (() => {
   const W = 105, H = 68;
-  const KG = {}; let cpos = null, clook = null, clock3 = 0, st = "idle", T = null, ren = null, scene, cam, sun, ball, ballSh, ring, pl = {}, glb = null, camX = W / 2, spr = {}, cbs = [], ok = false, fail = false;
+  const KG = {}; let crowdT = null, crowdM = null, dirMode = "side", dirT = 0, dirNext = 14, lockT = 0, cpos = null, clook = null, clock3 = 0, st = "idle", T = null, ren = null, scene, cam, sun, ball, ballSh, ring, pl = {}, glb = null, camX = W / 2, spr = {}, cbs = [], ok = false, fail = false;
   let FL = false;
   const wx = (x) => (FL ? x - W / 2 : W / 2 - x), wz = (y) => (FL ? H / 2 - y : y - H / 2);
   const ver = () => { try { return typeof VERSAO !== "undefined" ? VERSAO : 1; } catch (e) { return 1; } };
@@ -32,18 +32,27 @@ const Campo3D = (() => {
       x.beginPath(); x.arc(g(11), H / 2 * k, 0.35 * k, 0, 7); x.fill();
       const a = Math.acos(5.5 / 9.15); x.beginPath(); x.arc(g(11), H / 2 * k, 9.15 * k, sd ? Math.PI - a : -a, sd ? Math.PI + a : a); x.stroke();
     }
+    x.globalAlpha = 0.07; for (let i = 0; i < 5200; i++) { x.fillStyle = i % 2 ? "#0d3b1a" : "#6fd488"; x.fillRect(Math.random() * c.width, Math.random() * c.height, 3 + Math.random() * 14, 2 + Math.random() * 8); } x.globalAlpha = 1;
     const t = new T.CanvasTexture(c); t.anisotropy = 8; return t;
   }
+  function adTex() {
+    const c = document.createElement("canvas"); c.width = 1024; c.height = 64; const x = c.getContext("2d"); x.fillStyle = "#0b1d3a"; x.fillRect(0, 0, 1024, 64);
+    const tx = ["ELIFOOT", "BRASILEIRÃO", "COPA DO BRASIL", "LIBERTADORES", "FUTEBOL"], co = ["#ffd166", "#58d68d", "#5dade2", "#f1948a", "#fff"];
+    x.font = "bold 38px sans-serif"; x.textBaseline = "middle"; x.textAlign = "center"; tx.forEach((t, i) => { x.fillStyle = co[i]; x.fillText(t, 102 + i * 205, 34); });
+    const t = new T.CanvasTexture(c); t.wrapS = T.RepeatWrapping; return t;
+  }
+  function glowTex() { const c = document.createElement("canvas"); c.width = c.height = 128; const x = c.getContext("2d"), g = x.createRadialGradient(64, 64, 0, 64, 64, 64); g.addColorStop(0, "rgba(255,250,220,1)"); g.addColorStop(0.25, "rgba(255,240,190,.55)"); g.addColorStop(1, "rgba(255,240,190,0)"); x.fillStyle = g; x.fillRect(0, 0, 128, 128); return new T.CanvasTexture(c); }
   function crowdTex() {
     const c = document.createElement("canvas"); c.width = 1024; c.height = 256; const x = c.getContext("2d"); x.fillStyle = "#26333f"; x.fillRect(0, 0, 1024, 256);
     for (let i = 0; i < 2600; i++) { x.fillStyle = ["#d9534f", "#f0ad4e", "#5bc0de", "#e8e8e8", "#7a8da0", "#3d7a4a"][i % 6]; x.globalAlpha = 0.8; x.fillRect((i * 37.31) % 1024, (i * 17.77) % 256, 4, 5); }
     const t = new T.CanvasTexture(c); t.wrapS = T.RepeatWrapping; t.repeat.set(3, 1); return t;
   }
+  const white0 = () => new T.MeshStandardMaterial({ color: 0xffffff });
   function build() {
-    scene = new T.Scene(); scene.background = new T.Color(0x0e1b27); scene.fog = new T.Fog(0x0e1b27, 70, 150);
+    scene = new T.Scene(); scene.background = new T.Color(0x050a14); scene.fog = new T.Fog(0x050a14, 90, 230);
     cam = new T.PerspectiveCamera(36, 1.6, 0.5, 400);
-    scene.add(new T.HemisphereLight(0xffffff, 0x3a5a3a, 0.55));
-    sun = new T.DirectionalLight(0xffffff, 0.75); sun.position.set(20, 40, -25); sun.castShadow = true;
+    scene.add(new T.HemisphereLight(0xcfdcff, 0x24402a, 0.6));
+    sun = new T.DirectionalLight(0xfff4dc, 0.95); sun.position.set(20, 40, -25); sun.castShadow = true;
     sun.shadow.mapSize.set(1024, 1024); const sc = sun.shadow.camera; sc.left = -34; sc.right = 34; sc.top = 24; sc.bottom = -24; sc.near = 1; sc.far = 120;
     scene.add(sun); scene.add(sun.target);
     // gramado
@@ -53,10 +62,27 @@ const Campo3D = (() => {
     const pm = new T.Mesh(g, new T.MeshStandardMaterial({ map: pitchTex(), roughness: 1, side: T.DoubleSide })); pm.receiveShadow = true; scene.add(pm);
     const out = new T.Mesh(new T.PlaneGeometry(300, 300), new T.MeshStandardMaterial({ color: 0x1b5a30, roughness: 1 })); out.rotation.x = -Math.PI / 2; out.position.y = -0.05; scene.add(out);
     // arquibancadas
-    const ct = crowdTex(), cm = new T.MeshBasicMaterial({ map: ct });
+    const ct = crowdTex(), cm = new T.MeshBasicMaterial({ map: ct, color: 0xa8a8b8 }); crowdT = ct; crowdM = cm;
     const mk = (w, x, y, z, ry, rx) => { const m = new T.Mesh(new T.PlaneGeometry(w, 14), cm); m.position.set(x, y, z); m.rotation.set(rx, ry, 0); scene.add(m); };
     mk(W + 40, 0, 6, H / 2 + 9, Math.PI, -0.5); mk(W + 40, 0, 6, -H / 2 - 9, 0, 0.5);
     mk(H + 20, W / 2 + 10, 6, 0, -Math.PI / 2, -0.5); mk(H + 20, -W / 2 - 10, 6, 0, Math.PI / 2, -0.5);
+    // refletores nos quatro cantos
+    const gl = glowTex(), pole = new T.MeshStandardMaterial({ color: 0x555a63, roughness: 0.8 }), lamp = new T.MeshBasicMaterial({ color: 0xfff6d6 });
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+      const tx = sx * (W / 2 + 18), tz = sz * (H / 2 + 16);
+      const p = new T.Mesh(new T.CylinderGeometry(0.5, 0.8, 30, 8), pole); p.position.set(tx, 15, tz); scene.add(p);
+      const pan = new T.Mesh(new T.BoxGeometry(9, 4.5, 0.5), lamp); pan.position.set(tx, 31, tz); pan.lookAt(0, 8, 0); scene.add(pan);
+      const gs = new T.Sprite(new T.SpriteMaterial({ map: gl, transparent: true, depthWrite: false, blending: T.AdditiveBlending })); gs.position.set(tx, 31, tz); gs.scale.set(34, 34, 1); scene.add(gs);
+    }
+    // placas de publicidade ao redor do gramado
+    const at = adTex(); at.repeat.set(6, 1); const am = new T.MeshBasicMaterial({ map: at, color: 0xdddddd });
+    const board = (w, x, z, ry) => { const b = new T.Mesh(new T.BoxGeometry(w, 0.95, 0.15), am); b.position.set(x, 0.48, z); b.rotation.y = ry; scene.add(b); };
+    board(W + 6, 0, H / 2 + 3.2, 0); board(W + 6, 0, -H / 2 - 3.2, 0); board(H + 6, W / 2 + 3.2, 0, Math.PI / 2); board(H + 6, -W / 2 - 3.2, 0, Math.PI / 2);
+    // bandeirinhas de escanteio
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+      const fp = new T.Mesh(new T.CylinderGeometry(0.03, 0.03, 1.5, 6), white0()); fp.position.set(sx * W / 2, 0.75, sz * H / 2); scene.add(fp);
+      const fl = new T.Mesh(new T.PlaneGeometry(0.45, 0.32), new T.MeshBasicMaterial({ color: 0xe11d1d, side: T.DoubleSide })); fl.position.set(sx * W / 2 + 0.22, 1.35, sz * H / 2); scene.add(fl);
+    }
     // gols
     const white = new T.MeshStandardMaterial({ color: 0xffffff, roughness: 0.4 });
     for (const sd of [0, 1]) {
@@ -120,12 +146,27 @@ const Campo3D = (() => {
     if (S.focus && S.focus.view === "goal") { const f = S.focus, dr = Math.sign(f.gx - f.x) || 1; tp = [wx(f.x - dr * 12), 3.4, wz(f.y + 2.5)]; tl = [wx(f.gx), 1.1, wz(f.y)]; }
     else if (S.focus && S.focus.view === "corner") { const f = S.focus, dr = Math.sign(f.gx - W / 2) || 1, up = f.cy < H / 2 ? -1 : 1; tp = [wx(f.gx - dr * 19), 7.5, wz(34 + up * 25)]; tl = [wx(f.gx - dr * 6), 1, wz(34 + up * 7)]; }
     else if (S.focus) { const fx = wx(S.focus.x), fz = wz(S.focus.y); tp = [fx, 11, clamp(fz - 20, -H / 2 - 12, H / 2 - 14)]; tl = [fx, 0.8, fz]; }
-    else { const cX0 = wx(camX), bz = wz(S.ball.y); tp = [cX0, 13, -H / 2 - 20]; tl = [cX0, 0, clamp(bz * 0.5, -12, 12)]; }
+    else {
+      const cX0 = wx(camX), bz = wz(S.ball.y), dtt = Math.max(0.001, S.dt);
+      let mode = S.cam || "auto";
+      if (mode === "auto") { // diretor de TV: lateral na maior parte, aérea de tempos em tempos, atrás do gol nos chutes
+        dirT += dtt; lockT -= dtt;
+        if (S.shot && lockT <= 0 && dirMode !== "end") { dirMode = "end"; lockT = 3; dirT = 0; }
+        else if (dirMode === "end" && !S.shot && lockT <= 0) { dirMode = "side"; dirT = 0; dirNext = 12 + Math.random() * 10; }
+        else if (dirMode === "side" && dirT > dirNext) { dirMode = "aerial"; dirT = 0; }
+        else if (dirMode === "aerial" && dirT > 6) { dirMode = "side"; dirT = 0; dirNext = 12 + Math.random() * 10; }
+        mode = dirMode;
+      }
+      if (mode === "aerial") { tp = [cX0, 40, -H / 2 - 32]; tl = [cX0, 0, clamp(bz * 0.4, -8, 8)]; }
+      else if (mode === "end") { const gx = S.shot ? S.shot.gx : (S.ball.x > W / 2 ? W : 0), dr = gx > W / 2 ? 1 : -1; tp = [wx(gx + dr * 17), 6.5, wz(34)]; tl = [wx(gx - dr * 24), 1.2, wz(34)]; }
+      else { tp = [cX0, 13, -H / 2 - 20]; tl = [cX0, 0, clamp(bz * 0.5, -12, 12)]; }
+    }
     if (!cpos) { cpos = tp.slice(); clook = tl.slice(); }
     const kk = Math.min(1, Math.max(0.001, S.dt) * 3.2); for (let i = 0; i < 3; i++) { cpos[i] += (tp[i] - cpos[i]) * kk; clook[i] += (tl[i] - clook[i]) * kk; }
     const cX = cpos[0]; cam.position.set(cpos[0], cpos[1], cpos[2]); cam.lookAt(clook[0], clook[1], clook[2]);
     sun.position.set(cX + 18, 40, -22); sun.target.position.set(cX, 0, 0);
     const seen = {}, dt = Math.max(0.001, S.dt); clock3 += dt;
+    if (crowdT) { const fl = S.flash > 0 ? Math.min(1, S.flash) : 0; crowdT.offset.y = Math.sin(clock3 * (5 + fl * 9)) * (0.006 + fl * 0.03); crowdM.color.setScalar(0.62 + fl * 0.38); }
     for (const p of S.players) {
       seen[p.id] = 1; const o = pl[p.id] || mkPlayer(p.id), X = wx(p.x), Z = wz(p.y);
       o.root.visible = true; o.root.position.set(X, 0, Z);
