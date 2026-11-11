@@ -7,7 +7,7 @@ const Campo = (() => {
   cv.id = "campoCv";
   cv.style.cssText = "width:100%;display:block;border-radius:10px;aspect-ratio:" + (W + 2 * M_) + "/" + (H + 2 * M_ + BAND);
   const cx = cv.getContext("2d");
-  let ended = false, lastDt = 0.016, v3 = false, camX = W / 2; try { v3 = localStorage.getItem('campo3d') === '1'; } catch (e) {}
+  let halfDone = false, ended = false, lastDt = 0.016, v3 = false, camX = W / 2; try { v3 = localStorage.getItem('campo3d') === '1'; } catch (e) {}
   let M = null, L = null, seen = 0, P = {}, ball, q = [], cur = null, feed = [], cap = "", capT = 0, capBig = false, marks = [];
   let lastAdded = null, stat = { h: { poss: 0, shots: 0, onT: 0 }, a: { poss: 0, shots: 0, onT: 0 } }, NUM = {}, USED = { h: {}, a: {} }, narr = "", narrT = 0, press = {}, shown = { h: 0, a: 0 }, raf = 0, last = 0, passT = 0, poss = "h", share = 0.5, flash = 0, over = {}, freeze = false, halt = false, lastMin = -1, hh = 0, clock = 0;
   ball = { x: W / 2, y: H / 2, carrier: null, flight: null };
@@ -126,7 +126,14 @@ const Campo = (() => {
     st.push({ fl: 1, start() { over.run = null; if (gk) over.gk = { side: oside, y: ty }; flight(ball.x, ball.y, gx, ty, 0.38, () => {}, 1); } });
     if (kind === "goal") {
       st.push(FN(() => { flash = 1.6; shownGoalSide = side; shown[side]++; say("⚽ GOOOL! " + name, true, 3.2); addFeed(`⚽ <b>GOL!</b> ${esc(name)}`); }, 2));
-      st.push(FN(() => { over.gk = null; placeBall(W / 2, H / 2); const kq = kickoff(oside); q.unshift(kq); }, 0.1));
+      st.push(FN(() => {
+        const sc = shooter, m = {}; if (sc && sc.p) {
+          const fx = side === "h" ? W - 7 : 7, fy = sc.y < 34 ? 5 : H - 5; m[sc.p.id] = [fx, fy];
+          fld(side).filter((x) => x !== sc).sort((a, b) => Math.hypot(a.x - fx, a.y - fy) - Math.hypot(b.x - fx, b.y - fy)).slice(0, 4).forEach((o, i) => { const a = i * 1.6 + 0.4; m[o.p.id] = [fx + Math.cos(a) * 2.2, fy + Math.sin(a) * 2.2 + (fy < 34 ? 1 : -1)]; });
+          over.pos = m; ball.carrier = null;
+        }
+      }, 2.8));
+      st.push(FN(() => { over.pos = null; over.gk = null; placeBall(W / 2, H / 2); const kq = kickoff(oside); q.unshift(kq); }, 0.1));
     } else if (kind === "save") {
       st.push(FN(() => { over.gk = null; if (gk) setCarrier(gk); say("🧤 Defesa" + (gk ? " de " + gk.p.name : "") + "!"); addFeed(`🧤 Chute de ${esc(name)}, defesa${gk ? " de " + esc(gk.p.name) : ""}`); }, 0.8));
     } else if (kind === "wide") {
@@ -356,6 +363,7 @@ const Campo = (() => {
     if (L && L.added == null) lastAdded = null;
     if (M.min != null && M.min !== lastMin) {
       lastMin = M.min;
+      if (M.min >= 45 && !halfDone && L && !L.done) { halfDone = true; q.push((cur) => { cur.steps.push(FN(() => { halt = true; say("⏸️ Fim do primeiro tempo", true, 3.2); narrate("Apita o árbitro: fim do primeiro tempo"); addFeed("⏸️ Fim do primeiro tempo"); }, 3.2)); cur.steps.push(FN(() => { halt = false; q.unshift(kickoff("a")); say("▶️ Começa o segundo tempo", false, 2.4); }, 0)); }); }
       if (M.px) share = clamp(M.px.h / Math.max(M.px.h + M.px.a, 1e-9), 0.3, 0.7);
       for (const side of ["h", "a"]) {
         const sh = side === "h" ? share : 1 - share;
@@ -603,7 +611,7 @@ const Campo = (() => {
     start(live) {
       stopLoop();
       L = live; M = live.matches.find((m) => (m.mine.h || m.mine.a) && !m.hold && !m.fin) || live.matches.find((m) => m.mine.h || m.mine.a) || live.matches[0];
-      stat = { h: { poss: 0, shots: 0, onT: 0 }, a: { poss: 0, shots: 0, onT: 0 } }; lastAdded = null; P = {}; NUM = {}; USED = { h: {}, a: {} }; q = []; cur = null; feed = []; marks = []; over = {}; freeze = false; halt = false; ended = false; cap = ""; capT = 0; narr = ""; narrT = 0; flash = 0; lastMin = -1; poss = "h"; share = 0.5;
+      stat = { h: { poss: 0, shots: 0, onT: 0 }, a: { poss: 0, shots: 0, onT: 0 } }; lastAdded = null; P = {}; NUM = {}; USED = { h: {}, a: {} }; q = []; cur = null; feed = []; marks = []; over = {}; freeze = false; halt = false; ended = false; halfDone = false; cap = ""; capT = 0; narr = ""; narrT = 0; flash = 0; lastMin = -1; poss = "h"; share = 0.5;
       seen = M.ev.length; shown = { h: M.gh || 0, a: M.ga || 0 };
       if (v3 && typeof Campo3D !== "undefined") Campo3D.load();
       layout(); restart("h"); last = 0;
