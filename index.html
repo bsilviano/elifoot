@@ -67,15 +67,15 @@ tr.me{background:color-mix(in srgb,var(--ac) 30%,transparent);font-weight:800}tr
 <header><div class="hl"><span id="crest"></span><b id="hT">Meu Elifoot</b></div><div class="hr"><span id="flag"></span><span id="hS"></span></div></header>
 <main id="app"></main>
 <nav id="nav"></nav>
-<script src="clubs.js?v=190"></script>
-<script src="game.js?v=190"></script>
-<script src="campo.js?v=190"></script>
-<script src="campo3d.js?v=190"></script>
+<script src="clubs.js?v=191"></script>
+<script src="game.js?v=191"></script>
+<script src="campo.js?v=191"></script>
+<script src="campo3d.js?v=191"></script>
 <script>
 const PREFIX="elifoot:save:",SAVE1="Elifoot"; // um único save para todos os times
 let artCan=false,S=null,tab="jogo",msg="",mf={pos:"",q:"",any:true,min:1,max:null,afford:true,ord:"ovr",dir:-1},viewKey=null;
 const $=id=>document.getElementById(id);
-const VERSAO=190;
+const VERSAO=191;
 const moneyFull=n=>(n<0?"-":"")+"R$ "+Math.round(Math.abs(n)).toLocaleString("pt-BR");
 const money=moneyFull;
 const U=()=>S.teams[S.user];
@@ -352,7 +352,7 @@ function confCancel(){CONF=null;render()}
 function doPlay(){
   const x=Game.startRound(S);
   if(!x.live){showSummary(x.res);return}
-  LIVE={live:x.live,res:x.res};LSPD=250;LREADY=false;Campo.start(x.live);$("nav").style.display="none";liveRender();liveRun()
+  LIVE={live:x.live,res:x.res};LSPD=250;LV=0;LREADY=false;Campo.start(x.live);$("nav").style.display="none";liveRender();liveRun()
 }
 function showSummary(r){
   $("nav").style.display="";
@@ -373,6 +373,7 @@ function summGo(){clearInterval(SUMT);SUMM=null;let entered=false;try{if(Game.my
 function stadOk(){try{const t=U();return Game.getStad(t)<100000&&S.cash>=Game.stadCost(t)}catch(e){return false}}
 
 
+let LV=0;const liveDue=m=>m<=45?m*1333:45*1333+6000+(m-45)*1333;
 let LIVE=null,LTM=null,LSPD=900,LEND=null,LREADY=false;
 let PTM=null;
 function penRun(){const sh=LIVE&&LIVE.live.shoot;if(!sh||PTM||sh.shown>=sh.kicks.length)return;
@@ -381,11 +382,11 @@ function penRun(){const sh=LIVE&&LIVE.live.shoot;if(!sh||PTM||sh.shown>=sh.kicks
 function liveAutoEnd(){if(LIVE&&LIVE.live.done&&LIVE.live.shoot&&LIVE.live.shoot.shown<LIVE.live.shoot.kicks.length){clearInterval(LTM);penRun();return}if(LIVE&&LIVE.live.done&&!LIVE.live.pending.length&&!LEND){clearInterval(LTM);LEND=setTimeout(()=>{LEND=null;if(Campo.busy()){liveAutoEnd();return}if(LIVE&&LIVE.live.done){LREADY=true;liveRender();window.scrollTo(0,0)}},800)}}
 function liveRun(){clearInterval(LTM);LTM=null;if(!LIVE||LIVE.live.done||LIVE.live.pending.length||LSPD===0)return;
   if(LSPD===-1){const l=LIVE.live;while(!l.done&&!l.pending.length)Game.liveStep(S,l,1);liveRender();liveAutoEnd();return}
-  LTM=setInterval(()=>{if(Campo.busy())return;const l=LIVE.live;Game.liveStep(S,l,1);Campo.sync();liveRender();liveAutoEnd();if(l.done||l.pending.length||l.wait||!LSPD){clearInterval(LTM);LTM=null}if(l.wait)liveWaitBtn();if(l.pending.length)livePendWait()},LSPD)}
+  LTM=setInterval(()=>{LV+=100;{const l0=LIVE.live;Campo.setLag(LV-liveDue(l0.minute+1))}if(Campo.busy())return;const l=LIVE.live;if(LSPD>0&&LV<liveDue(l.minute+1))return;Game.liveStep(S,l,1);Campo.sync();liveRender();liveAutoEnd();if(l.done||l.pending.length||l.wait||!LSPD){clearInterval(LTM);LTM=null}if(l.wait)liveWaitBtn();if(l.pending.length)livePendWait()},LSPD>0?100:LSPD)}
 let LWT=null;
 let LPW=null;function livePendWait(){clearInterval(LPW);LPW=setInterval(()=>{if(!LIVE||!LIVE.live.pending.length){clearInterval(LPW);return}if(!Campo.busy()){clearInterval(LPW);liveRender()}},250)}
 function liveWaitBtn(){clearInterval(LWT);LWT=setInterval(()=>{if(!LIVE||!LIVE.live.wait){clearInterval(LWT);return}if(!Campo.busy()){clearInterval(LWT);LREADY=true;liveRender();window.scrollTo(0,0)}},300)}
-function liveNextUI(){const l=LIVE.live;LREADY=false;Game.liveNext(l);Campo.start(l);liveRender();liveRun();window.scrollTo(0,0)}
+function liveNextUI(){const l=LIVE.live;LREADY=false;LV=0;Game.liveNext(l);Campo.start(l);liveRender();liveRun();window.scrollTo(0,0)}
 function liveSpeed(v){LSPD=v;try{localStorage.setItem("elifoot:spd",v)}catch(e){}liveRun();liveRender()}
 const LI={goal:"⚽",red:"🟥",inj:"🚑",yellow:"🟨",sub:"🔁"};
 const qa=x=>String(x).replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;");

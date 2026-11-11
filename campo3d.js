@@ -3,7 +3,8 @@
 const Campo3D = (() => {
   const W = 105, H = 68;
   const KG = {}; let cpos = null, clook = null, clock3 = 0, st = "idle", T = null, ren = null, scene, cam, sun, ball, ballSh, ring, pl = {}, glb = null, camX = W / 2, spr = {}, cbs = [], ok = false, fail = false;
-  const wx = (x) => W / 2 - x, wz = (y) => y - H / 2;
+  let FL = false;
+  const wx = (x) => (FL ? x - W / 2 : W / 2 - x), wz = (y) => (FL ? H / 2 - y : y - H / 2);
   const ver = () => { try { return typeof VERSAO !== "undefined" ? VERSAO : 1; } catch (e) { return 1; } };
   const loadJs = (src) => new Promise((res, rej) => { const s = document.createElement("script"); s.src = src + "?v=" + ver(); s.onload = res; s.onerror = () => rej(new Error(src)); document.head.appendChild(s); });
 
@@ -40,7 +41,7 @@ const Campo3D = (() => {
   }
   function build() {
     scene = new T.Scene(); scene.background = new T.Color(0x0e1b27); scene.fog = new T.Fog(0x0e1b27, 70, 150);
-    cam = new T.PerspectiveCamera(30, 1.6, 0.5, 400);
+    cam = new T.PerspectiveCamera(36, 1.6, 0.5, 400);
     scene.add(new T.HemisphereLight(0xffffff, 0x3a5a3a, 0.55));
     sun = new T.DirectionalLight(0xffffff, 0.75); sun.position.set(20, 40, -25); sun.castShadow = true;
     sun.shadow.mapSize.set(1024, 1024); const sc = sun.shadow.camera; sc.left = -34; sc.right = 34; sc.top = 24; sc.bottom = -24; sc.near = 1; sc.far = 120;
@@ -112,11 +113,14 @@ const Campo3D = (() => {
   // estado: { w, h, dt, k:{h,a,gh,ga}, players:[{id,x,y,side,gk,n,name,carrier}], ball:{x,y,z}, marks:[{x,y,k,t}], flash, goalSide }
   function render(S) {
     if (!ok) return null;
+    if (FL !== !!S.flip) { FL = !!S.flip; cpos = null; }
     ren.setSize(S.w, S.h, false); cam.aspect = S.w / S.h; cam.updateProjectionMatrix();
     camX += (clamp(S.ball.x, 15, W - 15) - camX) * 0.06;
     let tp, tl;
-    if (S.focus) { const fx = wx(S.focus.x), fz = wz(S.focus.y); tp = [fx, 11, clamp(fz - 20, -H / 2 - 12, H / 2 - 14)]; tl = [fx, 0.8, fz]; }
-    else { const cX0 = wx(camX); tp = [cX0, 10, -H / 2 - 9]; tl = [cX0, 0, 5]; }
+    if (S.focus && S.focus.view === "goal") { const f = S.focus, dr = Math.sign(f.gx - f.x) || 1; tp = [wx(f.x - dr * 12), 3.4, wz(f.y + 2.5)]; tl = [wx(f.gx), 1.1, wz(f.y)]; }
+    else if (S.focus && S.focus.view === "corner") { const f = S.focus, dr = Math.sign(f.gx - W / 2) || 1, up = f.cy < H / 2 ? -1 : 1; tp = [wx(f.gx - dr * 19), 7.5, wz(34 + up * 25)]; tl = [wx(f.gx - dr * 6), 1, wz(34 + up * 7)]; }
+    else if (S.focus) { const fx = wx(S.focus.x), fz = wz(S.focus.y); tp = [fx, 11, clamp(fz - 20, -H / 2 - 12, H / 2 - 14)]; tl = [fx, 0.8, fz]; }
+    else { const cX0 = wx(camX), bz = wz(S.ball.y); tp = [cX0, 13, -H / 2 - 20]; tl = [cX0, 0, clamp(bz * 0.5, -12, 12)]; }
     if (!cpos) { cpos = tp.slice(); clook = tl.slice(); }
     const kk = Math.min(1, Math.max(0.001, S.dt) * 3.2); for (let i = 0; i < 3; i++) { cpos[i] += (tp[i] - cpos[i]) * kk; clook[i] += (tl[i] - clook[i]) * kk; }
     const cX = cpos[0]; cam.position.set(cpos[0], cpos[1], cpos[2]); cam.lookAt(clook[0], clook[1], clook[2]);
