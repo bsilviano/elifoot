@@ -7,7 +7,7 @@ const Campo = (() => {
   cv.id = "campoCv";
   cv.style.cssText = "width:100%;display:block;border-radius:10px;aspect-ratio:" + (W + 2 * M_) + "/" + (H + 2 * M_ + BAND);
   const cx = cv.getContext("2d");
-  let injHold = false, koInit = false, penCam = null, endWait = 0, zoomF = 1, camMode = "auto", shotT = 0, shotGx = 0, slow = 0, lag = 0, flip = false, focus = null, leaving = [], meds = [], mounted = false, halfDone = false, ended = false, lastDt = 0.016, v3 = false, camX = W / 2; try { v3 = true; zoomF = parseFloat(localStorage.getItem("campoZoom")) || 1; } catch (e) {}
+  let boxT = 0, injHold = false, koInit = false, penCam = null, endWait = 0, zoomF = 1, camMode = "auto", shotT = 0, shotGx = 0, slow = 0, lag = 0, flip = false, focus = null, leaving = [], meds = [], mounted = false, halfDone = false, ended = false, lastDt = 0.016, v3 = false, camX = W / 2; try { v3 = true; zoomF = parseFloat(localStorage.getItem("campoZoom")) || 1; } catch (e) {}
   let M = null, L = null, seen = 0, P = {}, ball, q = [], cur = null, feed = [], cap = "", capT = 0, capBig = false, marks = [];
   let lastAdded = null, stat = { h: { poss: 0, shots: 0, onT: 0 }, a: { poss: 0, shots: 0, onT: 0 } }, NUM = {}, USED = { h: {}, a: {} }, narr = "", narrT = 0, press = {}, shown = { h: 0, a: 0 }, raf = 0, last = 0, passT = 0, poss = "h", share = 0.5, flash = 0, over = {}, freeze = false, halt = false, lastMin = -1, hh = 0, clock = 0;
   ball = { x: W / 2, y: H / 2, carrier: null, flight: null };
@@ -94,7 +94,7 @@ const Campo = (() => {
     const c = ball.carrier != null && P[ball.carrier];
     if (!c || !c.live) { setCarrier(nearest(team(poss).filter((o) => o.p.pos !== "GK"), ball.x, ball.y) || nearest(team(poss), ball.x, ball.y)); return; }
     const gxx = c.side === "h" ? W : 0, dgl = Math.hypot(c.x - gxx, c.y - 34);
-    const inBox = Math.abs(c.x - gxx) < 18 && Math.abs(c.y - 34) < 21; if (c.p.pos !== "GK" && (dgl < 22 || inBox) && lag < 4000) { const sd = c.side, fn = (cu) => { const st = cu.steps; st.push(WAIT(0.2)); let kind = pickW(["save", "wide", "block", "post"], [5, 2.6, 1.6, 0.8]); if (kind === "save" && R() < 0.4) kind = "savec"; shotSteps(st, sd, kind, c, c.p.name); st.push(FN(() => { let f = null; if (kind === "wide") f = goalKick(other(sd)); else if (kind === "savec") f = corner(sd); if (f) { f.ill = true; q.unshift(f); } }, 0)); }; fn.ill = true; if (inBox || R() < 0.85) { q.push(fn); passT = 1; return; } }
+    const inBox = Math.abs(c.x - gxx) < 18 && Math.abs(c.y - 34) < 21; if (c.p.pos !== "GK" && (inBox || (dgl < 22 && lag < 4000))) { const sd = c.side, fn = (cu) => { const st = cu.steps; st.push(WAIT(0.2)); let kind = pickW(["save", "wide", "block", "post"], [5, 2.6, 1.6, 0.8]); if (kind === "save" && R() < 0.4) kind = "savec"; shotSteps(st, sd, kind, c, c.p.name); st.push(FN(() => { let f = null; if (kind === "wide") f = goalKick(other(sd)); else if (kind === "savec") f = corner(sd); if (f) { f.ill = true; q.unshift(f); } }, 0)); }; fn.ill = true; if (inBox || R() < 0.85) { q.push(fn); passT = 1; return; } }
     const mates = team(c.side).filter((o) => o !== c), opp = team(other(c.side)), dir = c.side === "h" ? 1 : -1;
     const sh = c.side === "h" ? share : 1 - share, pI = clamp(0.15 * (1 - sh) / sh, 0.06, 0.3);
     const w = mates.map((o) => { const dx = (o.x - c.x) * dir, dy = Math.abs(o.y - c.y), d = Math.hypot(dx, dy); let v = d < 5 ? 0.05 : d < 12 ? 1.4 : d < 20 ? 1.2 : d < 28 ? 0.45 : 0.1; v *= dx > 2 ? 2.2 : dx > -1.5 ? 1 : 0; if (o.p.pos === "GK") v *= c.p.pos === "DEF" ? 0.4 : 0.03; return v; });
@@ -519,7 +519,7 @@ const Campo = (() => {
       if (c && c.live) { const d = c.side === "h" ? 1 : -1; ball.x = c.x + d * 0.9; ball.y = c.y + 0.3; }
     }
     const scripted = runScript(dt);
-    if (!scripted && !freeze && !ball.flight) { passT -= dt; if (passT <= 0) { ambient(); passT = 0.4 + R() * 0.45; } }
+    if (!scripted && !freeze && !ball.flight) { { const bc = ball.carrier != null && P[ball.carrier]; if (bc && bc.live && bc.p.pos !== "GK" && Math.abs(bc.x - (bc.side === "h" ? W : 0)) < 18 && Math.abs(bc.y - 34) < 21) { boxT += dt; if (boxT > 1.6) { passT = 0; boxT = 0; } } else boxT = 0; } passT -= dt; if (passT <= 0) { ambient(); passT = 0.4 + R() * 0.45; } }
     stat[poss].poss += dt;
     if (capT > 0) capT -= dt;
     if (narrT > 0) narrT -= dt;
