@@ -8,7 +8,7 @@ const Campo = (() => {
   cv.style.cssText = "width:100%;display:block;border-radius:10px;aspect-ratio:" + (W + 2 * M_) + "/" + (H + 2 * M_ + BAND);
   const cx = cv.getContext("2d");
   let M = null, L = null, seen = 0, P = {}, ball, q = [], cur = null, feed = [], cap = "", capT = 0, capBig = false, marks = [];
-  let NUM = {}, USED = { h: {}, a: {} }, narr = "", narrT = 0, press = {}, shown = { h: 0, a: 0 }, raf = 0, last = 0, passT = 0, poss = "h", share = 0.5, flash = 0, over = {}, freeze = false, lastMin = -1, hh = 0, clock = 0;
+  let stat = { h: { poss: 0, shots: 0, onT: 0 }, a: { poss: 0, shots: 0, onT: 0 } }, NUM = {}, USED = { h: {}, a: {} }, narr = "", narrT = 0, press = {}, shown = { h: 0, a: 0 }, raf = 0, last = 0, passT = 0, poss = "h", share = 0.5, flash = 0, over = {}, freeze = false, lastMin = -1, hh = 0, clock = 0;
   ball = { x: W / 2, y: H / 2, carrier: null, flight: null };
 
   const BASE = { GOL: [0.04, 0.5], ZAG: [0.2, 0.5, 1], LD: [0.24, 0.88], LE: [0.24, 0.12], VOL: [0.38, 0.5, 1], MC: [0.5, 0.5, 1], MEI: [0.62, 0.5, 1], ME: [0.5, 0.14], MD: [0.5, 0.86], PE: [0.78, 0.14], PD: [0.78, 0.86], SA: [0.7, 0.5, 1], CA: [0.84, 0.5, 1] };
@@ -111,6 +111,7 @@ const Campo = (() => {
   function shotSteps(st, side, kind, shooter, name) {
     const oside = other(side), gx = side === "h" ? W : 0, gk = team(oside).find((x) => x.p.pos === "GK"), opp = team(oside).filter((x) => x.p.pos !== "GK");
     const ty = 34 + (kind === "wide" ? (R() < 0.5 ? -1 : 1) * (5 + R() * 4) : kind === "post" ? (R() < 0.5 ? -1 : 1) * 3.66 : (R() - 0.5) * 5.4);
+    stat[side].shots++; if (kind === "goal" || kind === "save") stat[side].onT++;
     if (kind === "block") {
       const d = nearest(opp, shooter.x + (side === "h" ? 6 : -6), shooter.y);
       st.push({ fl: 1, start() { flight(ball.x, ball.y, d.x, d.y, 0.25, () => setCarrier(d), 1, d); } });
@@ -252,6 +253,7 @@ const Campo = (() => {
     }
     const scripted = runScript(dt);
     if (!scripted && !freeze && !ball.flight) { passT -= dt; if (passT <= 0) { ambient(); passT = 0.8 + R() * 0.8; } }
+    stat[poss].poss += dt;
     if (capT > 0) capT -= dt;
     if (narrT > 0) narrT -= dt;
     if (flash > 0) flash -= dt;
@@ -351,11 +353,19 @@ const Campo = (() => {
     start(live) {
       stopLoop();
       L = live; M = live.matches.find((m) => m.mine.h || m.mine.a) || live.matches[0];
-      P = {}; NUM = {}; USED = { h: {}, a: {} }; q = []; cur = null; feed = []; marks = []; over = {}; freeze = false; cap = ""; capT = 0; narr = ""; narrT = 0; flash = 0; lastMin = -1; poss = "h"; share = 0.5;
+      stat = { h: { poss: 0, shots: 0, onT: 0 }, a: { poss: 0, shots: 0, onT: 0 } }; P = {}; NUM = {}; USED = { h: {}, a: {} }; q = []; cur = null; feed = []; marks = []; over = {}; freeze = false; cap = ""; capT = 0; narr = ""; narrT = 0; flash = 0; lastMin = -1; poss = "h"; share = 0.5;
       seen = M.ev.length; shown = { h: M.gh || 0, a: M.ga || 0 };
       layout(); restart("h"); last = 0;
       raf = requestAnimationFrame(frame);
     },
+    statsCard() {
+      if (!M) return "";
+      const evs = M.ev.slice(0, seen), cnt = (t, sd) => evs.filter((e) => e.type === t && e.side === sd).length, tot = stat.h.poss + stat.a.poss || 1, ph = Math.round(100 * stat.h.poss / tot), k = kits();
+      const rows = [["Posse de bola", ph + "%", 100 - ph + "%"], ["Finalizações", stat.h.shots, stat.a.shots], ["Chutes no alvo", stat.h.onT, stat.a.onT], ["Gols", shown.h, shown.a], ["Pênaltis a favor", cnt("penwin", "h"), cnt("penwin", "a")], ["Cartões amarelos", cnt("yellow", "h"), cnt("yellow", "a")], ["Cartões vermelhos", cnt("red", "h"), cnt("red", "a")], ["Lesões", cnt("inj", "h"), cnt("inj", "a")], ["Substituições", M.subs ? M.subs.h : cnt("sub", "h"), M.subs ? M.subs.a : cnt("sub", "a")]];
+      const dot = (c) => `<span style="display:inline-block;width:11px;height:11px;border-radius:50%;background:${c};border:1.5px solid #fff;vertical-align:-1px"></span>`;
+      return `<div class="card"><h2>Estatísticas do jogo</h2><div style="display:grid;grid-template-columns:1fr auto 1fr;gap:3px 10px;align-items:center;text-align:center;font-size:14px"><b style="text-align:left">${dot(k.h)} ${esc(M.H.name)}</b><span></span><b style="text-align:right">${esc(M.A.name)} ${dot(k.a)}</b>${rows.map((r) => `<b style="text-align:left;font-size:17px">${r[1]}</b><span class="mut">${r[0]}</span><b style="text-align:right;font-size:17px">${r[2]}</b>`).join("")}</div><div style="display:flex;height:8px;border-radius:4px;overflow:hidden;margin:10px 0 2px;border:1px solid #fff5"><div style="width:${ph}%;background:${k.h}"></div><div style="flex:1;background:${k.a}"></div></div>${M.gate ? `<p class="mut" style="margin:8px 0 0;font-size:13px">🏟️ Público ${M.gate.att.toLocaleString("pt-BR")} de ${M.gate.cap.toLocaleString("pt-BR")} · ingresso ${typeof money === "function" ? money(M.gate.price) : M.gate.price}</p>` : ""}<p class="mut" style="font-size:11px;margin:6px 0 0">Posse e finalizações vêm da animação (ilustrativas). Gols, cartões, lesões, pênaltis e trocas são reais.</p></div>`;
+    },
+    isTracked(m) { return m === M; },
     kitsFor,
     dbg() { return { ball: { x: ball.x, y: ball.y, f: !!ball.flight }, pl: Object.values(P).filter((o) => o.live).map((o) => [o.x, o.y]) }; },
     stop() { stopLoop(); M = null; q = []; cur = null; },

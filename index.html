@@ -66,14 +66,14 @@ tr.me{background:color-mix(in srgb,var(--ac) 30%,transparent);font-weight:800}tr
 <header><div class="hl"><span id="crest"></span><b id="hT">Meu Elifoot</b></div><div class="hr"><span id="flag"></span><span id="hS"></span></div></header>
 <main id="app"></main>
 <nav id="nav"></nav>
-<script src="clubs.js?v=177"></script>
-<script src="game.js?v=177"></script>
-<script src="campo.js?v=177"></script>
+<script src="clubs.js?v=178"></script>
+<script src="game.js?v=178"></script>
+<script src="campo.js?v=178"></script>
 <script>
 const PREFIX="elifoot:save:",SAVE1="Elifoot"; // um único save para todos os times
 let artCan=false,S=null,tab="jogo",msg="",mf={pos:"",q:"",any:true,min:1,max:null,afford:true,ord:"ovr",dir:-1},viewKey=null;
 const $=id=>document.getElementById(id);
-const VERSAO=177;
+const VERSAO=178;
 const moneyFull=n=>(n<0?"-":"")+"R$ "+Math.round(Math.abs(n)).toLocaleString("pt-BR");
 const money=moneyFull;
 const U=()=>S.teams[S.user];
@@ -461,14 +461,14 @@ function liveBody(){
     if(mine)h+=`<p class="mut">🏟️ Público ${m.gate.att.toLocaleString("pt-BR")} de ${m.gate.cap.toLocaleString("pt-BR")} · ingresso ${money(m.gate.price)}</p>`;
     h+=m.ev.length?`<div class="evg" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:13px"><div style="min-width:0">${m.ev.filter(e=>e.side==="h").map(liveEv).join("")}</div><div style="min-width:0">${m.ev.filter(e=>e.side==="a").map(liveEv).join("")}</div></div>`:`<p class="mut">Sem lances ainda.</p>`;
     h+=`</div>`;
-    if(mine)ms+=h;else os+=h;
+    if(mine){if(!Campo.isTracked(m))ms+=h}else os+=h;
   }
   if(!ms)ms=`<div class="card"><h2>${l.rodada&&l.rodada.includes(" - ")?l.rodada:l.comp}</h2><p class="mut">${l.date}</p><div class="big">⏱ ${l.minute}'${l.done?" · Fim de jogo":""}</div></div>`;
   h="";
   if(l.done&&l.shoot){const sh=l.shoot,sc=[0,0];sh.kicks.slice(0,sh.shown).forEach(k=>{if(k.ok)sc[k.team===sh.ids[0]?0:1]++});const fin=sh.shown>=sh.kicks.length;
     h+=`<div class="card" style="border-color:var(--ac)"><h2>🥅 Disputa de pênaltis</h2><div class="mrow">${tbox(sh.a)} <span>${sc[0]} x ${sc[1]}</span> ${tbox(sh.b)}</div>${sh.kicks.slice(0,sh.shown).map((k,i)=>tline(k.club,`${Math.floor(i/2)+1}ª · ${k.ok?"⚽ converteu":"❌ perdeu"} ${k.name}`)).join("")}${fin?`<p><b>${S.teams[sh.w].name}</b> vence nos pênaltis (${sh.pk[0]} x ${sh.pk[1]}).</p>`:`<p class="mut">Cobrando...</p>`}</div>`}
   if(l.done)h+=`<div class="card"><p class="mut">Fim de jogo. Encerrando a rodada...</p></div>`;
-  return {b:hd+ms+h,a:os};
+  return {b:hd+ms+h,a:Campo.statsCard()||os};
 }
 let LPOS=null;
 function pitchLive(ps,club,mi,side){
