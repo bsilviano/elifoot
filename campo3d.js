@@ -151,16 +151,9 @@ const Campo3D = (() => {
     else {
       const cX0 = wx(camX), bz = wz(S.ball.y), dtt = Math.max(0.001, S.dt);
       let mode = S.cam || "auto";
-      if (mode === "auto") { // diretor de TV: lateral na maior parte, aérea de tempos em tempos, atrás do gol nos chutes
-        dirT += dtt; lockT -= dtt;
-        if (S.shot && lockT <= 0 && dirMode !== "end") { dirMode = "end"; lockT = 3; dirT = 0; }
-        else if (dirMode === "end" && !S.shot && lockT <= 0) { dirMode = "side"; dirT = 0; dirNext = 12 + Math.random() * 10; }
-        else if (dirMode === "side" && dirT > dirNext) { dirMode = "aerial"; dirT = 0; }
-        else if (dirMode === "aerial" && dirT > 6) { dirMode = "side"; dirT = 0; dirNext = 12 + Math.random() * 10; }
-        mode = dirMode;
-      }
+      if (mode === "auto") mode = S.pen != null ? "end" : "aerial"; // aérea (com o zoom escolhido); atrás do gol nos pênaltis
       if (mode === "aerial") { tp = [cX0, 23, -H / 2 - 20]; tl = [cX0, 0, clamp(bz * 0.4, -8, 8)]; }
-      else if (mode === "end") { const gx = S.shot ? S.shot.gx : (S.ball.x > W / 2 ? W : 0), dr = gx > W / 2 ? 1 : -1; tp = [wx(gx + dr * 17), 6.5, wz(34)]; tl = [wx(gx - dr * 24), 1.2, wz(34)]; }
+      else if (mode === "end") { const gx = S.pen != null ? S.pen : S.shot ? S.shot.gx : (S.ball.x > W / 2 ? W : 0), dr = gx > W / 2 ? 1 : -1; tp = [wx(gx + dr * 17), 6.5, wz(34)]; tl = [wx(gx - dr * 24), 1.2, wz(34)]; }
       else { tp = [cX0, 13, -H / 2 - 20]; tl = [cX0, 0, clamp(bz * 0.5, -12, 12)]; }
     }
     { const zf = S.zoom || 1; if (zf > 1) { // com zoom, a câmera segue a bola nos dois eixos
