@@ -171,7 +171,7 @@ const Campo3D = (() => {
       seen[p.id] = 1; const o = pl[p.id] || mkPlayer(p.id), X = wx(p.x), Z = wz(p.y);
       o.root.visible = true; o.root.position.set(X, 0, Z);
       if (o.lx != null) { const dx = X - o.lx, dz = Z - o.lz, v = Math.hypot(dx, dz) / dt; o.v += (v - o.v) * 0.15; if (v > 0.6) { let ty = Math.atan2(dx, dz), d = ty - o.yaw; d = Math.atan2(Math.sin(d), Math.cos(d)); o.yaw += d * 0.18; } }
-      o.lx = X; o.lz = Z; o.root.rotation.y = o.yaw;
+      o.lx = X; o.lz = Z; o.root.rotation.set(0, o.yaw, 0);
       const wI = o.v < 0.7 ? 1 : 0, wW = o.v >= 0.7 && o.v < 3.6 ? 1 : 0, wR = o.v >= 3.6 ? 1 : 0;
       for (const [n, w] of [["idle", wI], ["walk", wW], ["run", wR]]) if (o.acts[n]) { const c = o.acts[n].getEffectiveWeight(); o.acts[n].setEffectiveWeight(c + (w - c) * 0.2); }
       o.mx.update(dt);
