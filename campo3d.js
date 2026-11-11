@@ -157,7 +157,7 @@ const Campo3D = (() => {
         else if (dirMode === "aerial" && dirT > 6) { dirMode = "side"; dirT = 0; dirNext = 12 + Math.random() * 10; }
         mode = dirMode;
       }
-      if (mode === "aerial") { tp = [cX0, 40, -H / 2 - 32]; tl = [cX0, 0, clamp(bz * 0.4, -8, 8)]; }
+      if (mode === "aerial") { tp = [cX0, 23, -H / 2 - 20]; tl = [cX0, 0, clamp(bz * 0.4, -8, 8)]; }
       else if (mode === "end") { const gx = S.shot ? S.shot.gx : (S.ball.x > W / 2 ? W : 0), dr = gx > W / 2 ? 1 : -1; tp = [wx(gx + dr * 17), 6.5, wz(34)]; tl = [wx(gx - dr * 24), 1.2, wz(34)]; }
       else { tp = [cX0, 13, -H / 2 - 20]; tl = [cX0, 0, clamp(bz * 0.5, -12, 12)]; }
     }
