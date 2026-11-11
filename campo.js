@@ -2,10 +2,10 @@
 // então o campo é uma animação guiada pelos lances REAIS da partida (gols, pênaltis, cartões, lesões, substituições).
 // As chances sem gol (defesa, trave, chute pra fora) são ilustrativas: não alteram o placar nem as estatísticas.
 const Campo = (() => {
-  const W = 105, H = 68, R = Math.random, M_ = 2; // M_ = margem (m) ao redor do gramado
+  const W = 105, H = 68, R = Math.random, M_ = 2, BAND = 10; // M_ = margem (m) ao redor do gramado
   const cv = document.createElement("canvas");
   cv.id = "campoCv";
-  cv.style.cssText = "width:100%;display:block;border-radius:10px;aspect-ratio:" + (W + 2 * M_) + "/" + (H + 2 * M_);
+  cv.style.cssText = "width:100%;display:block;border-radius:10px;aspect-ratio:" + (W + 2 * M_) + "/" + (H + 2 * M_ + BAND);
   const cx = cv.getContext("2d");
   let M = null, L = null, seen = 0, P = {}, ball, q = [], cur = null, feed = [], cap = "", capT = 0, capBig = false, marks = [];
   let narr = "", narrT = 0, press = {}, shown = { h: 0, a: 0 }, raf = 0, last = 0, passT = 0, poss = "h", share = 0.5, flash = 0, over = {}, freeze = false, lastMin = -1, hh = 0, clock = 0;
@@ -238,12 +238,12 @@ const Campo = (() => {
   // ---------- desenho ----------
   function draw() {
     const w = cv.clientWidth; if (!w) return;
-    const dpr = Math.min(2, window.devicePixelRatio || 1), pw = Math.round(w * dpr), ph = Math.round(w * (H + 2 * M_) / (W + 2 * M_) * dpr);
+    const dpr = Math.min(2, window.devicePixelRatio || 1), pw = Math.round(w * dpr), ph = Math.round(w * (H + 2 * M_ + BAND) / (W + 2 * M_) * dpr);
     if (cv.width !== pw || cv.height !== ph) { cv.width = pw; cv.height = ph; }
     hh = cv.clientHeight;
-    const s = cv.width / (W + 2 * M_), X = (x) => (x + M_) * s, Y = (y) => (y + M_) * s;
+    const s = cv.width / (W + 2 * M_), X = (x) => (x + M_) * s, Y = (y) => (y + M_ + BAND) * s, bandPx = BAND * s;
     cx.setTransform(1, 0, 0, 1, 0, 0);
-    cx.fillStyle = "#24703a"; cx.fillRect(0, 0, cv.width, cv.height);
+    cx.fillStyle = "#15202b"; cx.fillRect(0, 0, cv.width, cv.height); cx.fillStyle = "#24703a"; cx.fillRect(0, bandPx, cv.width, cv.height - bandPx);
     const n = 14;
     for (let i = 0; i < n; i++) { cx.fillStyle = i % 2 ? "#2d8b43" : "#2a8040"; cx.fillRect(X(i * W / n), Y(0), Math.ceil(W / n * s) + 1, H * s); }
     cx.strokeStyle = "rgba(255,255,255,.85)"; cx.lineWidth = Math.max(1, 0.25 * s);
@@ -288,30 +288,27 @@ const Campo = (() => {
     const bx = X(ball.x), by = Y(ball.y), z = (ball.z || 0) * s * 0.5, br = Math.max(3, 0.8 * s);
     cx.fillStyle = "rgba(0,0,0,.3)"; cx.beginPath(); cx.ellipse(bx, by + br * 0.5, br, br * 0.45, 0, 0, 7); cx.fill();
     cx.fillStyle = "#fff"; cx.strokeStyle = "#111"; cx.lineWidth = Math.max(1, 0.15 * s); cx.beginPath(); cx.arc(bx, by - z, br, 0, 7); cx.fill(); cx.stroke();
-    // placar centralizado no topo, com o cronômetro logo abaixo
-    const f1 = Math.max(13, Math.round(2.9 * s)), f2s = Math.max(11, Math.round(2.2 * s));
+    // placar fora do campo, em uma faixa acima dele
+    const f1 = Math.max(14, Math.round(3.1 * s)), f2s = Math.max(11, Math.round(2.0 * s));
     const nm1 = M.H.name, nm2 = M.A.name, scr = ` ${shown.h} x ${shown.a} `;
-    cx.font = "800 " + f1 + "px sans-serif"; const wN1 = cx.measureText(nm1).width, wN2 = cx.measureText(nm2).width, wS = cx.measureText(scr).width + 10;
+    cx.font = "800 " + f1 + "px sans-serif"; const wN1 = cx.measureText(nm1).width, wN2 = cx.measureText(nm2).width, wS = cx.measureText(scr).width + 10, rr = f1 * 0.42;
     const sub = (L && L.done ? "⏱ Fim de jogo" : "⏱ " + (M.min || 0) + "'") + (L && L.rodada ? "  ·  " + L.rodada : "") + (L && L.date ? "  ·  " + L.date : "");
-    cx.font = "600 " + f2s + "px sans-serif"; const wSub = cx.measureText(sub).width;
-    const rr = f1 * 0.42, bw = Math.min(cv.width - 8, Math.max(wN1 + wN2 + wS + 28 + rr * 6, wSub + 24)), bh = f1 + f2s + 18, bx0 = cv.width / 2 - bw / 2, by0 = Y(0.8);
-    cx.fillStyle = "rgba(0,0,0,.66)"; cx.fillRect(bx0, by0, bw, bh);
+    const mid = cv.width / 2, cy1 = bandPx * 0.38;
     cx.textBaseline = "middle"; cx.font = "800 " + f1 + "px sans-serif";
-    const cy1 = by0 + 6 + f1 / 2, mid = cv.width / 2;
     cx.textAlign = "right"; cx.fillStyle = "#fff"; cx.fillText(nm1, mid - wS / 2, cy1);
     cx.textAlign = "center"; cx.fillStyle = "#ffd166"; cx.fillText(scr, mid, cy1);
     cx.textAlign = "left"; cx.fillStyle = "#fff"; cx.fillText(nm2, mid + wS / 2, cy1);
     for (const [sd, xx] of [["h", mid - wS / 2 - wN1 - rr * 1.8], ["a", mid + wS / 2 + wN2 + rr * 1.8]]) { cx.fillStyle = k[sd]; cx.beginPath(); cx.arc(xx, cy1, rr, 0, 7); cx.fill(); cx.strokeStyle = "#fff"; cx.lineWidth = Math.max(1.5, rr * 0.2); cx.stroke(); }
-    cx.font = "700 " + f2s + "px sans-serif"; cx.textAlign = "center"; cx.fillStyle = "#e9e9e9"; cx.fillText(sub, mid, by0 + 10 + f1 + f2s / 2);
+    cx.font = "700 " + f2s + "px sans-serif"; cx.textAlign = "center"; cx.fillStyle = "#cfd8e0"; cx.fillText(sub, mid, bandPx * 0.78);
     if (narrT > 0 && narr && !(capT > 0 && cap && !capBig)) {
       const fn = Math.max(11, Math.round(2.1 * s)); cx.font = "600 " + fn + "px sans-serif";
-      const wn = Math.min(cv.width - 10, cx.measureText(narr).width + 22), yn = cv.height - fn - 16;
+      const wn = Math.min(cv.width - 10, cx.measureText(narr).width + 22), yn = bandPx + 6;
       cx.globalAlpha = Math.min(1, narrT * 1.5); cx.fillStyle = "rgba(0,0,0,.55)"; cx.fillRect(cv.width / 2 - wn / 2, yn, wn, fn + 10);
       cx.fillStyle = "#fff"; cx.textAlign = "center"; cx.textBaseline = "middle"; cx.fillText("🎙️ " + narr, cv.width / 2, yn + (fn + 10) / 2); cx.globalAlpha = 1;
     }
     if (capT > 0 && cap) {
       const f2 = capBig ? Math.round(f1 * 1.5) : Math.round(f1 * 0.95);
-      cx.font = "800 " + f2 + "px sans-serif"; const w2 = cx.measureText(cap).width + 24, yy = capBig ? cv.height / 2 - f2 : cv.height - f2 - 18;
+      cx.font = "800 " + f2 + "px sans-serif"; const w2 = cx.measureText(cap).width + 24, yy = capBig ? bandPx + (cv.height - bandPx) / 2 - f2 : cv.height - f2 - 18;
       cx.globalAlpha = Math.min(1, capT * 2);
       cx.fillStyle = capBig ? "rgba(0,0,0,.7)" : "rgba(0,0,0,.65)"; cx.fillRect(cv.width / 2 - w2 / 2, yy, w2, f2 + 12);
       cx.fillStyle = capBig ? "#ffd166" : "#fff"; cx.textAlign = "center"; cx.textBaseline = "middle"; cx.fillText(cap, cv.width / 2, yy + (f2 + 12) / 2);
