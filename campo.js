@@ -7,6 +7,7 @@ const Campo = (() => {
   cv.id = "campoCv";
   cv.style.cssText = "width:100%;display:block;border-radius:10px;aspect-ratio:" + (W + 2 * M_) + "/" + (H + 2 * M_ + BAND);
   const cx = cv.getContext("2d");
+  let v3 = false, camX = W / 2; try { v3 = localStorage.getItem('campo3d') === '1'; } catch (e) {}
   let M = null, L = null, seen = 0, P = {}, ball, q = [], cur = null, feed = [], cap = "", capT = 0, capBig = false, marks = [];
   let lastAdded = null, stat = { h: { poss: 0, shots: 0, onT: 0 }, a: { poss: 0, shots: 0, onT: 0 } }, NUM = {}, USED = { h: {}, a: {} }, narr = "", narrT = 0, press = {}, shown = { h: 0, a: 0 }, raf = 0, last = 0, passT = 0, poss = "h", share = 0.5, flash = 0, over = {}, freeze = false, halt = false, lastMin = -1, hh = 0, clock = 0;
   ball = { x: W / 2, y: H / 2, carrier: null, flight: null };
@@ -201,9 +202,11 @@ const Campo = (() => {
       const st = cur.steps; let fo = null, vi = null, spot = null;
       st.push(FN(() => {
         fo = (e && findP(e.name, e.side)) || null;
-        if (!fo) { const sd = fside || (R() < 0.5 ? "h" : "a"), c = team(sd).filter((x) => x.p.pos !== "GK"); fo = nearest(c, ball.x, ball.y); }
+        const cr = ball.carrier != null && P[ball.carrier];
+        if (!fo) { const sd = other(cr && cr.live ? cr.side : poss), c = team(sd).filter((x) => x.p.pos !== "GK"); fo = nearest(c, ball.x, ball.y); }
         if (!fo) return;
-        vi = nearest(team(other(fo.side)).filter((x) => x.p.pos !== "GK"), fo.x, fo.y);
+        const opp = team(other(fo.side)).filter((x) => x.p.pos !== "GK");
+        vi = cr && cr.live && cr.side !== fo.side && cr.p.pos !== "GK" ? cr : nearest(opp, ball.x, ball.y);
         if (!vi) return;
         spot = { x: clamp(vi.x, 2, W - 2), y: clamp(vi.y, 2, H - 2) };
         ball.flight = null; ball.carrier = null; ball.x = spot.x; ball.y = spot.y; ball.z = 0; over.run = null; over.gk = null;
@@ -318,6 +321,87 @@ const Campo = (() => {
     marks.forEach((m) => (m.t += dt)); marks = marks.filter((m) => m.t < 2.6);
   }
 
+  // ---------- visão 3D (perspectiva real calculada à mão sobre o mesmo canvas, sem biblioteca) ----------
+  function field3d(s, bandPx, k) {
+    const w = cv.width, hgt = cv.height - bandPx, tx = clamp(ball.x, 16, W - 16);
+    camX += (tx - camX) * 0.07;
+    const C = [camX, -13, 15], T = [camX, 30, 0];
+    let f = [T[0] - C[0], T[1] - C[1], T[2] - C[2]]; const fl = Math.hypot(...f); f = f.map((v) => v / fl);
+    const rt = [1, 0, 0], up = [rt[1] * f[2] - rt[2] * f[1], rt[2] * f[0] - rt[0] * f[2], rt[0] * f[1] - rt[1] * f[0]];
+    const FOC = w * fl / 40, ox = w / 2, oy = bandPx + hgt * 0.5;
+    const pr = (x, y, z) => { const d = [x - C[0], y - C[1], (z || 0) - C[2]], dz = d[0] * f[0] + d[1] * f[1] + d[2] * f[2]; if (dz < 1) return null; return [ox + FOC * (d[0] * rt[0]) / dz, oy - FOC * (d[0] * up[0] + d[1] * up[1] + d[2] * up[2]) / dz, FOC / dz]; };
+    cx.save(); cx.beginPath(); cx.rect(0, bandPx, w, hgt); cx.clip();
+    const sky = cx.createLinearGradient(0, bandPx, 0, oy); sky.addColorStop(0, "#0c1824"); sky.addColorStop(1, "#1e3347"); cx.fillStyle = sky; cx.fillRect(0, bandPx, w, hgt);
+    const poly = (pts, fill) => { cx.beginPath(); pts.forEach((p, i) => { if (p) (i ? cx.lineTo : cx.moveTo).call(cx, p[0], p[1]); }); cx.closePath(); cx.fillStyle = fill; cx.fill(); };
+    // arquibancada ao fundo
+    poly([pr(-12, H + 4, 0), pr(W + 12, H + 4, 0), pr(W + 12, H + 14, 9), pr(-12, H + 14, 9)], "#24323f");
+    for (let i = 0; i < 520; i++) { const u = (i * 0.6180339) % 1, v = (i * 0.7548776) % 1, p = pr(-12 + u * (W + 24), H + 4.4 + v * 9.2, 0.2 + v * 8.6); if (p) { cx.fillStyle = ["#d9534f", "#f0ad4e", "#5bc0de", "#e8e8e8", "#7a8da0"][i % 5]; cx.globalAlpha = 0.75; cx.fillRect(p[0], p[1], Math.max(1.5, p[2] * 0.5), Math.max(1.5, p[2] * 0.6)); } }
+    cx.globalAlpha = 1;
+    poly([pr(-12, -6, 0), pr(W + 12, -6, 0), pr(W + 12, H + 4, 0), pr(-12, H + 4, 0)], "#1f6b36");
+    const N = 14; for (let i = 0; i < N; i++) poly([pr(i * W / N, 0, 0), pr((i + 1) * W / N, 0, 0), pr((i + 1) * W / N, H, 0), pr(i * W / N, H, 0)], i % 2 ? "#2f9248" : "#2a8040");
+    cx.strokeStyle = "rgba(255,255,255,.9)"; cx.lineWidth = Math.max(1.2, s * 0.22); cx.lineJoin = "round";
+    const path = (pts) => { cx.beginPath(); let st = false; for (const p of pts) { if (!p) { st = false; continue; } if (!st) { cx.moveTo(p[0], p[1]); st = true; } else cx.lineTo(p[0], p[1]); } cx.stroke(); };
+    const ln = (pts) => path(pts.map((q) => pr(q[0], q[1], 0)));
+    const arc = (x0, y0, r, a0, a1) => { const o = []; for (let i = 0; i <= 40; i++) { const a = a0 + (a1 - a0) * i / 40; o.push([x0 + r * Math.cos(a), y0 + r * Math.sin(a)]); } ln(o); };
+    ln([[0, 0], [W, 0], [W, H], [0, H], [0, 0]]); ln([[W / 2, 0], [W / 2, H]]); arc(W / 2, H / 2, 9.15, 0, 7);
+    const aa = Math.acos(5.5 / 9.15);
+    for (const sd of [0, 1]) {
+      const g = (x) => (sd ? W - x : x);
+      ln([[g(0), (H - 40.32) / 2], [g(16.5), (H - 40.32) / 2], [g(16.5), (H + 40.32) / 2], [g(0), (H + 40.32) / 2]]);
+      ln([[g(0), (H - 18.32) / 2], [g(5.5), (H - 18.32) / 2], [g(5.5), (H + 18.32) / 2], [g(0), (H + 18.32) / 2]]);
+      arc(g(11), H / 2, 9.15, sd ? Math.PI - aa : -aa, sd ? Math.PI + aa : aa);
+    }
+    // traves e redes
+    const gl = flash > 0 ? "rgba(255,230,90," + Math.min(1, flash) + ")" : "rgba(255,255,255,.95)";
+    for (const sd of [0, 1]) {
+      const gx = sd ? W : 0, bk = sd ? 2.2 : -2.2, y1 = (H - 7.32) / 2, y2 = (H + 7.32) / 2;
+      const a = pr(gx, y1, 0), b = pr(gx, y1, 2.44), c = pr(gx, y2, 2.44), d = pr(gx, y2, 0), a2 = pr(gx + bk, y1, 0), b2 = pr(gx + bk, y1, 2.44), c2 = pr(gx + bk, y2, 2.44), d2 = pr(gx + bk, y2, 0);
+      if (a && b && c && d && b2 && c2 && a2 && d2) {
+        cx.strokeStyle = "rgba(255,255,255,.28)"; cx.lineWidth = 1; for (let i = 0; i <= 8; i++) { const yy = y1 + (y2 - y1) * i / 8; path([pr(gx, yy, 2.44), pr(gx + bk, yy, 2.44), pr(gx + bk, yy, 0)]); }
+        path([b, b2, a2]); path([c, c2, d2]); path([b2, c2]);
+        cx.strokeStyle = gl; cx.lineWidth = Math.max(2, s * 0.35); path([a, b, c, d]);
+      }
+    }
+    // jogadores e bola, do mais distante para o mais próximo
+    const ents = Object.values(P).filter((o) => o.live).map((o) => ({ o, y: o.y })); ents.push({ ball: 1, y: ball.y });
+    ents.sort((a, b) => b.y - a.y);
+    const drawBall = () => {
+      const g = pr(ball.x, ball.y, 0), t = pr(ball.x, ball.y, 0.22 + (ball.z || 0) * 1.2); if (!g || !t) return;
+      const br = Math.max(2.5, t[2] * 0.24);
+      cx.fillStyle = "rgba(0,0,0,.35)"; cx.beginPath(); cx.ellipse(g[0], g[1], br * 1.1, br * 0.42, 0, 0, 7); cx.fill();
+      cx.fillStyle = "#fff"; cx.strokeStyle = "#111"; cx.lineWidth = Math.max(1, br * 0.18); cx.beginPath(); cx.arc(t[0], t[1], br, 0, 7); cx.fill(); cx.stroke();
+    };
+    for (const e of ents) {
+      if (e.ball) { drawBall(); continue; }
+      const o = e.o, gk = o.p.pos === "GK", fill = gk ? (o.side === "h" ? k.gh : k.ga) : k[o.side];
+      const g = pr(o.x, o.y, 0), hd = pr(o.x, o.y, 1.78); if (!g || !hd) continue;
+      const mv = Math.hypot(o.x - (o._lx == null ? o.x : o._lx), o.y - (o._ly == null ? o.y : o._ly)); o._lx = o.x; o._ly = o.y; o._m = (o._m || 0) * 0.85 + Math.min(mv, 0.4) * 0.15;
+      const hpx = g[1] - hd[1], u = hpx / 1.78, ph = clock * 9 + o.p.id, sw = Math.sin(ph) * clamp(o._m * 9, 0.05, 1) * 0.28 * u;
+      const dir = o.x - (o._px == null ? o.x : o._px) >= 0 ? 1 : -1; o._px = o.x;
+      cx.fillStyle = "rgba(0,0,0,.33)"; cx.beginPath(); cx.ellipse(g[0], g[1], u * 0.36, u * 0.13, 0, 0, 7); cx.fill();
+      cx.lineCap = "round";
+      cx.strokeStyle = "#e6b99a"; cx.lineWidth = Math.max(1.5, u * 0.14); cx.beginPath(); cx.moveTo(g[0] - u * 0.12, g[1] - u * 0.45); cx.lineTo(g[0] - u * 0.12 + sw, g[1]); cx.moveTo(g[0] + u * 0.12, g[1] - u * 0.45); cx.lineTo(g[0] + u * 0.12 - sw, g[1]); cx.stroke();
+      cx.strokeStyle = "#1a1a1a"; cx.lineWidth = Math.max(1.5, u * 0.2); cx.beginPath(); cx.moveTo(g[0] - u * 0.12, g[1] - u * 0.62); cx.lineTo(g[0] - u * 0.12, g[1] - u * 0.42); cx.moveTo(g[0] + u * 0.12, g[1] - u * 0.62); cx.lineTo(g[0] + u * 0.12, g[1] - u * 0.42); cx.stroke();
+      cx.strokeStyle = fill; cx.lineWidth = Math.max(2.5, u * 0.42); cx.beginPath(); cx.moveTo(g[0], g[1] - u * 0.66); cx.lineTo(g[0], g[1] - u * 1.2); cx.stroke();
+      cx.strokeStyle = fill; cx.lineWidth = Math.max(1.5, u * 0.12); cx.beginPath(); cx.moveTo(g[0] - u * 0.22, g[1] - u * 1.15); cx.lineTo(g[0] - u * 0.26 - sw * 0.6, g[1] - u * 0.78); cx.moveTo(g[0] + u * 0.22, g[1] - u * 1.15); cx.lineTo(g[0] + u * 0.26 + sw * 0.6, g[1] - u * 0.78); cx.stroke();
+      cx.fillStyle = "#e6b99a"; cx.beginPath(); cx.arc(g[0], g[1] - u * 1.4, Math.max(2, u * 0.17), 0, 7); cx.fill();
+      cx.fillStyle = "#2b1d12"; cx.beginPath(); cx.arc(g[0], g[1] - u * 1.45, Math.max(2, u * 0.17), Math.PI, 0); cx.fill();
+      if (u > 20) { cx.fillStyle = lum(fill) > 150 ? "#111" : "#fff"; cx.font = "bold " + Math.round(u * 0.3) + "px sans-serif"; cx.textAlign = "center"; cx.textBaseline = "middle"; cx.fillText(o.n, g[0], g[1] - u * 0.93); }
+      if (ball.carrier === o.p.id) {
+        cx.strokeStyle = "#ffd166"; cx.lineWidth = Math.max(2, u * 0.07); cx.beginPath(); cx.ellipse(g[0], g[1], u * 0.5, u * 0.19, 0, 0, 7); cx.stroke();
+        const nm = o.p.name.split(" ").slice(-1)[0], fs = Math.max(10, Math.round(u * 0.36)); cx.font = "600 " + fs + "px sans-serif"; const tw = cx.measureText(nm).width + 8;
+        cx.fillStyle = "rgba(0,0,0,.65)"; cx.fillRect(g[0] - tw / 2, g[1] - u * 1.45 - fs - 14, tw, fs + 4); cx.fillStyle = "#fff"; cx.textAlign = "center"; cx.textBaseline = "top"; cx.fillText(nm, g[0], g[1] - u * 1.45 - fs - 12);
+      }
+    }
+    for (const m of marks) {
+      const p = pr(m.x, m.y, 2.5 + Math.min(m.t, 0.4)); if (!p) continue; const r = Math.max(5, p[2] * 0.5), a = m.t > 2 ? 1 - (m.t - 2) / 0.6 : 1;
+      cx.globalAlpha = Math.max(0, a);
+      if (m.k === "inj") { cx.fillStyle = "#fff"; cx.beginPath(); cx.arc(p[0], p[1], r * 0.95, 0, 7); cx.fill(); cx.fillStyle = "#d33"; cx.fillRect(p[0] - r * 0.55, p[1] - r * 0.15, r * 1.1, r * 0.3); cx.fillRect(p[0] - r * 0.15, p[1] - r * 0.55, r * 0.3, r * 1.1); }
+      else { cx.fillStyle = m.k === "red" ? "#e11" : "#ffd400"; cx.fillRect(p[0] - r * 0.55, p[1] - r * 0.85, r * 1.1, r * 1.7); cx.strokeStyle = "#000"; cx.lineWidth = 1; cx.strokeRect(p[0] - r * 0.55, p[1] - r * 0.85, r * 1.1, r * 1.7); }
+      cx.globalAlpha = 1;
+    }
+    cx.restore();
+  }
   // ---------- desenho ----------
   function draw() {
     const w = cv.clientWidth; if (!w) return;
@@ -326,7 +410,10 @@ const Campo = (() => {
     hh = cv.clientHeight;
     const s = cv.width / (W + 2 * M_), X = (x) => (x + M_) * s, Y = (y) => (y + M_ + BAND) * s, bandPx = BAND * s;
     cx.setTransform(1, 0, 0, 1, 0, 0);
-    cx.fillStyle = "#15202b"; cx.fillRect(0, 0, cv.width, cv.height); cx.fillStyle = "#24703a"; cx.fillRect(0, bandPx, cv.width, cv.height - bandPx);
+    const k = kits();
+    cx.fillStyle = "#15202b"; cx.fillRect(0, 0, cv.width, cv.height);
+    if (v3) field3d(s, bandPx, k); else {
+    cx.fillStyle = "#24703a"; cx.fillRect(0, bandPx, cv.width, cv.height - bandPx);
     const n = 14;
     for (let i = 0; i < n; i++) { cx.fillStyle = i % 2 ? "#2d8b43" : "#2a8040"; cx.fillRect(X(i * W / n), Y(0), Math.ceil(W / n * s) + 1, H * s); }
     cx.strokeStyle = "rgba(255,255,255,.85)"; cx.lineWidth = Math.max(1, 0.25 * s);
@@ -344,7 +431,6 @@ const Campo = (() => {
       cx.fillStyle = flash > 0 && ((sd && shownGoalSide === "h") || (!sd && shownGoalSide === "a")) ? "rgba(255,230,90," + Math.min(1, flash) + ")" : "rgba(255,255,255,.25)";
       cx.fillRect(X(sd ? W : -M_ + 0.2), Y((H - 7.32) / 2), (M_ - 0.2) * s, 7.32 * s);
     }
-    const k = kits();
     const ordered = Object.values(P).filter((o) => o.live).sort((a, b) => a.y - b.y), r = 1.45 * s;
     for (const o of ordered) {
       const px = X(o.x + Math.sin(clock * 1.7 + o.p.id) * 0.25), py = Y(o.y + Math.cos(clock * 1.3 + o.p.id) * 0.25), gk = o.p.pos === "GK";
@@ -371,6 +457,7 @@ const Campo = (() => {
     const bx = X(ball.x), by = Y(ball.y), z = (ball.z || 0) * s * 0.5, br = Math.max(3, 0.8 * s);
     cx.fillStyle = "rgba(0,0,0,.3)"; cx.beginPath(); cx.ellipse(bx, by + br * 0.5, br, br * 0.45, 0, 0, 7); cx.fill();
     cx.fillStyle = "#fff"; cx.strokeStyle = "#111"; cx.lineWidth = Math.max(1, 0.15 * s); cx.beginPath(); cx.arc(bx, by - z, br, 0, 7); cx.fill(); cx.stroke();
+    }
     // placar fora do campo, em uma faixa acima dele
     const f1 = Math.max(14, Math.round(3.1 * s)), f2s = Math.max(11, Math.round(2.0 * s));
     const nm1 = M.H.name, nm2 = M.A.name, scr = ` ${shown.h} x ${shown.a} `;
@@ -426,6 +513,7 @@ const Campo = (() => {
       return `<div class="card"><h2>Estatísticas do jogo</h2><div style="display:grid;grid-template-columns:1fr auto 1fr;gap:3px 10px;align-items:center;text-align:center;font-size:14px"><b style="text-align:left">${dot(k.h)} ${esc(M.H.name)}</b><span></span><b style="text-align:right">${esc(M.A.name)} ${dot(k.a)}</b>${rows.map((r) => `<b style="text-align:left;font-size:17px">${r[1]}</b><span class="mut">${r[0]}</span><b style="text-align:right;font-size:17px">${r[2]}</b>`).join("")}</div><div style="display:flex;height:8px;border-radius:4px;overflow:hidden;margin:10px 0 2px;border:1px solid #fff5"><div style="width:${ph}%;background:${k.h}"></div><div style="flex:1;background:${k.a}"></div></div>${M.gate ? `<p class="mut" style="margin:8px 0 0;font-size:13px">🏟️ Público ${M.gate.att.toLocaleString("pt-BR")} de ${M.gate.cap.toLocaleString("pt-BR")} · ingresso ${typeof money === "function" ? money(M.gate.price) : M.gate.price}</p>` : ""}<p class="mut" style="font-size:11px;margin:6px 0 0">Posse e finalizações vêm da animação (ilustrativas). Gols, cartões, lesões, pênaltis e trocas são reais.</p></div>`;
     },
     isTracked(m) { return m === M; },
+    toggle() { v3 = !v3; try { localStorage.setItem('campo3d', v3 ? '1' : '0'); } catch (e) {} const b = document.getElementById('c3b'); if (b) b.textContent = v3 ? '🎥 Voltar ao 2D' : '🎥 Ver em 3D'; },
     kitsFor,
     dbg() { return { ball: { x: ball.x, y: ball.y, f: !!ball.flight }, pl: Object.values(P).filter((o) => o.live).map((o) => [o.x, o.y]) }; },
     stop() { stopLoop(); M = null; q = []; cur = null; },
@@ -433,7 +521,7 @@ const Campo = (() => {
     fmtMin,
     sync,
     attach() { const h = document.getElementById("pcvh"); if (h && cv.parentNode !== h) h.appendChild(cv); },
-    card() { return `<div class="card" style="padding:8px 8px 6px"><div id="pcvh" style="min-height:${hh}px"></div><div style="font-size:13px;margin-top:6px;max-height:150px;overflow:auto">${feed.slice(0, 8).map((f) => `<div style="padding:1px 0"><span class="mut">${fmtMin(f.m)}'</span> ${f.t}</div>`).join("") || '<span class="mut">Sem lances ainda.</span>'}</div><p class="mut" style="font-size:11px;margin:4px 0 0">Gols, pênaltis, cartões, lesões e trocas são os lances reais. Chutes sem gol são ilustrativos.</p></div>`; },
+    card() { return `<div class="card" style="padding:8px 8px 6px"><div style="text-align:right;margin:0 0 6px"><button id="c3b" onclick="Campo.toggle()" style="font-size:13px;padding:4px 10px;border-radius:8px">${v3 ? "🎥 Voltar ao 2D" : "🎥 Ver em 3D"}</button></div><div id="pcvh" style="min-height:${hh}px"></div><div style="font-size:13px;margin-top:6px;max-height:150px;overflow:auto">${feed.slice(0, 8).map((f) => `<div style="padding:1px 0"><span class="mut">${fmtMin(f.m)}'</span> ${f.t}</div>`).join("") || '<span class="mut">Sem lances ainda.</span>'}</div><p class="mut" style="font-size:11px;margin:4px 0 0">Gols, pênaltis, cartões, lesões e trocas são os lances reais. Chutes sem gol são ilustrativos.</p></div>`; },
   };
   function busy() { return !!M && (!!cur || q.length > 0); }
   function stopLoop() { if (raf) cancelAnimationFrame(raf); raf = 0; }
