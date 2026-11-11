@@ -98,7 +98,7 @@ const Campo3D = (() => {
     ren = new T.WebGLRenderer({ antialias: true, alpha: false, preserveDrawingBuffer: true }); ren.shadowMap.enabled = true; ren.shadowMap.type = T.PCFSoftShadowMap; ren.setPixelRatio(1);
   }
 
-  let trs = [], trUse = 0;
+  let AX = null, trs = [], trUse = 0, bLx = null, bLz = null;
   function teamRing(col) { let r = trs[trUse]; if (!r) { r = new T.Mesh(new T.RingGeometry(0.5, 0.68, 24), new T.MeshBasicMaterial({ color: 0xffffff, side: T.DoubleSide })); r.rotation.x = -Math.PI / 2; scene.add(r); trs[trUse] = r; } trUse++; if (r._c !== col) { r._c = col; r.material.color.set(col); } return r; }
   function sprite(text, kind, id) { // número e nome em placas que olham sempre para a câmera
     const key = kind + text + (id == null ? "" : "#" + id); if (spr[key]) return spr[key];
@@ -133,7 +133,7 @@ const Campo3D = (() => {
     const root = new T.Group(); root.add(m); scene.add(root);
     const mx = new T.AnimationMixer(m), acts = {};
     for (const n of ["idle", "walk", "run"]) { const cl = glb.animations.find((a) => a.name === n); if (cl) { acts[n] = mx.clipAction(cl); acts[n].play(); acts[n].setEffectiveWeight(n === "idle" ? 1 : 0); } }
-    const bn = (n) => m.getObjectByName("mixamorig:" + n), o = { root, m, mx, acts, mats, yaw: 0, lx: null, lz: null, v: 0, sp: 0, dp: 0, bones: { ru: bn("RightUpLeg"), rl: bn("RightLeg"), la: bn("LeftArm"), ra: bn("RightArm"), lf: bn("LeftForeArm"), rf: bn("RightForeArm") } }; pl[id] = o; return o;
+    const bn = (n) => m.getObjectByName("mixamorig:" + n), o = { root, m, mx, acts, mats, yaw: 0, lx: null, lz: null, v: 0, sp: 0, dp: 0, dv: 0, hd: 0, dvd: 1, bones: { ru: bn("RightUpLeg"), rl: bn("RightLeg"), la: bn("LeftArm"), ra: bn("RightArm"), lf: bn("LeftForeArm"), rf: bn("RightForeArm") } }; pl[id] = o; return o;
   }
   const hex = (c) => new T.Color(c);
   const rgb = (c) => [1, 3, 5].map((i) => parseInt(c.substr(i, 2), 16)); const lum = (c) => { const l = rgb(c); return 0.3 * l[0] + 0.59 * l[1] + 0.11 * l[2]; };
@@ -180,6 +180,15 @@ const Campo3D = (() => {
       o.mx.update(dt);
       o.dp += ((p.down ? 1 : 0) - o.dp) * Math.min(1, dt * 6); o.m.rotation.x = -Math.PI / 2 * o.dp; o.root.position.y = 0.22 * o.dp;
       const B = o.bones;
+      { // goleiro se joga na bola durante o chute; cabeceio quando a bola vem alta
+        if (!AX) AX = new T.Vector3(1, 0, 0); const bwx = wx(S.ball.x), bwz = wz(S.ball.y), hb = 0.24 + (S.ball.z || 0) * 1.2;
+        const dv = S.shot && p.gk && Math.abs(p.x - S.shot.gx) < 22 ? Math.sign(bwz - Z) || 1 : 0; o.dvd = dv || o.dvd || 1;
+        o.dv += ((dv ? 1 : 0) - o.dv) * Math.min(1, dt * (dv ? 7 : 3));
+        if (o.dv > 0.02) { o.root.position.y += 0.35 * o.dv; o.root.position.z += o.dvd * 0.9 * o.dv; o.root.rotateOnWorldAxis(AX, o.dvd * 1.25 * o.dv); }
+        const near = Math.hypot(bwx - X, bwz - Z) < 1.6 && hb > 1.0 && !p.gk;
+        o.hd += ((near ? 1 : 0) - o.hd) * Math.min(1, dt * 8);
+        if (o.hd > 0.02) { o.root.position.y += 0.55 * o.hd; if (B.la) { B.la.rotateZ(1.3 * o.hd); B.ra.rotateZ(-1.3 * o.hd); } }
+      }
       if (p.kick >= 0 && B.ru) { const u = Math.sin(Math.PI * clamp(p.kick, 0, 1)); B.ru.rotateX(-1.15 * u); B.rl.rotateX(1.1 * u); }
       if (p.cel && B.la) { B.la.rotateZ(1.9); B.ra.rotateZ(-1.9); B.lf.rotateY(0.3); o.root.position.y += Math.abs(Math.sin(clock3 * 9 + p.id)) * 0.28; }
       const col = p.kitCol || (p.gk ? (p.side === "h" ? S.k.gh : S.k.ga) : S.k[p.side]); if (o.col !== col) { o.col = col; const sh = lum(col) > 150 ? "#202020" : "#f4f4f4"; o.mats.forEach((m) => { if (m.userData.body) m.geometry = kitGeom(m.userData.src, col, p.gk ? "#111111" : sh); }); }
@@ -194,7 +203,7 @@ const Campo3D = (() => {
     S.players.forEach((p) => { if (p._s) p._s._keep = true; if (p._t) p._t._keep = true; });
     for (const m of S.marks) { const sp = sprite(m.k, "m", m.x.toFixed(0)); sp.visible = true; sp._keep = true; sp.position.set(wx(m.x), 3.2 + Math.min(m.t, 0.4), wz(m.y)); sp.scale.set(1.2, 0.45, 1); }
     for (const k in spr) if (!spr[k]._keep) spr[k].visible = false;
-    const bz = 0.24 + (S.ball.z || 0) * 1.2; ball.position.set(wx(S.ball.x), bz, wz(S.ball.y)); ballSh.position.set(wx(S.ball.x), 0.02, wz(S.ball.y));
+    const bz = 0.24 + (S.ball.z || 0) * 1.2; { const bx = wx(S.ball.x), bzz = wz(S.ball.y); if (bLx != null) { const dx = bx - bLx, dz = bzz - bLz; if (Math.hypot(dx, dz) < 8) { ball.rotateOnWorldAxis(AX || (AX = new T.Vector3(1, 0, 0)), dz / 0.24); ball.rotateOnWorldAxis(new T.Vector3(0, 0, 1), -dx / 0.24); } } bLx = bx; bLz = bzz; ballSh.scale.setScalar(Math.max(0.5, 1 - (bz - 0.24) * 0.18)); } ball.position.set(wx(S.ball.x), bz, wz(S.ball.y)); ballSh.position.set(wx(S.ball.x), 0.02, wz(S.ball.y));
     ren.render(scene, cam); return ren.domElement;
   }
   const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
