@@ -349,6 +349,8 @@ const Campo = (() => {
         fo = (e && findP(e.name, e.side)) || null;
         const cr = ball.carrier != null && P[ball.carrier];
         if (!fo) { const sd = other(cr && cr.live ? cr.side : poss), c = team(sd).filter((x) => x.p.pos !== "GK"); fo = nearest(c, ball.x, ball.y); }
+        // falta de quem está no ataque: nunca é o jogador com a bola, e sim um companheiro sem a bola (a bola já foi levada para fora da área)
+        if (fo && cr && cr.live && fo.side === cr.side) { if (fo === cr) fo = nearest(team(fo.side).filter((x) => x !== cr && x.p.pos !== "GK"), ball.x, ball.y) || fo; }
         if (fo) over.run = { o: fo, x: ball.x, y: ball.y };
       }, until() {
         if (!fo) return true;
