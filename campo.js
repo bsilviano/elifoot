@@ -344,11 +344,11 @@ const Campo = (() => {
       // 0) cartão só com o time do infrator na defesa: espera a posse mudar; se não mudar, o rival fica com a bola
       if (e) {
         const holder = () => { const c = ball.carrier != null && P[ball.carrier]; return c && c.live ? c.side : poss; };
-        const inB = () => Math.min(ball.x, W - ball.x) < 18 && Math.abs(ball.y - 34) < 21;
+        const inB = () => Math.min(ball.x, W - ball.x) < 20.5 && Math.abs(ball.y - 34) < 23.5;
         // o infrator é sempre do time sem a bola: se o time dele tem a posse, o marcador mais próximo desarma antes (a posse muda) e só então vem a falta
         st.push({ dur: 9, start() {}, until() { if (holder() !== e.side) return true; if (ball.flight) return false; const opp = team(other(e.side)).filter((x) => x.p.pos !== "GK"), v = nearest(opp, ball.x, ball.y); if (!v) return true; over.run = { o: v, x: ball.x, y: ball.y }; if (Math.hypot(v.x - ball.x, v.y - ball.y) < 1.8) { over.run = null; ball.flight = null; setCarrier(v); return true; } return false; } });
         // se o lance está dentro da área, quem tem a bola sai driblando para fora dela (nada de falta na área nem bola teletransportada)
-        st.push({ dur: 16, start() {}, until() { if (!inB()) return true; if (ball.flight) return false; const c = ball.carrier != null && P[ball.carrier]; if (!c || !c.live) return true; const gx0 = ball.x < W / 2 ? 0 : W; over.run = { o: c, x: gx0 + (gx0 === 0 ? 24 : -24), y: c.y + (c.y < 34 ? -3 : 3) }; return false; } });
+        st.push({ dur: 16, start() {}, until() { if (!inB()) return true; if (ball.flight) return false; const c = ball.carrier != null && P[ball.carrier]; if (!c || !c.live) return true; const gx0 = ball.x < W / 2 ? 0 : W; over.run = { o: c, x: gx0 + (gx0 === 0 ? 27 : -27), y: c.y + (c.y < 34 ? -3 : 3) }; return false; } });
       }
       // 1) o marcador corre até quem está com a bola (nada de falta surgindo do nada)
       st.push({ dur: e ? 10 : 5, start() {
@@ -371,7 +371,7 @@ const Campo = (() => {
         if (!vi) return;
         spot = { x: clamp(ball.x, 2, W - 2), y: clamp(ball.y, 2, H - 2) };
         { const gx0 = fo.side === "h" ? 0 : W, dxg = Math.abs(spot.x - gx0); // falta de quem defende a própria área seria pênalti: fora disso a falta é na entrada da área
-          if (dxg < 16.5 && Math.abs(spot.y - 34) < 20.16) { if (!e) { cur.steps.splice(cur.i + 1); return; } spot.x = gx0 + (fo.side === "h" ? 17.5 : -17.5); } }
+          if (dxg < 19.5 && Math.abs(spot.y - 34) < 23) { if (!e) { cur.steps.splice(cur.i + 1); return; } spot.x = gx0 + (fo.side === "h" ? 21 : -21); } }
         ball.flight = null; ball.carrier = null; ball.x = spot.x; ball.y = spot.y; ball.z = 0; over.gk = null;
         fo.x = spot.x + (fo.side === "h" ? -1.2 : 1.2); fo.y = spot.y; vi.x = spot.x; vi.y = spot.y + 1;
         halt = true; poss = vi.side; 
@@ -449,7 +449,7 @@ const Campo = (() => {
     if (L && L.added == null) lastAdded = null;
     if (M.min != null && M.min !== lastMin) {
       lastMin = M.min;
-      if (M.min >= 45 && !halfDone && L && !L.done) { halfDone = true; q.push((cur) => { cur.steps.push(FN(() => { halt = true; say("⏸️ Fim do primeiro tempo", true, 3.2); narrate("Apita o árbitro: fim do primeiro tempo"); addFeed("⏸️ Fim do primeiro tempo"); }, 3.2)); cur.steps.push(FN(() => { halt = false; flip = true; q.unshift(kickoff("a")); say("▶️ Começa o segundo tempo", false, 2.4); }, 0)); }); }
+      if (M.min >= 45 && !halfDone && L && !L.done) { halfDone = true; q.push((cur) => { let hw = 0; cur.steps.push({ dur: 16, start() { hw = 0; }, until() { if (Math.abs(ball.x - W / 2) < 18 && !ball.flight) return true; if (!ball.flight && !freeze) { hw += lastDt; if (hw > 6) { hw = -99; const nt = nearest(team(other(poss)).filter((o) => o.p.pos !== "GK"), W / 2, H / 2); flight(ball.x, ball.y, W / 2, H / 2 + (R() - 0.5) * 8, Math.max(0.9, Math.hypot(ball.x - W / 2, ball.y - H / 2) / 22), () => { if (nt) setCarrier(nt); }, 5); } } return false; } }); cur.steps.push(FN(() => { halt = true; say("⏸️ Fim do primeiro tempo", true, 3.2); narrate("Apita o árbitro: fim do primeiro tempo"); addFeed("⏸️ Fim do primeiro tempo"); }, 3.2)); cur.steps.push(FN(() => { halt = false; flip = true; q.unshift(kickoff("a")); say("▶️ Começa o segundo tempo", false, 2.4); }, 0)); }); }
       if (M.px) share = clamp(M.px.h / Math.max(M.px.h + M.px.a, 1e-9), 0.3, 0.7);
       for (const side of ["h", "a"]) {
         const sh = side === "h" ? share : 1 - share;
