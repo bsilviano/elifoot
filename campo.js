@@ -116,7 +116,7 @@ const Campo = (() => {
   const WAIT = (d) => ({ start() {}, dur: d });
   const PASS = (to, side) => ({ fl: 1, start() { poss = side; const dist = Math.hypot(to.x - ball.x, to.y - ball.y); flight(ball.x, ball.y, to.x, to.y, Math.max(0.35, dist / 18), () => setCarrier(to), 1.5, to); } });
   const sur = (o) => o.p.name.split(" ").slice(-1)[0];
-  function narrate(t) { narr = t; narrT = 2.4; }
+  function narrate(t) {} // a caixa da tela usa os mesmos textos do feed abaixo do jogo (addFeed)
   // som: torcida, apito, chute e gol (WebAudio sintetizado, sem arquivos)
   let SND = { on: true, ctx: null, crowd: null, noise: null };
   try { SND.on = localStorage.getItem("campoSom") !== "0"; } catch (e) {}
@@ -135,7 +135,7 @@ const Campo = (() => {
   function sndGoal() { const c = SND.ctx; if (!c || !SND.on) return; const t = c.currentTime; for (const [fr, q, v] of [[500, 0.7, 0.30], [1100, 0.9, 0.22]]) { const src = c.createBufferSource(); src.buffer = SND.noise; src.loop = true; const f = c.createBiquadFilter(); f.type = "bandpass"; f.frequency.value = fr; f.Q.value = q; const g = c.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(v, t + 0.7); g.gain.setValueAtTime(v, t + 2.2); g.gain.exponentialRampToValueAtTime(0.0001, t + 4.8); src.connect(f); f.connect(g); g.connect(c.destination); src.start(t, Math.random()); src.stop(t + 5); } }
   function sndTick() { if (!SND.ctx || !SND.crowd) return; const base = 0.05 + (shotT > 0 ? 0.08 : 0) + (flash > 0 ? 0.2 : 0); if (!(flash > 0)) SND.crowd.gain.setTargetAtTime(SND.on ? base : 0, SND.ctx.currentTime, 0.4); }
   function say(t, big, ms) { if (big && SND.ctx) { if (/Gol|GOO/i.test(t)) {} else sndWhistle(/p[êe]nalti|Fim|Come/i.test(t) ? 2 : 1); } cap = t; capBig = !!big; capT = ms || 2.6; }
-  function addFeed(txt) { feed.unshift({ m: M.min || 0, t: txt }); if (feed.length > 14) feed.pop(); }
+  function addFeed(txt) { narr = String(txt).replace(/<[^>]*>/g, "").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">"); narrT = 4.5; feed.unshift({ m: M.min || 0, t: txt }); if (feed.length > 14) feed.pop(); }
   const NEAR = (o, side, d) => ({ dur: 11, start() {}, until: () => Math.hypot(o.x - (side === "h" ? W : 0), o.y - 34) <= d });
   const SNAP = (o, side, d) => FN(() => { const gx = side === "h" ? W : 0, dx = Math.abs(o.x - gx); if (dx > d + 14) { o.x = gx + (side === "h" ? -d : d); } if (ball.carrier === o.p.id) { ball.x = o.x; } }, 0);
   function shotSteps(st, side, kind, shooter, name) {
@@ -652,7 +652,7 @@ const Campo = (() => {
     cx.font = "700 " + f2s + "px sans-serif"; cx.textAlign = "center"; cx.fillStyle = "#cfd8e0"; cx.fillText(sub, mid, bandPx * 0.78);
     { const fc = Math.max(13, Math.round(2.6 * s)); cx.font = "800 " + fc + "px sans-serif"; const wc = cx.measureText(clk).width + 18, hc = fc * 1.5, xc = cv.width - wc - 10, yc = cy1 - hc / 2; cx.fillStyle = "rgba(0,0,0,.72)"; cx.fillRect(xc, yc, wc, hc); cx.strokeStyle = "#ffd166"; cx.lineWidth = 2; cx.strokeRect(xc, yc, wc, hc); cx.fillStyle = "#fff"; cx.textAlign = "center"; cx.textBaseline = "middle"; cx.fillText(clk, xc + wc / 2, yc + hc / 2); }
     // narração e avisos de lance: sempre na mesma faixa, no topo do campo, em letra grande
-    const evTxt = capT > 0 && cap && !capBig ? cap : narrT > 0 && narr ? "🎙️ " + narr : "";
+    const evTxt = capT > 0 && cap && !capBig ? cap : narrT > 0 && narr ? narr : "";
     if (evTxt && !(capT > 0 && cap && capBig)) {
       const fn = Math.max(14, Math.round(3.0 * s)); cx.font = "700 " + fn + "px sans-serif";
       const wn = Math.min(cv.width - 10, cx.measureText(evTxt).width + 26), yn = bandPx + (cv.height - bandPx) / 2 - (fn + 14) / 2;
