@@ -251,7 +251,7 @@ const Campo = (() => {
   function subScript(e) { return (cur) => { cur.steps.push(FN(() => { say(`🔁 Entra ${e.name}, sai ${e.out}`); addFeed(`🔁 Entra ${esc(e.name)}, sai ${esc(e.out)} (${esc(e.club)})`); }, 1)); }; }
 
   function handle(e) {
-    const s = e.side;
+    const s = e.side; q = q.filter((f) => !f.ill);
     if (e.type === "goal") q.push(chance(s, { name: e.name, kind: "goal" }));
     else if (e.type === "penwin") q.push(penaltyWin(s, e));
     else if (e.type === "pen") q.push(penaltyKick(s, e));
@@ -270,10 +270,10 @@ const Campo = (() => {
       if (M.px) share = clamp(M.px.h / Math.max(M.px.h + M.px.a, 1e-9), 0.3, 0.7);
       for (const side of ["h", "a"]) {
         const sh = side === "h" ? share : 1 - share;
-        if (q.length < 2 && !freeze && side === "h" && R() < 0.035) q.push(foulScript("plain", null));
+        if (q.length < 2 && !freeze && side === "h" && R() < 0.035) { const fn = foulScript("plain", null); fn.ill = true; q.push(fn); }
         if (q.length < 2 && !freeze && R() < 0.06 * 2 * sh) { // chance ilustrativa (sem gol)
           const kind = pickW(["save", "wide", "block", "post"], [5, 2.6, 1.6, 0.8]);
-          q.push(chance(side, { kind }));
+          const fn = chance(side, { kind }); fn.ill = true; q.push(fn);
         }
       }
     }
@@ -522,6 +522,7 @@ const Campo = (() => {
       return `<div class="card"><h2>Estatísticas do jogo</h2><div style="display:grid;grid-template-columns:1fr auto 1fr;gap:3px 10px;align-items:center;text-align:center;font-size:14px"><b style="text-align:left">${dot(k.h)} ${esc(M.H.name)}</b><span></span><b style="text-align:right">${esc(M.A.name)} ${dot(k.a)}</b>${rows.map((r) => `<b style="text-align:left;font-size:17px">${r[1]}</b><span class="mut">${r[0]}</span><b style="text-align:right;font-size:17px">${r[2]}</b>`).join("")}</div><div style="display:flex;height:8px;border-radius:4px;overflow:hidden;margin:10px 0 2px;border:1px solid #fff5"><div style="width:${ph}%;background:${k.h}"></div><div style="flex:1;background:${k.a}"></div></div>${M.gate ? `<p class="mut" style="margin:8px 0 0;font-size:13px">🏟️ Público ${M.gate.att.toLocaleString("pt-BR")} de ${M.gate.cap.toLocaleString("pt-BR")} · ingresso ${typeof money === "function" ? money(M.gate.price) : M.gate.price}</p>` : ""}<p class="mut" style="font-size:11px;margin:6px 0 0">Posse e finalizações vêm da animação (ilustrativas). Gols, cartões, lesões, pênaltis e trocas são reais.</p></div>`;
     },
     isTracked(m) { return m === M; },
+    score(m) { return m === M ? [shown.h, shown.a] : null; },
     toggle() { v3 = !v3; try { localStorage.setItem('campo3d', v3 ? '1' : '0'); } catch (e) {} const b = document.getElementById('c3b'); if (b) b.textContent = v3 ? '🎥 Voltar ao 2D' : '🎥 Ver em 3D'; },
     kitsFor,
     dbg() { return { ball: { x: ball.x, y: ball.y, f: !!ball.flight }, pl: Object.values(P).filter((o) => o.live).map((o) => [o.x, o.y]) }; },

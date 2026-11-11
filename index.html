@@ -66,14 +66,14 @@ tr.me{background:color-mix(in srgb,var(--ac) 30%,transparent);font-weight:800}tr
 <header><div class="hl"><span id="crest"></span><b id="hT">Meu Elifoot</b></div><div class="hr"><span id="flag"></span><span id="hS"></span></div></header>
 <main id="app"></main>
 <nav id="nav"></nav>
-<script src="clubs.js?v=182"></script>
-<script src="game.js?v=182"></script>
-<script src="campo.js?v=182"></script>
+<script src="clubs.js?v=183"></script>
+<script src="game.js?v=183"></script>
+<script src="campo.js?v=183"></script>
 <script>
 const PREFIX="elifoot:save:",SAVE1="Elifoot"; // um único save para todos os times
 let artCan=false,S=null,tab="jogo",msg="",mf={pos:"",q:"",any:true,min:1,max:null,afford:true,ord:"ovr",dir:-1},viewKey=null;
 const $=id=>document.getElementById(id);
-const VERSAO=182;
+const VERSAO=183;
 const moneyFull=n=>(n<0?"-":"")+"R$ "+Math.round(Math.abs(n)).toLocaleString("pt-BR");
 const money=moneyFull;
 const U=()=>S.teams[S.user];
@@ -411,13 +411,13 @@ function liveEv(e){
 function liveTable(){
   const l=LIVE.live,rd=l.rd,c=S.comps[rd.c];if(!c||rd.k!=="tab"||!c.tab)return "";
   const lm=l.matches.filter(m=>!m.hold),play=new Set();lm.forEach(m=>{play.add(m.hid);play.add(m.aid)});
-  const mi=mineIds(),sc={};lm.forEach(m=>{sc[m.hid]=m.gh+"x"+m.ga;sc[m.aid]=m.ga+"x"+m.gh});
+  const mi=mineIds(),sc={};const G=m=>Campo.score(m)||[m.gh,m.ga];lm.forEach(m=>{const g=G(m);sc[m.hid]=g[0]+"x"+g[1];sc[m.aid]=g[1]+"x"+g[0]});
   let lists=[c.ids];if(c.groups)lists=c.groups.filter(g=>g.some(i=>play.has(i))).sort((x,y)=>(y.some(t=>mi.includes(t))?1:0)-(x.some(t=>mi.includes(t))?1:0));
   const zn=c.groups?null:zonas(c);
   const one=ids=>{
     const tab={};ids.forEach(i=>tab[i]=Object.assign({},c.tab[i]));
-    lm.forEach(m=>{const a=tab[m.hid],b=tab[m.aid];if(!a||!b)return;a.p++;b.p++;a.gf+=m.gh;a.ga+=m.ga;b.gf+=m.ga;b.ga+=m.gh;
-      if(m.gh>m.ga){a.w++;a.pts+=3;b.l++}else if(m.gh<m.ga){b.w++;b.pts+=3;a.l++}else{a.d++;b.d++;a.pts++;b.pts++}});
+    lm.forEach(m=>{const a=tab[m.hid],b=tab[m.aid];if(!a||!b)return;const g=G(m),gh=g[0],ga=g[1];a.p++;b.p++;a.gf+=gh;a.ga+=ga;b.gf+=ga;b.ga+=gh;
+      if(gh>ga){a.w++;a.pts+=3;b.l++}else if(gh<ga){b.w++;b.pts+=3;a.l++}else{a.d++;b.d++;a.pts++;b.pts++}});
     const old=Game.sortTab(ids,c.tab),now=Game.sortTab(ids,tab);
     const rows=now.map((id,i)=>{const r=tab[id],d=old.indexOf(id)-i,zc=zn&&zn.z[i+1];
       const ar=d>0?`<span class="good">▲${d}</span>`:d<0?`<span class="bad">▼${-d}</span>`:"";
