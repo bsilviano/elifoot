@@ -7,8 +7,8 @@ const Campo = (() => {
   cv.id = "campoCv";
   cv.style.cssText = "width:100%;display:block;border-radius:10px;aspect-ratio:" + (W + 2 * M_) + "/" + (H + 2 * M_);
   const cx = cv.getContext("2d");
-  let M = null, seen = 0, P = {}, ball, q = [], cur = null, feed = [], cap = "", capT = 0, capBig = false, marks = [];
-  let shown = { h: 0, a: 0 }, raf = 0, last = 0, passT = 0, poss = "h", share = 0.5, flash = 0, over = {}, freeze = false, lastMin = -1, hh = 0, clock = 0;
+  let M = null, L = null, seen = 0, P = {}, ball, q = [], cur = null, feed = [], cap = "", capT = 0, capBig = false, marks = [];
+  let narr = "", narrT = 0, press = {}, shown = { h: 0, a: 0 }, raf = 0, last = 0, passT = 0, poss = "h", share = 0.5, flash = 0, over = {}, freeze = false, lastMin = -1, hh = 0, clock = 0;
   ball = { x: W / 2, y: H / 2, carrier: null, flight: null };
 
   const BASE = { GOL: [0.04, 0.5], ZAG: [0.2, 0.5, 1], LD: [0.24, 0.88], LE: [0.24, 0.12], VOL: [0.38, 0.5, 1], MC: [0.5, 0.5, 1], MEI: [0.62, 0.5, 1], ME: [0.5, 0.14], MD: [0.5, 0.86], PE: [0.78, 0.14], PD: [0.78, 0.86], SA: [0.7, 0.5, 1], CA: [0.84, 0.5, 1] };
@@ -25,7 +25,18 @@ const Campo = (() => {
   function col(name) { try { const c = (typeof TEAM_COLORS !== "undefined" && TEAM_COLORS[name]) || themeFor(name).ac; return /^#[0-9a-f]{6}$/i.test(c) ? c : "#c8102e"; } catch (e) { return "#c8102e"; } }
   const rgb = (c) => [1, 3, 5].map((i) => parseInt(c.substr(i, 2), 16));
   const lum = (c) => { const l = rgb(c); return 0.3 * l[0] + 0.59 * l[1] + 0.11 * l[2]; };
-  function kits() { let h = col(M.H.name), a = col(M.A.name); const x = rgb(h), y = rgb(a); if (Math.hypot(x[0] - y[0], x[1] - y[1], x[2] - y[2]) < 110) a = "#f4f4f4"; return { h, a }; }
+  const dist3 = (a, b) => { const x = rgb(a), y = rgb(b); return Math.hypot(x[0] - y[0], x[1] - y[1], x[2] - y[2]); };
+  function kitsFor(hn, an) { // os dois times sempre com cores bem diferentes; goleiros também
+    const h = col(hn); let a = col(an);
+    if (dist3(h, a) < 150) {
+      const c = ["#f4f4f4", "#ffd23f", "#2f80ed", "#e67e22", "#27ae60", "#9b59b6", "#e74c3c", "#111111"].filter((x) => x !== h);
+      a = c.map((x) => [x, dist3(h, x)]).sort((p, q) => q[1] - p[1])[0][0];
+    }
+    const gc = ["#ffd23f", "#3fd0ff", "#ff7bd5", "#7dff6b", "#ff9f43"], pick = (avoid) => gc.map((x) => [x, Math.min(...avoid.map((y) => dist3(x, y)))]).sort((p, q) => q[1] - p[1])[0][0];
+    const gh = pick([h, a]), ga = pick([h, a, gh]);
+    return { h, a, gh, ga };
+  }
+  function kits() { return kitsFor(M.H.name, M.A.name); }
 
   // ---------- escalação em campo ----------
   function layout() {
@@ -40,7 +51,7 @@ const Campo = (() => {
           if (b[2]) { const sp = n <= 3 ? 0.3 : 0.6 / (n - 1); ay = 0.5 + (i - (n - 1) / 2) * sp; } else if (n > 1) { ay += (i - (n - 1) / 2) * 0.12 * (b[1] < 0.5 ? 1 : -1); ax -= i * 0.04; }
           ay = clamp(ay, 0.05, 0.95);
           let o = P[p.id];
-          if (!o) { o = P[p.id] = { x: 0, y: 0, init: 0 }; }
+          if (!o) { o = P[p.id] = { x: 0, y: 0, init: 0, wx: 0, wy: 0, twx: 0, twy: 0, wt: R() * 2 }; }
           o.side = side; o.ax = ax; o.ay = ay; o.p = p; o.live = 1;
           if (!o.init) { const t = pt(side, ax, ay); o.x = t[0]; o.y = t[1]; o.init = 1; }
         });
@@ -53,7 +64,7 @@ const Campo = (() => {
     const bp = (o.side === "h" ? ball.x : W - ball.x) / W, by = ball.y / H, byN = o.side === "h" ? by : 1 - by;
     const k = gk ? 0.08 : o.p.pos === "DEF" ? 0.6 : o.p.pos === "MID" ? 1 : 0.9;
     let ax = o.ax + (bp - 0.5) * 0.38 * k + (gk ? 0 : poss === o.side ? 0.04 : -0.03) + (ball.carrier === o.p.id ? 0.02 : 0);
-    const ay = o.ay + (byN - o.ay) * (gk ? 0.1 : 0.2);
+    ax += o.wx; const ay = o.ay + (byN - o.ay) * (gk ? 0.1 : 0.2) + o.wy;
     ax = clamp(ax, 0.03, 0.97); if (gk) ax = Math.min(ax, 0.12);
     return pt(o.side, ax, clamp(ay, 0.04, 0.96));
   }
@@ -70,13 +81,20 @@ const Campo = (() => {
     const w = mates.map((o) => { const dx = (o.x - c.x) * dir, dy = Math.abs(o.y - c.y), d = Math.hypot(dx, dy); let v = d < 6 ? 0.1 : d > 34 ? 0.2 : 1; v *= dx > 0 ? 1.6 : dx > -8 ? 1 : 0.5; if (o.p.pos === "GK") v *= c.p.pos === "DEF" ? 0.4 : 0.03; return v; });
     const r = pickW(mates, w); if (!r) return;
     const dist = Math.hypot(r.x - c.x, r.y - c.y), dur = Math.max(0.3, dist / 26);
-    if (R() < pI && opp.length) { const it = nearest(opp, (c.x + r.x) / 2, (c.y + r.y) / 2); flight(ball.x, ball.y, it.x, it.y, dur * 0.7, () => setCarrier(it), 1.2, it); } else flight(ball.x, ball.y, r.x, r.y, dur, () => setCarrier(r), 1.5, r);
+    const club = (sd) => (sd === "h" ? M.H.name : M.A.name), prog = (c.side === "h" ? c.x : W - c.x) / W;
+    if (R() < pI && opp.length) { const it = nearest(opp, (c.x + r.x) / 2, (c.y + r.y) / 2); flight(ball.x, ball.y, it.x, it.y, dur * 0.7, () => { setCarrier(it); narrate(pickW([`Desarme de ${sur(it)}! A bola é do ${club(it.side)}`, `${sur(it)} intercepta o passe de ${sur(c)}`, `${sur(it)} corta e recupera a bola`], [1, 1, 1])); }, 1.2, it); }
+    else {
+      flight(ball.x, ball.y, r.x, r.y, dur, () => setCarrier(r), 1.5, r);
+      if (R() < 0.8) narrate(prog > 0.7 ? pickW([`${club(c.side)} pressiona no ataque`, `${sur(c)} toca para ${sur(r)} perto da área`, `${sur(r)} recebe na frente da área`], [1, 1, 1]) : prog < 0.3 ? pickW([`${club(c.side)} toca a bola na defesa`, `${sur(c)} sai jogando para ${sur(r)}`], [1, 1]) : pickW([`${sur(c)} toca para ${sur(r)}`, `${sur(c)} lança para ${sur(r)}`, `${sur(r)} recebe e domina`, `${club(c.side)} troca passes no meio-campo`, `${sur(c)} procura ${sur(r)} em profundidade`], [3, 1, 2, 1, 1]));
+    }
   }
 
   // ---------- roteiros de lances ----------
   const FN = (f, d) => ({ start: f, dur: d || 0 });
   const WAIT = (d) => ({ start() {}, dur: d });
-  const PASS = (to, side) => ({ fl: 1, start() { poss = side; const dist = Math.hypot(to.x - ball.x, to.y - ball.y); flight(ball.x, ball.y, to.x, to.y, Math.max(0.24, dist / 34), () => setCarrier(to), 1.5, to); } });
+  const PASS = (to, side) => ({ fl: 1, start() { poss = side; const dist = Math.hypot(to.x - ball.x, to.y - ball.y); flight(ball.x, ball.y, to.x, to.y, Math.max(0.3, dist / 24), () => setCarrier(to), 1.5, to); } });
+  const sur = (o) => o.p.name.split(" ").slice(-1)[0];
+  function narrate(t) { narr = t; narrT = 2.4; }
   function say(t, big, ms) { cap = t; capBig = !!big; capT = ms || 2.6; }
   function addFeed(txt) { feed.unshift({ m: M.min || 0, t: txt }); if (feed.length > 14) feed.pop(); }
   function shotSteps(st, side, kind, shooter, name) {
@@ -110,6 +128,7 @@ const Campo = (() => {
       if (!shooter) return;
       const mids = atk.filter((x) => x !== shooter && x.p.pos !== "DEF"), a1 = pickW(mids, mids.map((x) => x.p.ov));
       const m2 = mids.filter((x) => x !== a1), a2 = pickW(m2, m2.map((x) => x.p.ov));
+      st.unshift(FN(() => narrate(`Ataque do ${side === "h" ? M.H.name : M.A.name}! ${sur(shooter)} na jogada`), 0));
       [a1, a2, shooter].filter(Boolean).forEach((t) => st.push(PASS(t, side)));
       st.push(WAIT(0.15));
       shotSteps(st, side, o.kind, shooter, o.name || shooter.p.name);
@@ -139,7 +158,7 @@ const Campo = (() => {
         if (o) marks.push({ x: o.x, y: o.y, k: kind, t: 0 });
         const t = kind === "yellow" ? `🟨 Cartão amarelo: ${e.name}` : kind === "red" ? `🟥 Expulso: ${e.name}` : `🚑 Lesão: ${e.name}`;
         say(t, false, 2.4); addFeed(`${t.replace(e.name, "<b>" + esc(e.name) + "</b>")} (${esc(e.club)})`);
-      }, kind === "red" ? 1.6 : 0.9));
+      }, kind === "red" ? 2 : 1.3));
     };
   }
   function subScript(e) { return (cur) => { cur.steps.push(FN(() => { say(`🔁 Entra ${e.name}, sai ${e.out}`); addFeed(`🔁 Entra ${esc(e.name)}, sai ${esc(e.out)} (${esc(e.club)})`); }, 1)); }; }
@@ -184,11 +203,17 @@ const Campo = (() => {
 
   // ---------- quadro a quadro ----------
   function step(dt) {
-    dt *= 1.4; clock += dt;
+    dt *= 0.85; clock += dt;
     sync(); layout();
+    for (const sd of ["h", "a"]) press[sd] = team(sd).filter((o) => o.p.pos !== "GK" && o.p.id !== ball.carrier).sort((a, b) => Math.hypot(a.x - ball.x, a.y - ball.y) - Math.hypot(b.x - ball.x, b.y - ball.y)).slice(0, 2);
     for (const id in P) {
       const o = P[id]; if (!o.live) continue;
-      const t = target(o), k = Math.min(1, dt * (ball.carrier === o.p.id ? 3.2 : o.p.pos === "GK" && over.gk ? 6 : 2));
+      o.wt -= dt;
+      if (o.wt <= 0) { o.wt = 1.6 + R() * 2.6; const gk = o.p.pos === "GK", rx = gk ? 0 : o.p.pos === "DEF" ? 0.14 : o.p.pos === "MID" ? 0.28 : 0.24; o.twx = (R() - 0.5) * 2 * rx; o.twy = gk ? 0 : (R() - 0.5) * 0.5; }
+      o.wx += (o.twx - o.wx) * Math.min(1, dt * 0.9); o.wy += (o.twy - o.wy) * Math.min(1, dt * 0.9);
+      const t = target(o), pr = press[o.side].indexOf(o);
+      if (pr >= 0 && !over.gk) { const kk = poss === o.side ? 0.3 : 0.55; t[0] += (ball.x - t[0]) * kk; t[1] += (ball.y - t[1]) * kk; }
+      const k = Math.min(1, dt * (ball.carrier === o.p.id ? 3.2 : o.p.pos === "GK" && over.gk ? 6 : 2));
       o.x += (t[0] - o.x) * k; o.y += (t[1] - o.y) * k;
     }
     const b = ball.flight;
@@ -205,6 +230,7 @@ const Campo = (() => {
     const scripted = runScript(dt);
     if (!scripted && !freeze && !ball.flight) { passT -= dt; if (passT <= 0) { ambient(); passT = 0.5 + R() * 0.4; } }
     if (capT > 0) capT -= dt;
+    if (narrT > 0) narrT -= dt;
     if (flash > 0) flash -= dt;
     marks.forEach((m) => (m.t += dt)); marks = marks.filter((m) => m.t < 2.6);
   }
@@ -239,7 +265,7 @@ const Campo = (() => {
     const ordered = Object.values(P).filter((o) => o.live).sort((a, b) => a.y - b.y), r = 1.45 * s;
     for (const o of ordered) {
       const px = X(o.x + Math.sin(clock * 1.7 + o.p.id) * 0.25), py = Y(o.y + Math.cos(clock * 1.3 + o.p.id) * 0.25), gk = o.p.pos === "GK";
-      const fill = gk ? (o.side === "h" ? "#ffd23f" : "#3fd0ff") : k[o.side];
+      const fill = gk ? (o.side === "h" ? k.gh : k.ga) : k[o.side];
       cx.fillStyle = "rgba(0,0,0,.25)"; cx.beginPath(); cx.ellipse(px, py + r * 0.7, r * 0.95, r * 0.4, 0, 0, 7); cx.fill();
       cx.fillStyle = fill; cx.beginPath(); cx.arc(px, py, r, 0, 7); cx.fill();
       cx.lineWidth = Math.max(1, 0.2 * s); cx.strokeStyle = "#fff"; cx.stroke();
@@ -248,8 +274,8 @@ const Campo = (() => {
         cx.strokeStyle = "#ffd166"; cx.lineWidth = Math.max(2, 0.35 * s); cx.beginPath(); cx.arc(px, py, r + 0.6 * s, 0, 7); cx.stroke();
         const nm = o.p.name.split(" ").slice(-1)[0], fs = Math.max(9, Math.round(1.7 * s));
         cx.font = "600 " + fs + "px sans-serif"; const tw = cx.measureText(nm).width + 8;
-        cx.fillStyle = "rgba(0,0,0,.6)"; cx.fillRect(px - tw / 2, py - r - fs - 6, tw, fs + 4);
-        cx.fillStyle = "#fff"; cx.textAlign = "center"; cx.textBaseline = "top"; cx.fillText(nm, px, py - r - fs - 4);
+        cx.fillStyle = "rgba(0,0,0,.65)"; cx.fillRect(px - tw / 2, py + r + 3, tw, fs + 4);
+        cx.fillStyle = "#fff"; cx.textAlign = "center"; cx.textBaseline = "top"; cx.fillText(nm, px, py + r + 5);
       }
     }
     for (const m of marks) {
@@ -262,12 +288,29 @@ const Campo = (() => {
     const bx = X(ball.x), by = Y(ball.y), z = (ball.z || 0) * s * 0.5, br = Math.max(3, 0.8 * s);
     cx.fillStyle = "rgba(0,0,0,.3)"; cx.beginPath(); cx.ellipse(bx, by + br * 0.5, br, br * 0.45, 0, 0, 7); cx.fill();
     cx.fillStyle = "#fff"; cx.strokeStyle = "#111"; cx.lineWidth = Math.max(1, 0.15 * s); cx.beginPath(); cx.arc(bx, by - z, br, 0, 7); cx.fill(); cx.stroke();
-    // placar e relógio
-    const fs = Math.max(11, Math.round(2.1 * s)), sc = `${M.H.name} ${shown.h} x ${shown.a} ${M.A.name}   ${M.min || 0}'`;
-    cx.font = "700 " + fs + "px sans-serif"; const tw = cx.measureText(sc).width + 16;
-    cx.fillStyle = "rgba(0,0,0,.62)"; cx.fillRect(X(1), Y(1), tw, fs + 10); cx.fillStyle = "#fff"; cx.textAlign = "left"; cx.textBaseline = "middle"; cx.fillText(sc, X(1) + 8, Y(1) + (fs + 10) / 2);
+    // placar centralizado no topo, com o cronômetro logo abaixo
+    const f1 = Math.max(13, Math.round(2.9 * s)), f2s = Math.max(11, Math.round(2.2 * s));
+    const nm1 = M.H.name, nm2 = M.A.name, scr = ` ${shown.h} x ${shown.a} `;
+    cx.font = "800 " + f1 + "px sans-serif"; const wN1 = cx.measureText(nm1).width, wN2 = cx.measureText(nm2).width, wS = cx.measureText(scr).width + 10;
+    const sub = (L && L.done ? "⏱ Fim de jogo" : "⏱ " + (M.min || 0) + "'") + (L && L.rodada ? "  ·  " + L.rodada : "") + (L && L.date ? "  ·  " + L.date : "");
+    cx.font = "600 " + f2s + "px sans-serif"; const wSub = cx.measureText(sub).width;
+    const rr = f1 * 0.42, bw = Math.min(cv.width - 8, Math.max(wN1 + wN2 + wS + 28 + rr * 6, wSub + 24)), bh = f1 + f2s + 18, bx0 = cv.width / 2 - bw / 2, by0 = Y(0.8);
+    cx.fillStyle = "rgba(0,0,0,.66)"; cx.fillRect(bx0, by0, bw, bh);
+    cx.textBaseline = "middle"; cx.font = "800 " + f1 + "px sans-serif";
+    const cy1 = by0 + 6 + f1 / 2, mid = cv.width / 2;
+    cx.textAlign = "right"; cx.fillStyle = "#fff"; cx.fillText(nm1, mid - wS / 2, cy1);
+    cx.textAlign = "center"; cx.fillStyle = "#ffd166"; cx.fillText(scr, mid, cy1);
+    cx.textAlign = "left"; cx.fillStyle = "#fff"; cx.fillText(nm2, mid + wS / 2, cy1);
+    for (const [sd, xx] of [["h", mid - wS / 2 - wN1 - rr * 1.8], ["a", mid + wS / 2 + wN2 + rr * 1.8]]) { cx.fillStyle = k[sd]; cx.beginPath(); cx.arc(xx, cy1, rr, 0, 7); cx.fill(); cx.strokeStyle = "#fff"; cx.lineWidth = Math.max(1.5, rr * 0.2); cx.stroke(); }
+    cx.font = "700 " + f2s + "px sans-serif"; cx.textAlign = "center"; cx.fillStyle = "#e9e9e9"; cx.fillText(sub, mid, by0 + 10 + f1 + f2s / 2);
+    if (narrT > 0 && narr && !(capT > 0 && cap && !capBig)) {
+      const fn = Math.max(11, Math.round(2.1 * s)); cx.font = "600 " + fn + "px sans-serif";
+      const wn = Math.min(cv.width - 10, cx.measureText(narr).width + 22), yn = cv.height - fn - 16;
+      cx.globalAlpha = Math.min(1, narrT * 1.5); cx.fillStyle = "rgba(0,0,0,.55)"; cx.fillRect(cv.width / 2 - wn / 2, yn, wn, fn + 10);
+      cx.fillStyle = "#fff"; cx.textAlign = "center"; cx.textBaseline = "middle"; cx.fillText("🎙️ " + narr, cv.width / 2, yn + (fn + 10) / 2); cx.globalAlpha = 1;
+    }
     if (capT > 0 && cap) {
-      const f2 = capBig ? Math.round(fs * 1.7) : Math.round(fs * 1.1);
+      const f2 = capBig ? Math.round(f1 * 1.5) : Math.round(f1 * 0.95);
       cx.font = "800 " + f2 + "px sans-serif"; const w2 = cx.measureText(cap).width + 24, yy = capBig ? cv.height / 2 - f2 : cv.height - f2 - 18;
       cx.globalAlpha = Math.min(1, capT * 2);
       cx.fillStyle = capBig ? "rgba(0,0,0,.7)" : "rgba(0,0,0,.65)"; cx.fillRect(cv.width / 2 - w2 / 2, yy, w2, f2 + 12);
@@ -287,12 +330,13 @@ const Campo = (() => {
   return {
     start(live) {
       stopLoop();
-      M = live.matches.find((m) => m.mine.h || m.mine.a) || live.matches[0];
-      P = {}; q = []; cur = null; feed = []; marks = []; over = {}; freeze = false; cap = ""; capT = 0; flash = 0; lastMin = -1; poss = "h"; share = 0.5;
+      L = live; M = live.matches.find((m) => m.mine.h || m.mine.a) || live.matches[0];
+      P = {}; q = []; cur = null; feed = []; marks = []; over = {}; freeze = false; cap = ""; capT = 0; narr = ""; narrT = 0; flash = 0; lastMin = -1; poss = "h"; share = 0.5;
       seen = M.ev.length; shown = { h: M.gh || 0, a: M.ga || 0 };
       layout(); restart("h"); last = 0;
       raf = requestAnimationFrame(frame);
     },
+    kitsFor,
     stop() { stopLoop(); M = null; q = []; cur = null; },
     busy() { return !!M && (!!cur || q.length > 0); },
     sync,
