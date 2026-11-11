@@ -97,8 +97,11 @@ const Campo = (() => {
     if (c.p.pos !== "GK" && dgl < 21 && lag < 4000) { const sd = c.side, fn = (cu) => { const st = cu.steps; st.push(WAIT(0.2)); const kind = pickW(["save", "wide", "block", "post"], [5, 2.6, 1.6, 0.8]); shotSteps(st, sd, kind, c, c.p.name); st.push(FN(() => { let f = null; if (kind === "wide") f = goalKick(other(sd)); else if ((kind === "save" || kind === "block") && R() < 0.4) f = corner(sd); if (f) { f.ill = true; q.unshift(f); } }, 0)); }; fn.ill = true; if (R() < 0.7) { q.push(fn); passT = 1; return; } }
     const mates = team(c.side).filter((o) => o !== c), opp = team(other(c.side)), dir = c.side === "h" ? 1 : -1;
     const sh = c.side === "h" ? share : 1 - share, pI = clamp(0.15 * (1 - sh) / sh, 0.06, 0.3);
-    const w = mates.map((o) => { const dx = (o.x - c.x) * dir, dy = Math.abs(o.y - c.y), d = Math.hypot(dx, dy); let v = d < 5 ? 0.05 : d < 12 ? 1.4 : d < 20 ? 1.2 : d < 28 ? 0.45 : 0.1; v *= dx > 0 ? 1.6 : dx > -8 ? 1 : 0.5; if (o.p.pos === "GK") v *= c.p.pos === "DEF" ? 0.4 : 0.03; return v; });
-    const r = pickW(mates, w); if (!r) return;
+    const w = mates.map((o) => { const dx = (o.x - c.x) * dir, dy = Math.abs(o.y - c.y), d = Math.hypot(dx, dy); let v = d < 5 ? 0.05 : d < 12 ? 1.4 : d < 20 ? 1.2 : d < 28 ? 0.45 : 0.1; v *= dx > 2 ? 2.2 : dx > -1.5 ? 1 : 0; if (o.p.pos === "GK") v *= c.p.pos === "DEF" ? 0.4 : 0.03; return v; });
+    let r = w.some((v) => v > 0) ? pickW(mates, w) : null;
+    if (!r) r = mates.slice().sort((a, b) => (b.x - a.x) * dir)[0]; // nunca para trás: se ninguém está à frente, toca no mais avançado ou conduz
+    if (!r) return;
+    if ((r.x - c.x) * dir < -1.5) { const dr = c.side === "h" ? 1 : -1; c.twx = 0.12; c.wt = 3; passT = 0.6; return; } // conduz a bola em direção ao gol
     const dist = Math.hypot(r.x - c.x, r.y - c.y), dur = Math.max(0.35, dist / 18);
     const club = (sd) => (sd === "h" ? M.H.name : M.A.name), prog = (c.side === "h" ? c.x : W - c.x) / W;
     if (R() < pI && opp.length) { const it = nearest(opp, (c.x + r.x) / 2, (c.y + r.y) / 2); flight(ball.x, ball.y, it.x, it.y, dur * 0.7, () => { setCarrier(it); narrate(pickW([`Desarme de ${sur(it)}! A bola é do ${club(it.side)}`, `${sur(it)} intercepta o passe de ${sur(c)}`, `${sur(it)} corta e recupera a bola`], [1, 1, 1])); }, 1.2, it); }
