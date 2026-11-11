@@ -7,7 +7,7 @@ const Campo = (() => {
   cv.id = "campoCv";
   cv.style.cssText = "width:100%;display:block;border-radius:10px;aspect-ratio:" + (W + 2 * M_) + "/" + (H + 2 * M_ + BAND);
   const cx = cv.getContext("2d");
-  let halfDone = false, ended = false, lastDt = 0.016, v3 = false, camX = W / 2; try { v3 = localStorage.getItem('campo3d') === '1'; } catch (e) {}
+  let leaving = [], meds = [], mounted = false, halfDone = false, ended = false, lastDt = 0.016, v3 = false, camX = W / 2; try { v3 = localStorage.getItem('campo3d') === '1'; } catch (e) {}
   let M = null, L = null, seen = 0, P = {}, ball, q = [], cur = null, feed = [], cap = "", capT = 0, capBig = false, marks = [];
   let lastAdded = null, stat = { h: { poss: 0, shots: 0, onT: 0 }, a: { poss: 0, shots: 0, onT: 0 } }, NUM = {}, USED = { h: {}, a: {} }, narr = "", narrT = 0, press = {}, shown = { h: 0, a: 0 }, raf = 0, last = 0, passT = 0, poss = "h", share = 0.5, flash = 0, over = {}, freeze = false, halt = false, lastMin = -1, hh = 0, clock = 0;
   ball = { x: W / 2, y: H / 2, carrier: null, flight: null };
@@ -17,7 +17,7 @@ const Campo = (() => {
   const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
   const esc = (x) => String(x == null ? "" : x).replace(/&/g, "&amp;").replace(/</g, "&lt;");
   function pickW(a, w) { if (!a.length) return null; let t = w.reduce((x, y) => x + y, 0), r = R() * t; for (let i = 0; i < a.length; i++) { r -= w[i]; if (r <= 0) return a[i]; } return a[a.length - 1]; }
-  const team = (side) => Object.values(P).filter((o) => o.live && o.side === side);
+  const team = (side) => Object.values(P).filter((o) => o.live && !o.wait && o.side === side);
   const other = (side) => (side === "h" ? "a" : "h");
   function nearest(list, x, y) { let b = null, bd = 1e9; for (const o of list) { const d = Math.hypot(o.x - x, o.y - y); if (d < bd) { bd = d; b = o; } } return b; }
   function findP(name, side) { return Object.values(P).find((o) => o.p.name === name && (!side || o.side === side)); }
@@ -52,6 +52,7 @@ const Campo = (() => {
     u[n] = 1; NUM[p.id] = n; return n;
   }
   function layout() {
+    const prev = Object.values(P).filter((o) => o.live);
     for (const id in P) P[id].live = 0;
     for (const side of ["h", "a"]) {
       const groups = {};
@@ -65,10 +66,11 @@ const Campo = (() => {
           let o = P[p.id];
           if (!o) { o = P[p.id] = { x: 0, y: 0, init: 0, wx: 0, wy: 0, twx: 0, twy: 0, wt: R() * 2 }; }
           o.side = side; o.ax = ax; o.ay = ay; o.p = p; o.live = 1; o.n = numFor(p, side, k);
-          if (!o.init) { const t = pt(side, ax, ay); o.x = t[0]; o.y = t[1]; o.init = 1; }
+          if (!o.init) { const t = pt(side, ax, ay); o.x = t[0]; o.y = mounted ? (t[1] < H / 2 ? -1.6 : H + 1.6) : t[1]; o.init = 1; if (mounted) o.wait = true; }
         });
       }
     }
+    for (const o of prev) if (!o.live && !o.leave) { o.leave = { go: false, age: 0 }; leaving.push(o); }
   }
   function target(o) {
     const gk = o.p.pos === "GK";
@@ -77,14 +79,15 @@ const Campo = (() => {
     if (gk && over.gk && over.gk.side === o.side) { const t = pt(o.side, 0.03, 0.5); return [t[0], over.gk.y]; }
     const bp = (o.side === "h" ? ball.x : W - ball.x) / W, by = ball.y / H, byN = o.side === "h" ? by : 1 - by;
     const k = gk ? 0.08 : o.p.pos === "DEF" ? 0.6 : o.p.pos === "MID" ? 1 : 0.9;
-    let ax = o.ax + (bp - 0.5) * 0.55 * k + (gk ? 0 : poss === o.side ? 0.04 : -0.03) + (ball.carrier === o.p.id ? 0.02 : 0);
-    ax += o.wx; const ay = o.ay + (byN - o.ay) * (gk ? 0.1 : 0.34) + o.wy;
+    let ax = o.ax + (bp - 0.5) * 0.55 * k + (gk ? 0 : poss === o.side ? 0.04 : -0.03) + (ball.carrier === o.p.id ? 0.07 : 0);
+    if (!gk && o.p.pos === "DEF" && (o.ay < 0.25 || o.ay > 0.75) && poss === o.side && bp > 0.5) ax += 0.14; // lateral apoia o ataque
+    ax += o.wx; const ay = o.ay + (byN - o.ay) * (gk ? 0.1 : poss === o.side ? 0.34 : 0.46) + o.wy;
     ax = clamp(ax, 0.03, 0.97); if (gk) ax = Math.min(ax, 0.12);
     return pt(o.side, ax, clamp(ay, 0.04, 0.96));
   }
 
   // ---------- bola ----------
-  function flight(x0, y0, x1, y1, dur, done, h, ref) { ball.carrier = null; ball.flight = { x0, y0, x1, y1, t: 0, dur, done, h: h == null ? 2 : h, ref }; }
+  function flight(x0, y0, x1, y1, dur, done, h, ref) { { const kc = ball.carrier != null && P[ball.carrier]; if (kc) kc.kick = 0.45; } ball.carrier = null; ball.flight = { x0, y0, x1, y1, t: 0, dur, done, h: h == null ? 2 : h, ref }; }
   function setCarrier(o) { if (!o) return; ball.carrier = o.p.id; poss = o.side; }
   function restart(side) { ball.flight = null; ball.x = W / 2; ball.y = H / 2; setCarrier(nearest(team(side).filter((o) => o.p.pos !== "GK"), W / 2, H / 2)); passT = 0.5; }
   function ambient() {
@@ -130,12 +133,12 @@ const Campo = (() => {
         const sc = shooter, m = {}; if (sc && sc.p) {
           const fx = side === "h" ? W - 7 : 7, fy = sc.y < 34 ? 5 : H - 5; m[sc.p.id] = [fx, fy];
           fld(side).filter((x) => x !== sc).sort((a, b) => Math.hypot(a.x - fx, a.y - fy) - Math.hypot(b.x - fx, b.y - fy)).slice(0, 4).forEach((o, i) => { const a = i * 1.6 + 0.4; m[o.p.id] = [fx + Math.cos(a) * 2.2, fy + Math.sin(a) * 2.2 + (fy < 34 ? 1 : -1)]; });
-          over.pos = m; ball.carrier = null;
+          over.pos = m; ball.carrier = null; sc.cel = true; fld(side).forEach((o) => { if (m[o.p.id]) o.cel = true; });
         }
       }, 2.8));
-      st.push(FN(() => { over.pos = null; over.gk = null; placeBall(W / 2, H / 2); const kq = kickoff(oside); q.unshift(kq); }, 0.1));
+      st.push(FN(() => { Object.values(P).forEach((o) => { o.cel = false; }); over.pos = null; over.gk = null; placeBall(W / 2, H / 2); const kq = kickoff(oside); q.unshift(kq); }, 0.1));
     } else if (kind === "save") {
-      st.push(FN(() => { over.gk = null; if (gk) setCarrier(gk); say("🧤 Defesa" + (gk ? " de " + gk.p.name : "") + "!"); addFeed(`🧤 Chute de ${esc(name)}, defesa${gk ? " de " + esc(gk.p.name) : ""}`); }, 0.8));
+      st.push(FN(() => { over.gk = null; if (gk) setCarrier(gk); say("🧤 Defesa" + (gk ? " de " + gk.p.name : "") + "!"); addFeed(`🧤 Chute de ${esc(name)}, defesa${gk ? " de " + esc(gk.p.name) : ""}`); }, 1.8));
     } else if (kind === "wide") {
       st.push({ fl: 1, start() { flight(ball.x, ball.y, gx + (side === "h" ? 4 : -4), ball.y + (ball.y > 34 ? 2 : -2), 0.25, () => {}, 0.5); } });
       st.push(FN(() => { over.gk = null; if (gk) setCarrier(gk); say("Pra fora!"); addFeed(`🎯 Chute de ${esc(name)} passa perto`); }, 0.7));
@@ -181,7 +184,7 @@ const Campo = (() => {
         ra.forEach((o, i) => { if (i < 4) m[o.p.id] = [xg(8 + (i % 2) * 4), 34 + ys[i]]; else if (i < 6) m[o.p.id] = [xg(20), 34 + (i === 4 ? -12 : 12)]; });
         const dr = { DEF: 0, MID: 1, ATT: 2 }, df = fld(other(side)).sort((a, b) => dr[a.p.pos] - dr[b.p.pos]);
         df.forEach((o, i) => { if (i < 7) m[o.p.id] = [xg(2.5 + (i % 3) * 3.5), 34 + (i - 3) * 3.4]; else m[o.p.id] = [xg(38), yOf(o)]; });
-        const dg = gkOf(other(side)); if (dg) m[dg.p.id] = [xg(1.2), 34];
+        const dg = gkOf(other(side)); if (dg) m[dg.p.id] = [xg(3.5), 34];
         over.pos = m; tg = ra[0];
       }, 3));
       st.push(FN(() => { SNAPP(); setCarrier(tk); }, 0.3));
@@ -321,7 +324,7 @@ const Campo = (() => {
       if (kind !== "plain") st.push(FN(() => {
         if (fo) marks.push({ x: fo.x, y: fo.y, k: kind, t: 0 });
         const t = kind === "yellow" ? `🟨 Cartão amarelo: ${e.name}` : `🟥 Expulso: ${e.name}`;
-        say(t, false, 2.4); addFeed(`${t.replace(e.name, "<b>" + esc(e.name) + "</b>")} (${esc(e.club)})`);
+        say(t, false, 2.4); addFeed(`${t.replace(e.name, "<b>" + esc(e.name) + "</b>")} (${esc(e.club)})`); if (kind === "red") release(e.name);
       }, kind === "red" ? 2.2 : 1.6));
       st.push(FN(() => { halt = false; if (!vi || !spot) return; const m = {}; for (const o of team(other(vi.side))) { const d = Math.hypot(o.x - spot.x, o.y - spot.y); if (d < 10 && o.p.pos !== "GK") { const a = Math.atan2(o.y - spot.y, o.x - spot.x); m[o.p.id] = [spot.x + 10.5 * Math.cos(a), spot.y + 10.5 * Math.sin(a)]; } } over.pos = m; }, 1.6));
       st.push({ fl: 1, start() {
@@ -344,7 +347,25 @@ const Campo = (() => {
       }, kind === "red" ? 2 : 1.3));
     };
   }
-  function subScript(e) { return (cur) => { cur.steps.push(FN(() => { say(`🔁 Entra ${e.name}, sai ${e.out}`); addFeed(`🔁 Entra ${esc(e.name)}, sai ${esc(e.out)} (${esc(e.club)})`); }, 1)); }; }
+  function injScript(e) {
+    return (cur) => {
+      const st = cur.steps; let o = null;
+      st.push(FN(() => {
+        o = findP(e.name, e.side); if (!o) return;
+        halt = true; ball.flight = null; ball.carrier = null; ball.z = 0; over.run = null; over.gk = null; over.pos = null; o.down = true;
+        const t = `🚑 Jogador caído: ${e.name}`; say(t, false, 2.8); narrate("Jogo parado: " + sur(o) + " recebe atendimento médico"); addFeed(`🚑 Lesão: <b>${esc(e.name)}</b> (${esc(e.club)})`);
+        const up = o.y < 34, ey = up ? -1.8 : H + 1.8, ty = o.y + (up ? -1.3 : 1.3);
+        meds = [{ x: o.x - 4, y: ey, tx: o.x - 1.2, ty }, { x: o.x + 4, y: ey, tx: o.x + 1.2, ty }];
+      }, 0.3));
+      st.push({ dur: 7, start() {}, until: () => !o || meds.every((m) => Math.hypot(m.x - m.tx, m.y - m.ty) < 0.5) });
+      st.push(WAIT(3));
+      st.push(FN(() => { if (o) o.down = false; meds.forEach((m) => { m.ty = o && o.y < 34 ? -2.2 : H + 2.2; }); }, 0.6));
+      st.push({ dur: 5, start() {}, until: () => meds.every((m) => Math.hypot(m.x - m.tx, m.y - m.ty) < 0.5) });
+      st.push(FN(() => { meds = []; halt = false; if (o) { poss = o.side; } }, 0));
+    };
+  }
+  function release(name) { const o = leaving.find((x) => x.p.name === name); if (o && o.leave) o.leave.go = true; const n = Object.values(P).find((x) => x.p.name === name && x.wait); if (n) n.wait = false; }
+  function subScript(e) { return (cur) => { cur.steps.push(FN(() => { release(e.out); release(e.name); say(`🔁 Entra ${e.name}, sai ${e.out}`); addFeed(`🔁 Entra ${esc(e.name)}, sai ${esc(e.out)} (${esc(e.club)})`); }, 1)); }; }
 
   function handle(e) {
     const s = e.side; q = q.filter((f) => !f.ill);
@@ -353,7 +374,7 @@ const Campo = (() => {
     else if (e.type === "pen") q.push(penaltyKick(s, e));
     else if (e.type === "yellow") q.push(foulScript("yellow", e));
     else if (e.type === "red") q.push(foulScript("red", e));
-    else if (e.type === "inj") q.push(cardScript("inj", e));
+    else if (e.type === "inj") q.push(injScript(e));
     else if (e.type === "sub") q.push(subScript(e));
   }
   function sync() {
@@ -397,9 +418,15 @@ const Campo = (() => {
     for (const sd of ["h", "a"]) press[sd] = team(sd).filter((o) => o.p.pos !== "GK" && o.p.id !== ball.carrier).sort((a, b) => Math.hypot(a.x - ball.x, a.y - ball.y) - Math.hypot(b.x - ball.x, b.y - ball.y)).slice(0, 3);
     for (const id in P) {
       const o = P[id]; if (!o.live) continue;
-      if (halt) continue;
+      if (o.kick > 0) o.kick -= dt;
+      if (halt || o.wait) continue;
       o.wt -= dt;
-      if (o.wt <= 0) { o.wt = 1.6 + R() * 2.6; const gk = o.p.pos === "GK", rx = gk ? 0 : o.p.pos === "DEF" ? 0.14 : o.p.pos === "MID" ? 0.28 : 0.24; o.twx = (R() - 0.5) * 2 * rx; o.twy = gk ? 0 : (R() - 0.5) * 0.5; }
+      if (o.wt <= 0) {
+        o.wt = 1.6 + R() * 2.6; const gk = o.p.pos === "GK", atk = poss === o.side, role = o.p.pos;
+        if (gk) { o.twx = 0; o.twy = 0; }
+        else if (atk) { o.twx = role === "ATT" ? 0.04 + R() * 0.2 : role === "MID" ? 0.02 + R() * 0.15 : R() < 0.35 ? 0.05 + R() * 0.12 : (R() - 0.5) * 0.1; o.twy = (R() - 0.5) * 0.5; }
+        else { o.twx = role === "ATT" ? -R() * 0.12 : -(0.02 + R() * 0.12); o.twy = (R() - 0.5) * 0.35; }
+      }
       o.wx += (o.twx - o.wx) * Math.min(1, dt * 0.9); o.wy += (o.twy - o.wy) * Math.min(1, dt * 0.9);
       const t = target(o), pr = press[o.side].indexOf(o);
       if (pr >= 0 && !over.gk && !(over.pos && over.pos[o.p.id])) { const kk = poss === o.side ? 0.35 : 0.6; t[0] += (ball.x - t[0]) * kk; t[1] += (ball.y - t[1]) * kk; }
@@ -409,6 +436,9 @@ const Campo = (() => {
       if (ml > sp) { mx *= sp / ml; my *= sp / ml; }
       o.x += mx; o.y += my;
     }
+    for (const m of meds) { const dx = m.tx - m.x, dy = m.ty - m.y, d = Math.hypot(dx, dy); if (d > 0.01) { const v = Math.min(d, 7.5 * dt); m.x += dx / d * v; m.y += dy / d * v; } }
+    for (const o of leaving) { o.leave.age += dt; if (!o.leave.go && o.leave.age > 14) o.leave.go = true; if (o.leave.go && !o.down) { const ty = o.y < 34 ? -2 : H + 2, dy = ty - o.y, v = Math.min(Math.abs(dy), 4.8 * dt); o.y += Math.sign(dy) * v; if (Math.abs(dy) < 0.2) o.leave.done = true; } }
+    leaving = leaving.filter((o) => o.leave && !o.leave.done);
     const b = ball.flight;
     if (b) {
       if (b.ref) { b.x1 = b.ref.x; b.y1 = b.ref.y; }
@@ -521,7 +551,7 @@ const Campo = (() => {
     const k = kits();
     cx.fillStyle = "#15202b"; cx.fillRect(0, 0, cv.width, cv.height);
     if (v3 && typeof Campo3D !== "undefined" && Campo3D.ready()) {
-      const gw = cv.width, gh2 = cv.height - bandPx, st3 = { w: gw, h: gh2, dt: lastDt, k, ball, marks, players: Object.values(P).filter((o) => o.live).map((o) => ({ id: o.p.id, x: o.x, y: o.y, side: o.side, gk: o.p.pos === "GK", n: o.n, name: o.p.name.split(" ").slice(-1)[0], carrier: ball.carrier === o.p.id })) };
+      const gw = cv.width, gh2 = cv.height - bandPx, st3 = { w: gw, h: gh2, dt: lastDt, k, ball, marks, players: Object.values(P).filter((o) => o.live).concat(leaving.filter((o) => !o.live)).map((o) => ({ id: o.p.id, x: o.x, y: o.y, side: o.side, gk: o.p.pos === "GK", n: o.n, name: o.p.name.split(" ").slice(-1)[0], carrier: ball.carrier === o.p.id, kick: o.kick > 0 ? 1 - o.kick / 0.45 : -1, down: !!o.down, cel: !!o.cel })).concat(meds.map((m, i) => ({ id: "med" + i, x: m.x, y: m.y, side: "m", gk: false, n: "", name: "", carrier: false, kick: -1, down: false, cel: false, kitCol: "#f4f4f4" }))) };
       const im = Campo3D.render(st3); if (im) cx.drawImage(im, 0, bandPx, gw, gh2);
     } else if (v3) { field3d(s, bandPx, k); if (typeof Campo3D !== "undefined" && Campo3D.state() === "loading") { cx.fillStyle = "rgba(0,0,0,.6)"; cx.fillRect(0, cv.height - 28, cv.width, 28); cx.fillStyle = "#fff"; cx.font = "600 14px sans-serif"; cx.textAlign = "center"; cx.textBaseline = "middle"; cx.fillText("Carregando 3D...", cv.width / 2, cv.height - 14); } } else {
     cx.fillStyle = "#24703a"; cx.fillRect(0, bandPx, cv.width, cv.height - bandPx);
@@ -542,10 +572,11 @@ const Campo = (() => {
       cx.fillStyle = flash > 0 && ((sd && shownGoalSide === "h") || (!sd && shownGoalSide === "a")) ? "rgba(255,230,90," + Math.min(1, flash) + ")" : "rgba(255,255,255,.25)";
       cx.fillRect(X(sd ? W : -M_ + 0.2), Y((H - 7.32) / 2), (M_ - 0.2) * s, 7.32 * s);
     }
-    const ordered = Object.values(P).filter((o) => o.live).sort((a, b) => a.y - b.y), r = 1.45 * s;
+    const ordered = Object.values(P).filter((o) => o.live).concat(leaving.filter((o) => !o.live)).sort((a, b) => a.y - b.y), r = 1.45 * s;
     for (const o of ordered) {
       const px = X(o.x + Math.sin(clock * 1.7 + o.p.id) * 0.25), py = Y(o.y + Math.cos(clock * 1.3 + o.p.id) * 0.25), gk = o.p.pos === "GK";
       const fill = gk ? (o.side === "h" ? k.gh : k.ga) : k[o.side];
+      if (o.down) { cx.fillStyle = fill; cx.strokeStyle = "#fff"; cx.lineWidth = Math.max(1, 0.2 * s); cx.beginPath(); cx.ellipse(px, py, r * 1.7, r * 0.7, 0, 0, 7); cx.fill(); cx.stroke(); continue; }
       cx.fillStyle = "rgba(0,0,0,.25)"; cx.beginPath(); cx.ellipse(px, py + r * 0.7, r * 0.95, r * 0.4, 0, 0, 7); cx.fill();
       cx.fillStyle = fill; cx.beginPath(); cx.arc(px, py, r, 0, 7); cx.fill();
       cx.lineWidth = Math.max(1, 0.2 * s); cx.strokeStyle = "#fff"; cx.stroke();
@@ -558,6 +589,7 @@ const Campo = (() => {
         cx.fillStyle = "#fff"; cx.textAlign = "center"; cx.textBaseline = "top"; cx.fillText(nm, px, py + r + 5);
       }
     }
+    for (const md of meds) { const mx = X(md.x), my = Y(md.y); cx.fillStyle = "#fff"; cx.beginPath(); cx.arc(mx, my, r * 0.9, 0, 7); cx.fill(); cx.fillStyle = "#d33"; cx.fillRect(mx - r * 0.5, my - r * 0.14, r, r * 0.28); cx.fillRect(mx - r * 0.14, my - r * 0.5, r * 0.28, r); }
     for (const m of marks) {
       const mx = X(m.x), my = Y(m.y) - r * 2.4 - Math.min(m.t, 0.4) * 10, a = m.t > 2 ? 1 - (m.t - 2) / 0.6 : 1;
       cx.globalAlpha = Math.max(0, a);
@@ -614,7 +646,7 @@ const Campo = (() => {
       stat = { h: { poss: 0, shots: 0, onT: 0 }, a: { poss: 0, shots: 0, onT: 0 } }; lastAdded = null; P = {}; NUM = {}; USED = { h: {}, a: {} }; q = []; cur = null; feed = []; marks = []; over = {}; freeze = false; halt = false; ended = false; halfDone = false; cap = ""; capT = 0; narr = ""; narrT = 0; flash = 0; lastMin = -1; poss = "h"; share = 0.5;
       seen = M.ev.length; shown = { h: M.gh || 0, a: M.ga || 0 };
       if (v3 && typeof Campo3D !== "undefined") Campo3D.load();
-      layout(); restart("h"); last = 0;
+      leaving = []; meds = []; mounted = false; layout(); mounted = true; restart("h"); last = 0;
       raf = requestAnimationFrame(frame);
     },
     statsCard() {
@@ -625,6 +657,7 @@ const Campo = (() => {
       return `<div class="card"><h2>Estatísticas do jogo</h2><div style="display:grid;grid-template-columns:1fr auto 1fr;gap:3px 10px;align-items:center;text-align:center;font-size:14px"><b style="text-align:left">${dot(k.h)} ${esc(M.H.name)}</b><span></span><b style="text-align:right">${esc(M.A.name)} ${dot(k.a)}</b>${rows.map((r) => `<b style="text-align:left;font-size:17px">${r[1]}</b><span class="mut">${r[0]}</span><b style="text-align:right;font-size:17px">${r[2]}</b>`).join("")}</div><div style="display:flex;height:8px;border-radius:4px;overflow:hidden;margin:10px 0 2px;border:1px solid #fff5"><div style="width:${ph}%;background:${k.h}"></div><div style="flex:1;background:${k.a}"></div></div>${M.gate ? `<p class="mut" style="margin:8px 0 0;font-size:13px">🏟️ Público ${M.gate.att.toLocaleString("pt-BR")} de ${M.gate.cap.toLocaleString("pt-BR")} · ingresso ${typeof money === "function" ? money(M.gate.price) : M.gate.price}</p>` : ""}<p class="mut" style="font-size:11px;margin:6px 0 0">Posse e finalizações vêm da animação (ilustrativas). Gols, cartões, lesões, pênaltis e trocas são reais.</p></div>`;
     },
     isTracked(m) { return m === M; },
+    dbgPose() { q = []; cur = null; halt = true; const a = team("h").filter((o) => o.p.pos !== "GK").slice(0, 3); a.forEach((o, i) => { o.x = ball.x + 3 + i * 3; o.y = 26; if (i === 0) o.kick = 0.22; if (i === 1) o.down = true; if (i === 2) o.cel = true; }); },
     piece(k, side) { q = []; cur = null; over.pos = null; halt = false; q.push({ goal: goalKick, corner, kickoff, throw: throwIn }[k](side)); },
     score(m) { return m === M ? [shown.h, shown.a] : null; },
     toggle() { v3 = !v3; if (v3 && typeof Campo3D !== "undefined") Campo3D.load(); try { localStorage.setItem('campo3d', v3 ? '1' : '0'); } catch (e) {} const b = document.getElementById('c3b'); if (b) b.textContent = v3 ? '🎥 Voltar ao 2D' : '🎥 Ver em 3D'; },

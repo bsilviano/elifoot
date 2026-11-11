@@ -2,7 +2,7 @@
 // As bibliotecas ficam em lib/ e só são carregadas quando o jogador aperta "Ver em 3D".
 const Campo3D = (() => {
   const W = 105, H = 68;
-  const KG = {}; let st = "idle", T = null, ren = null, scene, cam, sun, ball, ballSh, ring, pl = {}, glb = null, camX = W / 2, spr = {}, cbs = [], ok = false, fail = false;
+  const KG = {}; let clock3 = 0, st = "idle", T = null, ren = null, scene, cam, sun, ball, ballSh, ring, pl = {}, glb = null, camX = W / 2, spr = {}, cbs = [], ok = false, fail = false;
   const wx = (x) => W / 2 - x, wz = (y) => y - H / 2;
   const ver = () => { try { return typeof VERSAO !== "undefined" ? VERSAO : 1; } catch (e) { return 1; } };
   const loadJs = (src) => new Promise((res, rej) => { const s = document.createElement("script"); s.src = src + "?v=" + ver(); s.onload = res; s.onerror = () => rej(new Error(src)); document.head.appendChild(s); });
@@ -104,7 +104,7 @@ const Campo3D = (() => {
     const root = new T.Group(); root.add(m); scene.add(root);
     const mx = new T.AnimationMixer(m), acts = {};
     for (const n of ["idle", "walk", "run"]) { const cl = glb.animations.find((a) => a.name === n); if (cl) { acts[n] = mx.clipAction(cl); acts[n].play(); acts[n].setEffectiveWeight(n === "idle" ? 1 : 0); } }
-    const o = { root, mx, acts, mats, yaw: 0, lx: null, lz: null, v: 0, sp: 0 }; pl[id] = o; return o;
+    const bn = (n) => m.getObjectByName("mixamorig:" + n), o = { root, m, mx, acts, mats, yaw: 0, lx: null, lz: null, v: 0, sp: 0, dp: 0, bones: { ru: bn("RightUpLeg"), rl: bn("RightLeg"), la: bn("LeftArm"), ra: bn("RightArm"), lf: bn("LeftForeArm"), rf: bn("RightForeArm") } }; pl[id] = o; return o;
   }
   const hex = (c) => new T.Color(c);
   const rgb = (c) => [1, 3, 5].map((i) => parseInt(c.substr(i, 2), 16)); const lum = (c) => { const l = rgb(c); return 0.3 * l[0] + 0.59 * l[1] + 0.11 * l[2]; };
@@ -116,7 +116,7 @@ const Campo3D = (() => {
     camX += (clamp(S.ball.x, 15, W - 15) - camX) * 0.06;
     const cX = wx(camX); cam.position.set(cX, 10, -H / 2 - 9); cam.lookAt(cX, 0, 5);
     sun.position.set(cX + 18, 40, -22); sun.target.position.set(cX, 0, 0);
-    const seen = {}, dt = Math.max(0.001, S.dt);
+    const seen = {}, dt = Math.max(0.001, S.dt); clock3 += dt;
     for (const p of S.players) {
       seen[p.id] = 1; const o = pl[p.id] || mkPlayer(p.id), X = wx(p.x), Z = wz(p.y);
       o.root.visible = true; o.root.position.set(X, 0, Z);
@@ -125,9 +125,12 @@ const Campo3D = (() => {
       const wI = o.v < 0.7 ? 1 : 0, wW = o.v >= 0.7 && o.v < 3.6 ? 1 : 0, wR = o.v >= 3.6 ? 1 : 0;
       for (const [n, w] of [["idle", wI], ["walk", wW], ["run", wR]]) if (o.acts[n]) { const c = o.acts[n].getEffectiveWeight(); o.acts[n].setEffectiveWeight(c + (w - c) * 0.2); }
       o.mx.update(dt);
-      const col = p.gk ? (p.side === "h" ? S.k.gh : S.k.ga) : S.k[p.side]; if (o.col !== col) { o.col = col; const sh = lum(col) > 150 ? "#202020" : "#f4f4f4"; o.mats.forEach((m) => { if (m.userData.body) m.geometry = kitGeom(m.userData.src, col, p.gk ? "#111111" : sh); }); }
-      const n = sprite(String(p.n), "n", p.id); n.visible = true; n.position.set(X, 2.35, Z); n.scale.set(1.6, 0.6, 1);
-      p._s = n;
+      o.dp += ((p.down ? 1 : 0) - o.dp) * Math.min(1, dt * 6); o.m.rotation.x = -Math.PI / 2 * o.dp; o.root.position.y = 0.22 * o.dp;
+      const B = o.bones;
+      if (p.kick >= 0 && B.ru) { const u = Math.sin(Math.PI * clamp(p.kick, 0, 1)); B.ru.rotateX(-1.15 * u); B.rl.rotateX(1.1 * u); }
+      if (p.cel && B.la) { B.la.rotateZ(1.9); B.ra.rotateZ(-1.9); B.lf.rotateY(0.3); o.root.position.y += Math.abs(Math.sin(clock3 * 9 + p.id)) * 0.28; }
+      const col = p.kitCol || (p.gk ? (p.side === "h" ? S.k.gh : S.k.ga) : S.k[p.side]); if (o.col !== col) { o.col = col; const sh = lum(col) > 150 ? "#202020" : "#f4f4f4"; o.mats.forEach((m) => { if (m.userData.body) m.geometry = kitGeom(m.userData.src, col, p.gk ? "#111111" : sh); }); }
+      if (p.n !== "" && !p.down) { const n = sprite(String(p.n), "n", p.id); n.visible = true; n.position.set(X, 2.35, Z); n.scale.set(1.6, 0.6, 1); p._s = n; }
       if (p.carrier) { ring.visible = true; ring.position.x = X; ring.position.z = Z; const nm = sprite(p.name, "t"); nm.visible = true; nm.position.set(X, 3.1, Z); nm.scale.set(3.4, 1.28, 1); p._t = nm; }
     }
     if (!S.players.some((p) => p.carrier)) ring.visible = false;
