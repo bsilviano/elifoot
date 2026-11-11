@@ -7,7 +7,7 @@ const Campo = (() => {
   cv.id = "campoCv";
   cv.style.cssText = "width:100%;display:block;border-radius:10px;aspect-ratio:" + (W + 2 * M_) + "/" + (H + 2 * M_ + BAND);
   const cx = cv.getContext("2d");
-  let lastDt = 0.016, v3 = false, camX = W / 2; try { v3 = localStorage.getItem('campo3d') === '1'; } catch (e) {}
+  let ended = false, lastDt = 0.016, v3 = false, camX = W / 2; try { v3 = localStorage.getItem('campo3d') === '1'; } catch (e) {}
   let M = null, L = null, seen = 0, P = {}, ball, q = [], cur = null, feed = [], cap = "", capT = 0, capBig = false, marks = [];
   let lastAdded = null, stat = { h: { poss: 0, shots: 0, onT: 0 }, a: { poss: 0, shots: 0, onT: 0 } }, NUM = {}, USED = { h: {}, a: {} }, narr = "", narrT = 0, press = {}, shown = { h: 0, a: 0 }, raf = 0, last = 0, passT = 0, poss = "h", share = 0.5, flash = 0, over = {}, freeze = false, halt = false, lastMin = -1, hh = 0, clock = 0;
   ball = { x: W / 2, y: H / 2, carrier: null, flight: null };
@@ -73,6 +73,7 @@ const Campo = (() => {
   function target(o) {
     const gk = o.p.pos === "GK";
     if (over.run && over.run.o === o) return [over.run.x, over.run.y];
+    if (over.pos && over.pos[o.p.id]) return over.pos[o.p.id].slice();
     if (gk && over.gk && over.gk.side === o.side) { const t = pt(o.side, 0.03, 0.5); return [t[0], over.gk.y]; }
     const bp = (o.side === "h" ? ball.x : W - ball.x) / W, by = ball.y / H, byN = o.side === "h" ? by : 1 - by;
     const k = gk ? 0.08 : o.p.pos === "DEF" ? 0.6 : o.p.pos === "MID" ? 1 : 0.9;
@@ -110,8 +111,8 @@ const Campo = (() => {
   function narrate(t) { narr = t; narrT = 2.4; }
   function say(t, big, ms) { cap = t; capBig = !!big; capT = ms || 2.6; }
   function addFeed(txt) { feed.unshift({ m: M.min || 0, t: txt }); if (feed.length > 14) feed.pop(); }
-  const NEAR = (o, side, d) => ({ dur: 6, start() {}, until: () => Math.hypot(o.x - (side === "h" ? W : 0), o.y - 34) <= d });
-  const SNAP = (o, side, d) => FN(() => { const gx = side === "h" ? W : 0, dx = Math.abs(o.x - gx); if (dx > d + 2) { o.x = gx + (side === "h" ? -d : d); } if (ball.carrier === o.p.id) { ball.x = o.x; } }, 0);
+  const NEAR = (o, side, d) => ({ dur: 11, start() {}, until: () => Math.hypot(o.x - (side === "h" ? W : 0), o.y - 34) <= d });
+  const SNAP = (o, side, d) => FN(() => { const gx = side === "h" ? W : 0, dx = Math.abs(o.x - gx); if (dx > d + 14) { o.x = gx + (side === "h" ? -d : d); } if (ball.carrier === o.p.id) { ball.x = o.x; } }, 0);
   function shotSteps(st, side, kind, shooter, name) {
     const oside = other(side), gx = side === "h" ? W : 0, gk = team(oside).find((x) => x.p.pos === "GK"), opp = team(oside).filter((x) => x.p.pos !== "GK");
     const ty = 34 + (kind === "wide" ? (R() < 0.5 ? -1 : 1) * (5 + R() * 4) : kind === "post" ? (R() < 0.5 ? -1 : 1) * 3.66 : (R() - 0.5) * 5.4);
@@ -125,7 +126,7 @@ const Campo = (() => {
     st.push({ fl: 1, start() { over.run = null; if (gk) over.gk = { side: oside, y: ty }; flight(ball.x, ball.y, gx, ty, 0.38, () => {}, 1); } });
     if (kind === "goal") {
       st.push(FN(() => { flash = 1.6; shownGoalSide = side; shown[side]++; say("⚽ GOOOL! " + name, true, 3.2); addFeed(`⚽ <b>GOL!</b> ${esc(name)}`); }, 2));
-      st.push(FN(() => { over.gk = null; restart(oside); }, 0.1));
+      st.push(FN(() => { over.gk = null; placeBall(W / 2, H / 2); const kq = kickoff(oside); q.unshift(kq); }, 0.1));
     } else if (kind === "save") {
       st.push(FN(() => { over.gk = null; if (gk) setCarrier(gk); say("🧤 Defesa" + (gk ? " de " + gk.p.name : "") + "!"); addFeed(`🧤 Chute de ${esc(name)}, defesa${gk ? " de " + esc(gk.p.name) : ""}`); }, 0.8));
     } else if (kind === "wide") {
@@ -135,6 +136,92 @@ const Campo = (() => {
       st.push({ fl: 1, start() { flight(ball.x, ball.y, gx + (side === "h" ? -7 : 7), 34 + (ty > 34 ? 9 : -9), 0.45, () => {}, 2); } });
       st.push(FN(() => { over.gk = null; const d = nearest(opp, ball.x, ball.y); if (d) setCarrier(d); say("🥅 NA TRAVE!", true); addFeed(`🥅 Na trave! ${esc(name)}`); }, 1));
     }
+  }
+  // ---------- bolas paradas (regras: tiro de meta, escanteio, saída de bola, lateral, barreira) ----------
+  const OWNX = (side, f) => (side === "h" ? f * W : (1 - f) * W);
+  const yOf = (o) => pt(o.side, 0, o.ay)[1];
+  const gkOf = (side) => team(side).find((x) => x.p.pos === "GK");
+  const fld = (side) => team(side).filter((x) => x.p.pos !== "GK");
+  const clubOf = (sd) => (sd === "h" ? M.H.name : M.A.name);
+  const SNAPP = () => { if (over.pos) for (const id in over.pos) if (P[id]) { P[id].x = over.pos[id][0]; P[id].y = over.pos[id][1]; } };
+  function placeBall(x, y) { ball.flight = null; ball.carrier = null; ball.x = x; ball.y = y; ball.z = 0; over.gk = null; over.run = null; }
+  function goalKick(side) {
+    return (cur) => {
+      const st = cur.steps, sx = side === "h" ? 5.5 : W - 5.5, sy = 34 + (R() - 0.5) * 8; let tk = null;
+      st.push(FN(() => {
+        tk = gkOf(side); placeBall(sx, sy); poss = side; say("🥅 Tiro de meta", false, 2.2); narrate("Tiro de meta para o " + clubOf(side)); addFeed("🥅 Tiro de meta para o " + esc(clubOf(side)));
+        const m = {};
+        for (const o of team(side)) { if (o === tk) m[o.p.id] = [sx + (side === "h" ? -0.9 : 0.9), sy]; else if (o.p.pos !== "GK") m[o.p.id] = [OWNX(side, 0.12 + o.ax * 0.7), yOf(o)]; }
+        for (const o of team(other(side))) if (o.p.pos !== "GK") m[o.p.id] = [OWNX(side, 0.3 + (1 - o.ax) * 0.5), yOf(o)]; // adversários fora da grande área
+        over.pos = m;
+      }, 2.8));
+      st.push(FN(() => { SNAPP(); if (tk) setCarrier(tk); }, 0.3));
+      st.push({ fl: 1, start() {
+        const c = fld(side), r = pickW(c, c.map((x) => { const d = Math.abs(x.x - sx); return 1 / (1 + Math.abs(d - 40) / 15); }));
+        if (r && tk) flight(sx, sy, r.x, r.y, Math.max(0.8, Math.hypot(r.x - sx, r.y - sy) / 24), () => setCarrier(r), 7, r);
+      } });
+      st.push(FN(() => { over.pos = null; }, 0));
+    };
+  }
+  function corner(side) {
+    return (cur) => {
+      const st = cur.steps, gx = side === "h" ? W : 0, cy = ball.y < H / 2 ? 0.6 : H - 0.6, cxp = gx === W ? W - 0.6 : 0.6, xg = (d) => (side === "h" ? W - d : d); let tk = null, tg = null;
+      st.push(FN(() => {
+        const att = fld(side); tk = nearest(att, cxp, cy); placeBall(cxp, cy); poss = side; say("🚩 Escanteio", false, 2.2); narrate("Escanteio para o " + clubOf(side)); addFeed("🚩 Escanteio para o " + esc(clubOf(side)));
+        const rank = { ATT: 0, DEF: 1, MID: 2 }, ra = att.filter((x) => x !== tk).sort((a, b) => (rank[a.p.pos] - rank[b.p.pos]) || b.p.ov - a.p.ov), m = {};
+        m[tk.p.id] = [cxp + (gx === W ? -0.8 : 0.8), cy + (cy < 1 ? 0.8 : -0.8)];
+        const ys = [-9, -3, 3, 9];
+        ra.forEach((o, i) => { if (i < 4) m[o.p.id] = [xg(8 + (i % 2) * 4), 34 + ys[i]]; else if (i < 6) m[o.p.id] = [xg(20), 34 + (i === 4 ? -12 : 12)]; });
+        const dr = { DEF: 0, MID: 1, ATT: 2 }, df = fld(other(side)).sort((a, b) => dr[a.p.pos] - dr[b.p.pos]);
+        df.forEach((o, i) => { if (i < 7) m[o.p.id] = [xg(2.5 + (i % 3) * 3.5), 34 + (i - 3) * 3.4]; else m[o.p.id] = [xg(38), yOf(o)]; });
+        const dg = gkOf(other(side)); if (dg) m[dg.p.id] = [xg(1.2), 34];
+        over.pos = m; tg = ra[0];
+      }, 3));
+      st.push(FN(() => { SNAPP(); setCarrier(tk); }, 0.3));
+      st.push({ fl: 1, start() { tg = tg || tk; flight(cxp, cy, tg.x, tg.y, 1.1, () => setCarrier(tg), 8, tg); } });
+      st.push(WAIT(0.1));
+      st.push(FN(() => { shotSteps(cur.steps, side, pickW(["save", "wide", "block", "post"], [4, 3, 2, 0.8]), tg || tk, ""); }, 0));
+      st.push(FN(() => { over.pos = null; }, 0));
+      st.push(FN(() => { over.pos = null; }, 0));
+    };
+  }
+  function kickoff(side) {
+    return (cur) => {
+      const st = cur.steps; let kk = null, pa = null;
+      st.push(FN(() => {
+        placeBall(W / 2, H / 2); poss = side; narrate("Bola ao centro: recomeça o jogo, saída do " + clubOf(side));
+        const m = {}, atk = fld(side).sort((a, b) => (b.p.pos === "ATT") - (a.p.pos === "ATT") || b.p.ov - a.p.ov); kk = atk[0]; pa = atk[1] || atk[0];
+        for (const sd of ["h", "a"]) for (const o of team(sd)) {
+          let x = OWNX(sd, clamp(o.ax * 0.5, 0.04, 0.45)), y = yOf(o);
+          if (sd !== side) { const d = Math.hypot(x - W / 2, y - 34); if (d < 10.5) x = W / 2 + (sd === "h" ? -1 : 1) * Math.max(10.5, Math.abs(x - W / 2)); } // adversário fora do círculo central
+          m[o.p.id] = [x, y];
+        }
+        m[kk.p.id] = [W / 2 + (side === "h" ? -0.9 : 0.9), 34]; m[pa.p.id] = [W / 2 + (side === "h" ? -1.5 : 1.5), 34 + 5];
+        over.pos = m;
+      }, 3));
+      st.push(FN(() => { SNAPP(); if (kk) setCarrier(kk); }, 0.3));
+      st.push({ fl: 1, start() { if (kk && pa) flight(W / 2, H / 2, pa.x, pa.y, 0.5, () => setCarrier(pa), 1, pa); } });
+      st.push(FN(() => { over.pos = null; }, 0));
+    };
+  }
+  function throwIn(side) {
+    return (cur) => {
+      const st = cur.steps; let tk = null, r1 = null;
+      st.push(FN(() => {
+        const sx = clamp(ball.x, 8, W - 8), sy = ball.y < H / 2 ? -0.2 : H + 0.2, inn = sy < 0 ? 1 : -1;
+        const mates = fld(side), opp = fld(other(side)); tk = nearest(mates, sx, sy);
+        const rest = mates.filter((x) => x !== tk).sort((a, b) => Math.hypot(a.x - sx, a.y - sy) - Math.hypot(b.x - sx, b.y - sy)); r1 = rest[0];
+        flight(ball.x, ball.y, sx, sy, 0.5, () => {}, 4); poss = side; say("↔️ Lateral para o " + clubOf(side), false, 2); narrate("Lateral para o " + clubOf(side)); addFeed("↔️ Lateral para o " + esc(clubOf(side)));
+        const m = {}; m[tk.p.id] = [sx, sy + inn * 0.3];
+        if (rest[0]) m[rest[0].p.id] = [sx + 8, sy + inn * 6]; if (rest[1]) m[rest[1].p.id] = [sx - 7, sy + inn * 10];
+        const ops = opp.sort((a, b) => Math.hypot(a.x - sx, a.y - sy) - Math.hypot(b.x - sx, b.y - sy));
+        if (ops[0]) m[ops[0].p.id] = [sx + 9.5, sy + inn * 6.5]; if (ops[1]) m[ops[1].p.id] = [sx - 8.5, sy + inn * 10.5];
+        over.pos = m; tk._sx = sx; tk._sy = sy;
+      }, 2.2));
+      st.push(FN(() => { SNAPP(); placeBall(tk._sx, tk._sy); setCarrier(tk); }, 0.4));
+      st.push({ fl: 1, start() { if (r1) flight(tk._sx, tk._sy, r1.x, r1.y, 0.8, () => setCarrier(r1), 3, r1); } });
+      st.push(FN(() => { over.pos = null; }, 0));
+    };
   }
   function chance(side, o) {
     return (cur) => {
@@ -158,6 +245,7 @@ const Campo = (() => {
       st.push(NEAR(shooter, side, 21)); st.push(SNAP(shooter, side, 22));
       st.push(WAIT(0.15));
       shotSteps(st, side, o.kind, shooter, o.name || shooter.p.name);
+      if (o.kind !== "goal") st.push(FN(() => { let f = null; if (o.kind === "wide") f = goalKick(other(side)); else if ((o.kind === "save" || o.kind === "block") && R() < 0.4) f = corner(side); if (f) { f.ill = true; q.unshift(f); } }, 0));
     };
   }
   function penaltyWin(side, e) {
@@ -228,8 +316,9 @@ const Campo = (() => {
         const t = kind === "yellow" ? `🟨 Cartão amarelo: ${e.name}` : `🟥 Expulso: ${e.name}`;
         say(t, false, 2.4); addFeed(`${t.replace(e.name, "<b>" + esc(e.name) + "</b>")} (${esc(e.club)})`);
       }, kind === "red" ? 2.2 : 1.6));
+      st.push(FN(() => { halt = false; if (!vi || !spot) return; const m = {}; for (const o of team(other(vi.side))) { const d = Math.hypot(o.x - spot.x, o.y - spot.y); if (d < 10 && o.p.pos !== "GK") { const a = Math.atan2(o.y - spot.y, o.x - spot.x); m[o.p.id] = [spot.x + 10.5 * Math.cos(a), spot.y + 10.5 * Math.sin(a)]; } } over.pos = m; }, 1.6));
       st.push({ fl: 1, start() {
-        halt = false;
+        halt = false; SNAPP();
         if (!vi || !spot) return;
         const kk = nearest(team(vi.side).filter((x) => x.p.pos !== "GK" && x !== fo), spot.x, spot.y) || vi;
         kk.x = spot.x - (vi.side === "h" ? 0.8 : -0.8); kk.y = spot.y; setCarrier(kk); narrate("Cobrança de falta, o jogo continua");
@@ -270,6 +359,7 @@ const Campo = (() => {
       if (M.px) share = clamp(M.px.h / Math.max(M.px.h + M.px.a, 1e-9), 0.3, 0.7);
       for (const side of ["h", "a"]) {
         const sh = side === "h" ? share : 1 - share;
+        if (q.length < 2 && !freeze && side === "h" && R() < 0.1) { const fn = throwIn(R() < share ? "h" : "a"); fn.ill = true; q.push(fn); }
         if (q.length < 2 && !freeze && side === "h" && R() < 0.035) { const fn = foulScript("plain", null); fn.ill = true; q.push(fn); }
         if (q.length < 2 && !freeze && R() < 0.06 * 2 * sh) { // chance ilustrativa (sem gol)
           const kind = pickW(["save", "wide", "block", "post"], [5, 2.6, 1.6, 0.8]);
@@ -278,11 +368,11 @@ const Campo = (() => {
       }
     }
   }
-  function finishCur() { cur = null; }
+  function finishCur() { cur = null; over.pos = null; }
   function runScript(dt) {
     if (!cur) { if (!q.length) return false; cur = { steps: [], i: 0, age: 0 }; q.shift()(cur); if (!cur.steps.length) { cur = null; return false; } }
     cur.age += dt;
-    if (cur.age > 16) { ball.flight = null; over.gk = null; finishCur(); return false; }
+    if (cur.age > 26) { ball.flight = null; over.gk = null; over.pos = null; finishCur(); return false; }
     const s = cur.steps[cur.i];
     if (!s) { finishCur(); return false; }
     if (!s.on) { s.on = 1; s.t = 0; s.start(); }
@@ -295,6 +385,7 @@ const Campo = (() => {
   function step(dt) {
     dt *= 0.85; clock += dt;
     sync(); layout();
+    if (L && L.done && !cur && !q.length) { if (!ended) { ended = true; say("🏁 Fim de jogo", true, 4); narrate("Apita o árbitro: fim de jogo"); addFeed("🏁 Fim de jogo"); ball.flight = null; over.run = null; over.pos = null; } halt = true; freeze = true; }
     for (const sd of ["h", "a"]) press[sd] = team(sd).filter((o) => o.p.pos !== "GK" && o.p.id !== ball.carrier).sort((a, b) => Math.hypot(a.x - ball.x, a.y - ball.y) - Math.hypot(b.x - ball.x, b.y - ball.y)).slice(0, 3);
     for (const id in P) {
       const o = P[id]; if (!o.live) continue;
@@ -303,10 +394,10 @@ const Campo = (() => {
       if (o.wt <= 0) { o.wt = 1.6 + R() * 2.6; const gk = o.p.pos === "GK", rx = gk ? 0 : o.p.pos === "DEF" ? 0.14 : o.p.pos === "MID" ? 0.28 : 0.24; o.twx = (R() - 0.5) * 2 * rx; o.twy = gk ? 0 : (R() - 0.5) * 0.5; }
       o.wx += (o.twx - o.wx) * Math.min(1, dt * 0.9); o.wy += (o.twy - o.wy) * Math.min(1, dt * 0.9);
       const t = target(o), pr = press[o.side].indexOf(o);
-      if (pr >= 0 && !over.gk) { const kk = poss === o.side ? 0.35 : 0.6; t[0] += (ball.x - t[0]) * kk; t[1] += (ball.y - t[1]) * kk; }
-      const k = Math.min(1, dt * (ball.carrier === o.p.id ? 3.2 : o.p.pos === "GK" && over.gk ? 6 : 2));
+      if (pr >= 0 && !over.gk && !(over.pos && over.pos[o.p.id])) { const kk = poss === o.side ? 0.35 : 0.6; t[0] += (ball.x - t[0]) * kk; t[1] += (ball.y - t[1]) * kk; }
+      const k = Math.min(1, dt * (over.pos && over.pos[o.p.id] ? 6 : ball.carrier === o.p.id ? 3.2 : o.p.pos === "GK" && over.gk ? 6 : 2));
       let mx = (t[0] - o.x) * k, my = (t[1] - o.y) * k;
-      const sp = (over.run && over.run.o === o ? 9.5 : ball.carrier === o.p.id ? 5.2 : o.p.pos === "GK" ? 7 : 6.4) * dt, ml = Math.hypot(mx, my);
+      const sp = (over.run && over.run.o === o ? 9.5 : over.pos && over.pos[o.p.id] ? 9 : ball.carrier === o.p.id ? 5.2 : o.p.pos === "GK" ? 7 : 6.4) * dt, ml = Math.hypot(mx, my);
       if (ml > sp) { mx *= sp / ml; my *= sp / ml; }
       o.x += mx; o.y += my;
     }
@@ -512,7 +603,7 @@ const Campo = (() => {
     start(live) {
       stopLoop();
       L = live; M = live.matches.find((m) => (m.mine.h || m.mine.a) && !m.hold && !m.fin) || live.matches.find((m) => m.mine.h || m.mine.a) || live.matches[0];
-      stat = { h: { poss: 0, shots: 0, onT: 0 }, a: { poss: 0, shots: 0, onT: 0 } }; lastAdded = null; P = {}; NUM = {}; USED = { h: {}, a: {} }; q = []; cur = null; feed = []; marks = []; over = {}; freeze = false; halt = false; cap = ""; capT = 0; narr = ""; narrT = 0; flash = 0; lastMin = -1; poss = "h"; share = 0.5;
+      stat = { h: { poss: 0, shots: 0, onT: 0 }, a: { poss: 0, shots: 0, onT: 0 } }; lastAdded = null; P = {}; NUM = {}; USED = { h: {}, a: {} }; q = []; cur = null; feed = []; marks = []; over = {}; freeze = false; halt = false; ended = false; cap = ""; capT = 0; narr = ""; narrT = 0; flash = 0; lastMin = -1; poss = "h"; share = 0.5;
       seen = M.ev.length; shown = { h: M.gh || 0, a: M.ga || 0 };
       if (v3 && typeof Campo3D !== "undefined") Campo3D.load();
       layout(); restart("h"); last = 0;
@@ -526,6 +617,7 @@ const Campo = (() => {
       return `<div class="card"><h2>Estatísticas do jogo</h2><div style="display:grid;grid-template-columns:1fr auto 1fr;gap:3px 10px;align-items:center;text-align:center;font-size:14px"><b style="text-align:left">${dot(k.h)} ${esc(M.H.name)}</b><span></span><b style="text-align:right">${esc(M.A.name)} ${dot(k.a)}</b>${rows.map((r) => `<b style="text-align:left;font-size:17px">${r[1]}</b><span class="mut">${r[0]}</span><b style="text-align:right;font-size:17px">${r[2]}</b>`).join("")}</div><div style="display:flex;height:8px;border-radius:4px;overflow:hidden;margin:10px 0 2px;border:1px solid #fff5"><div style="width:${ph}%;background:${k.h}"></div><div style="flex:1;background:${k.a}"></div></div>${M.gate ? `<p class="mut" style="margin:8px 0 0;font-size:13px">🏟️ Público ${M.gate.att.toLocaleString("pt-BR")} de ${M.gate.cap.toLocaleString("pt-BR")} · ingresso ${typeof money === "function" ? money(M.gate.price) : M.gate.price}</p>` : ""}<p class="mut" style="font-size:11px;margin:6px 0 0">Posse e finalizações vêm da animação (ilustrativas). Gols, cartões, lesões, pênaltis e trocas são reais.</p></div>`;
     },
     isTracked(m) { return m === M; },
+    piece(k, side) { q = []; cur = null; over.pos = null; halt = false; q.push({ goal: goalKick, corner, kickoff, throw: throwIn }[k](side)); },
     score(m) { return m === M ? [shown.h, shown.a] : null; },
     toggle() { v3 = !v3; if (v3 && typeof Campo3D !== "undefined") Campo3D.load(); try { localStorage.setItem('campo3d', v3 ? '1' : '0'); } catch (e) {} const b = document.getElementById('c3b'); if (b) b.textContent = v3 ? '🎥 Voltar ao 2D' : '🎥 Ver em 3D'; },
     kitsFor,
