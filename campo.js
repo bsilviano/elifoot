@@ -200,16 +200,25 @@ const Campo = (() => {
   function foulScript(kind, e, fside) {
     return (cur) => {
       const st = cur.steps; let fo = null, vi = null, spot = null;
-      st.push(FN(() => {
+      // 1) o marcador corre até quem está com a bola (nada de falta surgindo do nada)
+      st.push({ dur: 6, start() {
         fo = (e && findP(e.name, e.side)) || null;
         const cr = ball.carrier != null && P[ball.carrier];
         if (!fo) { const sd = other(cr && cr.live ? cr.side : poss), c = team(sd).filter((x) => x.p.pos !== "GK"); fo = nearest(c, ball.x, ball.y); }
+        if (fo) over.run = { o: fo, x: ball.x, y: ball.y };
+      }, until() {
+        if (!fo) return true;
+        over.run = { o: fo, x: ball.x, y: ball.y };
+        return Math.hypot(fo.x - ball.x, fo.y - ball.y) <= 2.2;
+      } });
+      st.push(FN(() => {
+        over.run = null;
         if (!fo) return;
-        const opp = team(other(fo.side)).filter((x) => x.p.pos !== "GK");
+        const cr = ball.carrier != null && P[ball.carrier], opp = team(other(fo.side)).filter((x) => x.p.pos !== "GK");
         vi = cr && cr.live && cr.side !== fo.side && cr.p.pos !== "GK" ? cr : nearest(opp, ball.x, ball.y);
         if (!vi) return;
-        spot = { x: clamp(vi.x, 2, W - 2), y: clamp(vi.y, 2, H - 2) };
-        ball.flight = null; ball.carrier = null; ball.x = spot.x; ball.y = spot.y; ball.z = 0; over.run = null; over.gk = null;
+        spot = { x: clamp(ball.x, 2, W - 2), y: clamp(ball.y, 2, H - 2) };
+        ball.flight = null; ball.carrier = null; ball.x = spot.x; ball.y = spot.y; ball.z = 0; over.gk = null;
         fo.x = spot.x + (fo.side === "h" ? -1.2 : 1.2); fo.y = spot.y; vi.x = spot.x; vi.y = spot.y + 1;
         halt = true; poss = vi.side;
         const t = `🚩 Falta de ${fo.p.name} em ${vi.p.name}`; say(t, false, 2.4); narrate("Apito do árbitro! Falta marcada"); addFeed(`🚩 Falta de <b>${esc(fo.p.name)}</b> (${esc(fo.side === "h" ? M.H.name : M.A.name)})`);
@@ -261,7 +270,7 @@ const Campo = (() => {
       if (M.px) share = clamp(M.px.h / Math.max(M.px.h + M.px.a, 1e-9), 0.3, 0.7);
       for (const side of ["h", "a"]) {
         const sh = side === "h" ? share : 1 - share;
-        if (q.length < 2 && !freeze && side === "h" && R() < 0.14) q.push(foulScript("plain", null, R() < 0.5 ? "h" : "a"));
+        if (q.length < 2 && !freeze && side === "h" && R() < 0.035) q.push(foulScript("plain", null));
         if (q.length < 2 && !freeze && R() < 0.06 * 2 * sh) { // chance ilustrativa (sem gol)
           const kind = pickW(["save", "wide", "block", "post"], [5, 2.6, 1.6, 0.8]);
           q.push(chance(side, { kind }));
