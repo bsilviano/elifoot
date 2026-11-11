@@ -158,7 +158,7 @@ const Campo = (() => {
           over.pos = m; ball.carrier = null; focus = { x: fx, y: fy }; sc.cel = true; fld(side).forEach((o) => { if (m[o.p.id]) o.cel = true; });
         }
       }, 2.8));
-      st.push(FN(() => { Object.values(P).forEach((o) => { o.cel = false; }); over.pos = null; over.gk = null; placeBall(W / 2, H / 2); const kq = kickoff(oside); q.unshift(kq); }, 0.1));
+      st.push(FN(() => { Object.values(P).forEach((o) => { o.cel = false; }); over.pos = null; over.gk = null; over.run = null; ball.flight = null; ball.carrier = null; const kq = kickoff(oside); q.unshift(kq); }, 0.1));
     } else if (kind === "save") {
       st.push(FN(() => { over.gk = null; if (gk) setCarrier(gk); say("🧤 Defesa" + (gk ? " de " + gk.p.name : "") + "!"); addFeed(`🧤 Chute de ${esc(name)}, defesa${gk ? " de " + esc(gk.p.name) : ""}`); }, 1.8));
     } else if (kind === "savec") { // goleiro defende e a bola sai pela linha de fundo, rente ao escanteio
@@ -224,7 +224,7 @@ const Campo = (() => {
     return (cur) => {
       const st = cur.steps; let kk = null, pa = null;
       st.push(FN(() => {
-        placeBall(W / 2, H / 2); poss = side; narrate("Bola ao centro: recomeça o jogo, saída do " + clubOf(side));
+        { const dc = Math.hypot(ball.x - W / 2, ball.y - H / 2); if (dc > 2.5) { ball.carrier = null; over.run = null; over.gk = null; flight(ball.x, ball.y, W / 2, H / 2, Math.max(1, dc / 20), () => {}, 3); } else placeBall(W / 2, H / 2); } poss = side; narrate("Bola ao centro: recomeça o jogo, saída do " + clubOf(side));
         const m = {}, atk = fld(side).sort((a, b) => (b.p.pos === "ATT") - (a.p.pos === "ATT") || b.p.ov - a.p.ov); kk = atk[0]; pa = atk[1] || atk[0];
         for (const sd of ["h", "a"]) for (const o of team(sd)) {
           let x = OWNX(sd, clamp(o.ax * 0.5, 0.04, 0.45)), y = yOf(o);
@@ -328,8 +328,9 @@ const Campo = (() => {
       // 0) cartão só com o time do infrator na defesa: espera a posse mudar; se não mudar, o rival fica com a bola
       if (e) {
         const holder = () => { const c = ball.carrier != null && P[ball.carrier]; return c && c.live ? c.side : poss; };
-        st.push({ dur: 7, start() {}, until() { return holder() !== e.side; } });
-        st.push(FN(() => { if (holder() !== e.side) return; const f0 = findP(e.name, e.side); const opp = team(other(e.side)).filter((x) => x.p.pos !== "GK"); const v = nearest(opp, f0 ? f0.x : ball.x, f0 ? f0.y : ball.y); if (v) { placeBall(v.x, v.y); setCarrier(v); } }, 0.05));
+        const inB = () => Math.min(ball.x, W - ball.x) < 17 && Math.abs(ball.y - 34) < 20.5;
+        st.push({ dur: 9, start() {}, until() { return holder() !== e.side && !inB() && !ball.flight; } });
+        st.push(FN(() => { if (holder() !== e.side || ball.flight) return; const opp = team(other(e.side)).filter((x) => x.p.pos !== "GK"), v = nearest(opp, ball.x, ball.y); if (v && Math.hypot(v.x - ball.x, v.y - ball.y) < 14) { poss = v.side; flight(ball.x, ball.y, v.x, v.y, Math.max(0.4, Math.hypot(v.x - ball.x, v.y - ball.y) / 16), () => setCarrier(v), 1, v); } }, 0.8));
       }
       // 1) o marcador corre até quem está com a bola (nada de falta surgindo do nada)
       st.push({ dur: e ? 10 : 5, start() {
@@ -460,7 +461,7 @@ const Campo = (() => {
     if (shotT > 0) shotT -= dt; if (slow > 0) { slow -= dt; dt *= 0.35; }
     dt *= 0.85 * (1 + clamp(lag / 8000, 0, 1.3)); clock += dt;
     sync(); layout();
-    if (L && L.done && !cur && !q.length && !ended && !(Math.abs(ball.x - W / 2) < 18 && !ball.flight)) { endWait += lastDt; if (endWait > 8 && !ball.flight && !freeze) { const nt = nearest(team(other(poss)).filter((o) => o.p.pos !== "GK"), W / 2, H / 2); flight(ball.x, ball.y, W / 2, H / 2 + (R() - 0.5) * 8, Math.max(0.9, Math.hypot(ball.x - W / 2, ball.y - H / 2) / 22), () => { if (nt) setCarrier(nt); }, 5); } }
+    if (L && L.done && !cur && !q.length && !ended && endWait < 14 && !(Math.abs(ball.x - W / 2) < 18 && !ball.flight)) { endWait += lastDt; if (endWait > 8 && !ball.flight && !freeze) { const nt = nearest(team(other(poss)).filter((o) => o.p.pos !== "GK"), W / 2, H / 2); flight(ball.x, ball.y, W / 2, H / 2 + (R() - 0.5) * 8, Math.max(0.9, Math.hypot(ball.x - W / 2, ball.y - H / 2) / 22), () => { if (nt) setCarrier(nt); }, 5); } }
     else if (L && L.done && !cur && !q.length) { if (!ended) { ended = true; say("🏁 Fim de jogo", true, 4); narrate("Apita o árbitro: fim de jogo"); addFeed("🏁 Fim de jogo"); ball.flight = null; over.run = null; over.pos = null; } halt = true; freeze = true; }
     for (const sd of ["h", "a"]) press[sd] = team(sd).filter((o) => o.p.pos !== "GK" && o.p.id !== ball.carrier).sort((a, b) => Math.hypot(a.x - ball.x, a.y - ball.y) - Math.hypot(b.x - ball.x, b.y - ball.y)).slice(0, 3);
     for (const id in P) {
@@ -730,6 +731,6 @@ const Campo = (() => {
     card() { return `<div class="card" style="padding:8px 8px 6px"><div style="text-align:right;margin:0 0 6px"><button onclick="Campo.zoom(-1)" style="font-size:13px;padding:4px 10px;border-radius:8px;margin-right:4px">🔍−</button><button onclick="Campo.zoom(1)" style="font-size:13px;padding:4px 10px;border-radius:8px;margin-right:6px">🔍+</button><button id="csb" onclick="Campo.som()" style="font-size:13px;padding:4px 10px;border-radius:8px;margin-right:6px">${SND.on ? "🔊 Som" : "🔇 Mudo"}</button><button id="c4b" onclick="Campo.camNext()" style="font-size:13px;padding:4px 10px;border-radius:8px;margin-right:6px">${camLbl()}</button></div><div id="pcvh" style="min-height:${hh}px"></div><div style="font-size:13px;margin-top:6px;max-height:150px;overflow:auto">${feed.slice(0, 8).map((f) => `<div style="padding:1px 0"><span class="mut">${fmtMin(f.m)}'</span> ${f.t}</div>`).join("") || '<span class="mut">Sem lances ainda.</span>'}</div><p class="mut" style="font-size:11px;margin:4px 0 0">Gols, pênaltis, cartões, lesões e trocas são os lances reais. Chutes sem gol são ilustrativos.</p></div>`; },
   };
   function camLbl() { return "📹 " + ({ auto: "Câmera: automática", side: "Câmera: lateral", aerial: "Câmera: aérea", end: "Câmera: atrás do gol" }[camMode]); }
-  function busy() { return !!M && (!!cur || q.length > 0); }
+  function busy() { return !!M && (!!cur || q.length > 0 || !!(L && L.done && !ended)); }
   function stopLoop() { if (raf) cancelAnimationFrame(raf); raf = 0; }
 })();
