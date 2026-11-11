@@ -2,7 +2,7 @@
 // As bibliotecas ficam em lib/ e só são carregadas quando o jogador aperta "Ver em 3D".
 const Campo3D = (() => {
   const W = 105, H = 68;
-  const KG = {}; let clock3 = 0, st = "idle", T = null, ren = null, scene, cam, sun, ball, ballSh, ring, pl = {}, glb = null, camX = W / 2, spr = {}, cbs = [], ok = false, fail = false;
+  const KG = {}; let cpos = null, clook = null, clock3 = 0, st = "idle", T = null, ren = null, scene, cam, sun, ball, ballSh, ring, pl = {}, glb = null, camX = W / 2, spr = {}, cbs = [], ok = false, fail = false;
   const wx = (x) => W / 2 - x, wz = (y) => y - H / 2;
   const ver = () => { try { return typeof VERSAO !== "undefined" ? VERSAO : 1; } catch (e) { return 1; } };
   const loadJs = (src) => new Promise((res, rej) => { const s = document.createElement("script"); s.src = src + "?v=" + ver(); s.onload = res; s.onerror = () => rej(new Error(src)); document.head.appendChild(s); });
@@ -114,7 +114,12 @@ const Campo3D = (() => {
     if (!ok) return null;
     ren.setSize(S.w, S.h, false); cam.aspect = S.w / S.h; cam.updateProjectionMatrix();
     camX += (clamp(S.ball.x, 15, W - 15) - camX) * 0.06;
-    const cX = wx(camX); cam.position.set(cX, 10, -H / 2 - 9); cam.lookAt(cX, 0, 5);
+    let tp, tl;
+    if (S.focus) { const fx = wx(S.focus.x), fz = wz(S.focus.y); tp = [fx, 11, clamp(fz - 20, -H / 2 - 12, H / 2 - 14)]; tl = [fx, 0.8, fz]; }
+    else { const cX0 = wx(camX); tp = [cX0, 10, -H / 2 - 9]; tl = [cX0, 0, 5]; }
+    if (!cpos) { cpos = tp.slice(); clook = tl.slice(); }
+    const kk = Math.min(1, Math.max(0.001, S.dt) * 3.2); for (let i = 0; i < 3; i++) { cpos[i] += (tp[i] - cpos[i]) * kk; clook[i] += (tl[i] - clook[i]) * kk; }
+    const cX = cpos[0]; cam.position.set(cpos[0], cpos[1], cpos[2]); cam.lookAt(clook[0], clook[1], clook[2]);
     sun.position.set(cX + 18, 40, -22); sun.target.position.set(cX, 0, 0);
     const seen = {}, dt = Math.max(0.001, S.dt); clock3 += dt;
     for (const p of S.players) {
