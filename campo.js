@@ -7,7 +7,7 @@ const Campo = (() => {
   cv.id = "campoCv";
   cv.style.cssText = "width:100%;display:block;border-radius:10px;aspect-ratio:" + (W + 2 * M_) + "/" + (H + 2 * M_ + BAND);
   const cx = cv.getContext("2d");
-  let boxT = 0, injHold = false, koInit = false, penCam = null, endWait = 0, zoomF = 1, camMode = "auto", shotT = 0, shotGx = 0, slow = 0, lag = 0, flip = false, focus = null, leaving = [], meds = [], mounted = false, halfDone = false, ended = false, lastDt = 0.016, v3 = false, camX = W / 2; try { v3 = true; zoomF = parseFloat(localStorage.getItem("campoZoom")) || 1; } catch (e) {}
+  let wdT = 0, boxT = 0, injHold = false, koInit = false, penCam = null, endWait = 0, zoomF = 1, camMode = "auto", shotT = 0, shotGx = 0, slow = 0, lag = 0, flip = false, focus = null, leaving = [], meds = [], mounted = false, halfDone = false, ended = false, lastDt = 0.016, v3 = false, camX = W / 2; try { v3 = true; zoomF = parseFloat(localStorage.getItem("campoZoom")) || 1; } catch (e) {}
   let M = null, L = null, seen = 0, P = {}, ball, q = [], cur = null, feed = [], cap = "", capT = 0, capBig = false, marks = [];
   let lastAdded = null, stat = { h: { poss: 0, shots: 0, onT: 0 }, a: { poss: 0, shots: 0, onT: 0 } }, NUM = {}, USED = { h: {}, a: {} }, narr = "", narrT = 0, press = {}, shown = { h: 0, a: 0 }, raf = 0, last = 0, passT = 0, poss = "h", share = 0.5, flash = 0, over = {}, freeze = false, halt = false, lastMin = -1, hh = 0, clock = 0;
   ball = { x: W / 2, y: H / 2, carrier: null, flight: null };
@@ -338,16 +338,16 @@ const Campo = (() => {
       st.push(FN(() => { penCam = null; }, 0));
     };
   }
-  function foulScript(kind, e, fside) {
+  function foulScript(kind, e, fside, shotDone) {
     return (cur) => {
       const st = cur.steps; let fo = null, vi = null, spot = null, near = false;
       // jogador já dentro da grande área adversária: primeiro finaliza (como em campo), e só depois vem a falta/cartão, sem "voltar" a bola
-      if (e) {
+      if (e && !shotDone) {
         const c0 = ball.carrier != null && P[ball.carrier];
         if (c0 && c0.live && c0.p.pos !== "GK" && !ball.flight && Math.abs(c0.x - (c0.side === "h" ? W : 0)) < 18 && Math.abs(c0.y - 34) < 21) {
           const sd = c0.side; let sk = pickW(["save", "wide", "block", "post"], [5, 2.6, 1.6, 0.8]); if (sk === "save" && R() < 0.4) sk = "savec";
           st.push(WAIT(0.2)); shotSteps(st, sd, sk, c0, c0.p.name);
-          st.push(FN(() => { q.unshift(foulScript(kind, e, fside)); let f = null; if (sk === "wide") f = goalKick(other(sd)); else if (sk === "savec") f = corner(sd); if (f) { f.ill = true; q.unshift(f); } }, 0));
+          st.push(FN(() => { q.unshift(foulScript(kind, e, fside, true)); let f = null; if (sk === "wide") f = goalKick(other(sd)); else if (sk === "savec") f = corner(sd); if (f) { f.ill = true; q.unshift(f); } }, 0));
           return;
         }
       }
@@ -528,6 +528,8 @@ const Campo = (() => {
       const c = ball.carrier != null && P[ball.carrier];
       if (c && c.live) { const d = c.side === "h" ? 1 : -1; ball.x = c.x + d * 0.9; ball.y = c.y + 0.3; }
     }
+    // vigia: se a fila de lances passar de 40 s seguidos sem esvaziar, descarta tudo para o relógio do jogo não travar
+    if (cur || q.length) { wdT += dt; if (wdT > 40 && !(L && L.done)) { wdT = 0; q = []; cur = null; ball.flight = null; over.gk = null; over.pos = null; over.run = null; focus = null; halt = false; freeze = false; } } else wdT = 0;
     const scripted = runScript(dt);
     if (!scripted && !freeze && !ball.flight) { { const bc = ball.carrier != null && P[ball.carrier]; if (bc && bc.live && bc.p.pos !== "GK" && Math.abs(bc.x - (bc.side === "h" ? W : 0)) < 18 && Math.abs(bc.y - 34) < 21) { boxT += dt; if (boxT > 1.6) { passT = 0; boxT = 0; } } else boxT = 0; } passT -= dt; if (passT <= 0) { ambient(); passT = 0.4 + R() * 0.45; } }
     stat[poss].poss += dt;
