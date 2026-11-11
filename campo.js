@@ -644,7 +644,7 @@ const Campo = (() => {
     }
     cx.textAlign = "center"; cx.fillStyle = "#ffd166"; cx.fillText(scr, mid, cy1);
     cx.font = "700 " + f2s + "px sans-serif"; cx.textAlign = "center"; cx.fillStyle = "#cfd8e0"; cx.fillText(sub, mid, bandPx * 0.78);
-    { const fc = Math.max(13, Math.round(2.6 * s)); cx.font = "800 " + fc + "px sans-serif"; const wc = cx.measureText(clk).width + 18, hc = fc * 1.5, xc = cv.width - wc - 8, yc = bandPx + 8; cx.fillStyle = "rgba(0,0,0,.72)"; cx.fillRect(xc, yc, wc, hc); cx.strokeStyle = "#ffd166"; cx.lineWidth = 2; cx.strokeRect(xc, yc, wc, hc); cx.fillStyle = "#fff"; cx.textAlign = "center"; cx.textBaseline = "middle"; cx.fillText(clk, xc + wc / 2, yc + hc / 2); }
+    { const fc = Math.max(13, Math.round(2.6 * s)); cx.font = "800 " + fc + "px sans-serif"; const wc = cx.measureText(clk).width + 18, hc = fc * 1.5, xc = cv.width - wc - 10, yc = cy1 - hc / 2; cx.fillStyle = "rgba(0,0,0,.72)"; cx.fillRect(xc, yc, wc, hc); cx.strokeStyle = "#ffd166"; cx.lineWidth = 2; cx.strokeRect(xc, yc, wc, hc); cx.fillStyle = "#fff"; cx.textAlign = "center"; cx.textBaseline = "middle"; cx.fillText(clk, xc + wc / 2, yc + hc / 2); }
     // narração e avisos de lance: sempre na mesma faixa, no topo do campo, em letra grande
     const evTxt = capT > 0 && cap && !capBig ? cap : narrT > 0 && narr ? "🎙️ " + narr : "";
     if (evTxt && !(capT > 0 && cap && capBig)) {
