@@ -322,6 +322,8 @@ const Campo = (() => {
         vi = cr && cr.live && cr.side !== fo.side && cr.p.pos !== "GK" ? cr : nearest(opp, ball.x, ball.y);
         if (!vi) return;
         spot = { x: clamp(ball.x, 2, W - 2), y: clamp(ball.y, 2, H - 2) };
+        { const gx0 = fo.side === "h" ? 0 : W, dxg = Math.abs(spot.x - gx0); // falta de quem defende a própria área seria pênalti: fora disso a falta é na entrada da área
+          if (dxg < 16.5 && Math.abs(spot.y - 34) < 20.16) { if (!e) { cur.steps.splice(cur.i + 1); return; } spot.x = gx0 + (fo.side === "h" ? 17.5 : -17.5); } }
         ball.flight = null; ball.carrier = null; ball.x = spot.x; ball.y = spot.y; ball.z = 0; over.gk = null;
         fo.x = spot.x + (fo.side === "h" ? -1.2 : 1.2); fo.y = spot.y; vi.x = spot.x; vi.y = spot.y + 1;
         halt = true; poss = vi.side; 
