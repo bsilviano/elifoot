@@ -340,7 +340,8 @@ const Campo = (() => {
       if (e) {
         const holder = () => { const c = ball.carrier != null && P[ball.carrier]; return c && c.live ? c.side : poss; };
         const inB = () => Math.min(ball.x, W - ball.x) < 18 && Math.abs(ball.y - 34) < 21;
-        st.push(FN(() => { if (holder() !== e.side || ball.flight) return; const opp = team(other(e.side)).filter((x) => x.p.pos !== "GK"), v = nearest(opp, ball.x, ball.y); if (v && Math.hypot(v.x - ball.x, v.y - ball.y) < 14) { poss = v.side; flight(ball.x, ball.y, v.x, v.y, Math.max(0.4, Math.hypot(v.x - ball.x, v.y - ball.y) / 16), () => setCarrier(v), 1, v); } }, 0.8));
+        // o infrator é sempre do time sem a bola: se o time dele tem a posse, o marcador mais próximo desarma antes (a posse muda) e só então vem a falta
+        st.push({ dur: 9, start() {}, until() { if (holder() !== e.side) return true; if (ball.flight) return false; const opp = team(other(e.side)).filter((x) => x.p.pos !== "GK"), v = nearest(opp, ball.x, ball.y); if (!v) return true; over.run = { o: v, x: ball.x, y: ball.y }; if (Math.hypot(v.x - ball.x, v.y - ball.y) < 1.8) { over.run = null; ball.flight = null; setCarrier(v); return true; } return false; } });
         // se o lance está dentro da área, quem tem a bola sai driblando para fora dela (nada de falta na área nem bola teletransportada)
         st.push({ dur: 5, start() {}, until() { if (ball.flight || !inB()) return true; const c = ball.carrier != null && P[ball.carrier]; if (!c || !c.live) return true; const gx0 = ball.x < W / 2 ? 0 : W; over.run = { o: c, x: gx0 + (gx0 === 0 ? 21 : -21), y: c.y + (c.y < 34 ? -3 : 3) }; return false; } });
       }
@@ -349,8 +350,7 @@ const Campo = (() => {
         fo = (e && findP(e.name, e.side)) || null;
         const cr = ball.carrier != null && P[ball.carrier];
         if (!fo) { const sd = other(cr && cr.live ? cr.side : poss), c = team(sd).filter((x) => x.p.pos !== "GK"); fo = nearest(c, ball.x, ball.y); }
-        // falta de quem está no ataque: nunca é o jogador com a bola, e sim um companheiro sem a bola (a bola já foi levada para fora da área)
-        if (fo && cr && cr.live && fo.side === cr.side) { if (fo === cr) fo = nearest(team(fo.side).filter((x) => x !== cr && x.p.pos !== "GK"), ball.x, ball.y) || fo; }
+        if (fo && cr && cr.live && fo.side === cr.side) { const v = nearest(team(other(fo.side)).filter((x) => x.p.pos !== "GK"), ball.x, ball.y); if (v) { ball.flight = null; setCarrier(v); } } // garantia: quem comete a falta nunca é do time com a bola
         if (fo) over.run = { o: fo, x: ball.x, y: ball.y };
       }, until() {
         if (!fo) return true;
