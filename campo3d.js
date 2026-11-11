@@ -2,7 +2,7 @@
 // As bibliotecas ficam em lib/ e só são carregadas quando o jogador aperta "Ver em 3D".
 const Campo3D = (() => {
   const W = 105, H = 68;
-  let st = "idle", T = null, ren = null, scene, cam, sun, ball, ballSh, ring, pl = {}, glb = null, camX = W / 2, spr = {}, cbs = [], ok = false, fail = false;
+  const KG = {}; let st = "idle", T = null, ren = null, scene, cam, sun, ball, ballSh, ring, pl = {}, glb = null, camX = W / 2, spr = {}, cbs = [], ok = false, fail = false;
   const wx = (x) => W / 2 - x, wz = (y) => y - H / 2;
   const ver = () => { try { return typeof VERSAO !== "undefined" ? VERSAO : 1; } catch (e) { return 1; } };
   const loadJs = (src) => new Promise((res, rej) => { const s = document.createElement("script"); s.src = src + "?v=" + ver(); s.onload = res; s.onerror = () => rej(new Error(src)); document.head.appendChild(s); });
@@ -80,9 +80,26 @@ const Campo3D = (() => {
     const m = new T.Sprite(new T.SpriteMaterial({ map: new T.CanvasTexture(c), depthTest: false, transparent: true })); m.renderOrder = 10; spr[key] = m; scene.add(m); return m;
   }
 
+  // uniforme pintado por vértice (camisa, calção, meias, pele, cabelo) sobre o mesmo modelo
+  function kitGeom(src, col, sh) {
+    const key = src.uuid + col + sh; if (KG[key]) return KG[key];
+    const g = src.clone(), pos = g.attributes.position, n = pos.count, arr = new Float32Array(n * 3), c1 = hex(col), c2 = hex(sh), sk = new T.Color(0xe0ac84), hr = new T.Color(0x2a1a10);
+    for (let i = 0; i < n; i++) {
+      const x = pos.getX(i), y = pos.getY(i); let c = c1;
+      if (y > 1.48 && Math.abs(x) < 0.2) c = y > 1.62 ? hr : sk;
+      else if (Math.abs(x) > 0.52 && y > 0.9) c = sk; // mãos
+      else if (y > 1.0 && Math.abs(x) <= 0.52 && y < 1.5) c = c1; // camisa e mangas
+      else if (y > 1.5) c = sk;
+      else if (y > 0.82) c = c2; // calção
+      else if (y > 0.38) c = sk; // coxas e canelas
+      else c = c1; // meias
+      arr[i * 3] = c.r; arr[i * 3 + 1] = c.g; arr[i * 3 + 2] = c.b;
+    }
+    g.setAttribute("color", new T.BufferAttribute(arr, 3)); KG[key] = g; return g;
+  }
   function mkPlayer(id) {
     const m = T.SkeletonUtils.clone(glb.scene), mats = [];
-    m.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.material = o.material.clone(); mats.push(o.material); } });
+    m.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.material = o.material.clone(); o.userData.src = o.geometry; if (!/Joints/.test(o.material.name || "")) { o.material.vertexColors = true; o.material.color = new T.Color(0xffffff); o.userData.body = true; } mats.push(o); } });
     m.scale.multiplyScalar(1.02);
     const root = new T.Group(); root.add(m); scene.add(root);
     const mx = new T.AnimationMixer(m), acts = {};
@@ -90,6 +107,7 @@ const Campo3D = (() => {
     const o = { root, mx, acts, mats, yaw: 0, lx: null, lz: null, v: 0, sp: 0 }; pl[id] = o; return o;
   }
   const hex = (c) => new T.Color(c);
+  const rgb = (c) => [1, 3, 5].map((i) => parseInt(c.substr(i, 2), 16)); const lum = (c) => { const l = rgb(c); return 0.3 * l[0] + 0.59 * l[1] + 0.11 * l[2]; };
 
   // estado: { w, h, dt, k:{h,a,gh,ga}, players:[{id,x,y,side,gk,n,name,carrier}], ball:{x,y,z}, marks:[{x,y,k,t}], flash, goalSide }
   function render(S) {
@@ -107,7 +125,7 @@ const Campo3D = (() => {
       const wI = o.v < 0.7 ? 1 : 0, wW = o.v >= 0.7 && o.v < 3.6 ? 1 : 0, wR = o.v >= 3.6 ? 1 : 0;
       for (const [n, w] of [["idle", wI], ["walk", wW], ["run", wR]]) if (o.acts[n]) { const c = o.acts[n].getEffectiveWeight(); o.acts[n].setEffectiveWeight(c + (w - c) * 0.2); }
       o.mx.update(dt);
-      const col = p.gk ? (p.side === "h" ? S.k.gh : S.k.ga) : S.k[p.side]; if (o.col !== col) { o.col = col; o.mats.forEach((m) => { if (!/Joints/.test(m.name || "")) m.color = hex(col); }); }
+      const col = p.gk ? (p.side === "h" ? S.k.gh : S.k.ga) : S.k[p.side]; if (o.col !== col) { o.col = col; const sh = lum(col) > 150 ? "#202020" : "#f4f4f4"; o.mats.forEach((m) => { if (m.userData.body) m.geometry = kitGeom(m.userData.src, col, p.gk ? "#111111" : sh); }); }
       const n = sprite(String(p.n), "n", p.id); n.visible = true; n.position.set(X, 2.35, Z); n.scale.set(1.6, 0.6, 1);
       p._s = n;
       if (p.carrier) { ring.visible = true; ring.position.x = X; ring.position.z = Z; const nm = sprite(p.name, "t"); nm.visible = true; nm.position.set(X, 3.1, Z); nm.scale.set(3.4, 1.28, 1); p._t = nm; }
