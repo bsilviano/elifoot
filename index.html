@@ -34,7 +34,7 @@ tr.me{background:color-mix(in srgb,var(--ac) 30%,transparent);font-weight:800}tr
 .ctlr{justify-content:center;flex-wrap:wrap}.ctlr select,.ctlr button{padding:6px 10px;font-size:13px}.ctlr select,.ctlr button{margin:0}.rt{display:flex;align-items:center;gap:5px;flex:none;white-space:nowrap}.ovc{width:22px;text-align:right}.vl{width:82px;text-align:right;font-size:11px}.rt button{padding:5px 8px}.pl>span:first-child{min-width:0;flex:1;padding-right:6px}.pc{flex:none!important;width:100px;padding:0!important;display:flex;flex-direction:column;align-items:center;line-height:1.25;font-size:11px}.pc .pos{margin:0;min-width:0;width:auto}.nm{flex:1;min-width:0;padding:0 6px}.pl{display:flex;justify-content:space-between;align-items:center;padding:7px 4px;border-bottom:1px solid var(--line)}
 .pl.in{background:var(--hl)}
 .mut{color:var(--mut);font-size:12px}
-.hire{text-decoration:underline dotted;cursor:pointer}.big{font-size:20px;text-align:center;padding:8px}.tb{display:inline-block;padding:3px 9px;border-radius:8px;font-weight:700;font-size:15px;margin:2px}.mrow{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:4px;font-size:22px;font-weight:700;padding:6px 0}
+.hire{text-decoration:underline dotted;cursor:pointer}.tlink{cursor:pointer;text-decoration:underline dotted;text-underline-offset:2px;color:inherit}.big{font-size:20px;text-align:center;padding:8px}.tb{display:inline-block;padding:3px 9px;border-radius:8px;font-weight:700;font-size:15px;margin:2px}.mrow{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:4px;font-size:22px;font-weight:700;padding:6px 0}
 .good{color:var(--ac)}.bad{color:var(--bad)}.warn{color:var(--warn)}
 .campo{position:relative;min-height:clamp(310px,calc(100dvh - 375px),520px);border-radius:10px;border:2px solid #fff8;background:repeating-linear-gradient(0deg,#2e8b3d 0 43px,#287a35 43px 86px);display:flex;flex-direction:column;justify-content:space-around;padding:8px 4px;overflow:hidden}
 .campo:before{content:"";position:absolute;left:0;right:0;top:50%;border-top:2px solid #fff8}
@@ -68,15 +68,15 @@ tr.me{background:color-mix(in srgb,var(--ac) 30%,transparent);font-weight:800}tr
 <header><div class="hl"><span id="crest"></span><b id="hT">Meu Elifoot</b></div><div class="hr"><span id="flag"></span><span id="hS"></span></div></header>
 <main id="app"></main>
 <nav id="nav"></nav>
-<script src="clubs.js?v=233"></script>
-<script src="game.js?v=233"></script>
-<script src="campo.js?v=233"></script>
-<script src="campo3d.js?v=233"></script>
+<script src="clubs.js?v=234"></script>
+<script src="game.js?v=234"></script>
+<script src="campo.js?v=234"></script>
+<script src="campo3d.js?v=234"></script>
 <script>
 const PREFIX="elifoot:save:",SAVE1="Elifoot"; // um único save para todos os times
 let artCan=false,S=null,tab="jogo",msg="",mf={pos:"",q:"",any:true,min:1,max:null,afford:true,ord:"ovr",dir:-1},viewKey=null;
 const $=id=>document.getElementById(id);
-const VERSAO=233;
+const VERSAO=234;
 const moneyFull=n=>(n<0?"-":"")+"R$ "+Math.round(Math.abs(n)).toLocaleString("pt-BR");
 const money=moneyFull;
 const U=()=>S.teams[S.user];
@@ -736,6 +736,32 @@ function vMercado(){
   <p class="mut">${n} jogadores · preço = valor +15% · mostrando os 40 primeiros da ordenação</p></div></div><div class="el2"><div class="card">${l.map(p=>`<div class="pl"><span><span class="pos">${SPN(p)}</span>${p.name} <span class="mut">${p.age}a · ${p.team}</span></span><span><b>${p.ov}</b> <button class="s p" onclick="buy(${p.id})">${money(Math.round(p.value*1.15))}</button></span></div>`).join("")}</div></div>${art}</div>`;
 }
 function buy(id){const e=Game.buy(S,id);if(e)alert(e);save();render()}
+
+/* ===== Nome de time vira link para a página do elenco (compra de jogadores) ===== */
+let TEAMV=null,TF=false,_tre=null,_tk="";
+function teamRe(){if(!S||!S.teams)return null;const k=Object.keys(S.teams).length+":"+((S.ext||[]).length);if(k!==_tk){const ns=new Set(Object.values(S.teams).map(t=>t.name));(S.ext||[]).forEach(p=>p.club&&ns.add(p.club));const a=[...ns].filter(n=>n&&n.length>2).sort((x,y)=>y.length-x.length).map(n=>n.replace(/[.*+?^${}()|[\]\\]/g,"\\$&"));_tre=a.length?new RegExp("(?<![\\p{L}\\p{N}])("+a.join("|")+")(?![\\p{L}\\p{N}])","gu"):null;_tk=k}return _tre}
+function linkTeams(root){const re=teamRe();if(!re||!root)return;const w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT,{acceptNode(n){const p=n.parentElement;if(!p||p.closest("a,button,select,option,input,textarea,script,style,canvas,.nolink"))return NodeFilter.FILTER_REJECT;re.lastIndex=0;return re.test(n.nodeValue)?NodeFilter.FILTER_ACCEPT:NodeFilter.FILTER_REJECT}});const list=[];while(w.nextNode())list.push(w.currentNode);
+  for(const n of list){const parts=n.nodeValue.split(re),frag=document.createDocumentFragment();parts.forEach((s,i)=>{if(i%2){const a=document.createElement("a");a.className="tlink";a.dataset.team=s;a.textContent=s;frag.appendChild(a)}else if(s)frag.appendChild(document.createTextNode(s))});n.parentNode.replaceChild(frag,n)}}
+function teamPageHtml(){
+  const name=TEAMV,t=Object.values(S.teams).find(x=>x.name===name),mine=!!t&&Game.myClubs(S).some(i=>S.teams[i].name===name);
+  const money2=v=>moneyFull?moneyFull(v):"R$ "+v;
+  let ps=mine?t.players.map(p=>({...p,team:name})):Game.market(S).filter(p=>p.team===name&&Game.avail(p));
+  const price=p=>Math.round(p.value*1.15),can=ps.filter(p=>price(p)<=S.cash).length;
+  ps=ps.filter(p=>!TF||price(p)<=S.cash).sort((a,b)=>(SPR[SPN(a)]-SPR[SPN(b)])||b.ov-a.ov);
+  const ovr=t?Math.round(Game.ratings(t).ovr):"";
+  let h=`<div style="max-width:900px;margin:0 auto;padding:12px"><div class="row" style="align-items:center;gap:8px;margin-bottom:8px"><button class="s" onclick="closeTeam()">← Fechar</button><span style="flex:1;text-align:center">${tbox(name)}</span><span class="mut" style="font-size:13px">Caixa: <b>${money(S.cash)}</b></span></div>`;
+  h+=`<div class="card"><h2 style="margin:0 0 4px">Elenco do ${name}${ovr?` <span class="mut" style="font-size:13px;font-weight:600">· OVR ${ovr}</span>`:""}</h2>`;
+  if(mine)h+=`<p class="mut" style="margin:0">Este é o seu time. Veja e gerencie o elenco na aba Elenco.</p>`;
+  else h+=`<p class="mut" style="margin:0 0 6px">Preço = valor +15%. Você pode comprar <b>${can}</b> de ${Game.market(S).filter(p=>p.team===name&&Game.avail(p)).length} jogadores com o caixa atual.</p><label class="mut" style="display:flex;align-items:center;gap:6px"><input type="checkbox" ${TF?"checked":""} onchange="TF=this.checked;refreshTeam()"> Só os que cabem no meu caixa</label>`;
+  h+=`</div><div class="card">`+(ps.length?ps.map(p=>{const pr=price(p),ok=pr<=S.cash;return `<div class="pl"><span><span class="pos" style="white-space:nowrap;margin-right:8px">${SPX(p)}</span>${p.name}${p.inj>0?" 🚑":""} <span class="mut">${p.age}a</span></span><span><b>${p.ov}</b> ${mine?"":`<button class="s ${ok?"p":""}" ${ok?"":"disabled style=\"opacity:.45\""} onclick="teamBuy(${p.id})">${money(pr)}</button>`}</span></div>`}).join(""):`<p class="mut">Nenhum jogador disponível.</p>`)+`</div></div>`;
+  return h}
+function showTeam(){let el=document.getElementById("tpage");if(!el){el=document.createElement("div");el.id="tpage";el.style.cssText="position:fixed;inset:0;z-index:9999;overflow:auto;background:"+(getComputedStyle(document.body).backgroundColor||"#0f1a14");document.body.appendChild(el)}el.innerHTML=teamPageHtml();el.scrollTop=0}
+function refreshTeam(){const el=document.getElementById("tpage");if(!el||!TEAMV)return;const y=el.scrollTop;el.innerHTML=teamPageHtml();el.scrollTop=y}
+function closeTeam(){TEAMV=null;const el=document.getElementById("tpage");if(el)el.remove()}
+function teamBuy(id){const e=Game.buy(S,id);if(e){alert(e);return}save();if(!LIVE)render();refreshTeam()}
+document.addEventListener("click",ev=>{const a=ev.target.closest&&ev.target.closest("a.tlink");if(!a||!S)return;ev.preventDefault();ev.stopPropagation();TEAMV=a.dataset.team;showTeam()},true);
+document.addEventListener("keydown",ev=>{if(ev.key==="Escape"&&TEAMV)closeTeam()});
+try{const _app=document.getElementById("app");if(_app){let _raf=0,_ob=new MutationObserver(()=>{if(_raf)return;_raf=requestAnimationFrame(()=>{_raf=0;_ob.disconnect();try{linkTeams(_app)}catch(e){}_ob.observe(_app,{childList:true,subtree:true,characterData:true})})});_ob.observe(_app,{childList:true,subtree:true,characterData:true});linkTeams(_app)}}catch(e){}
 
 let FINH=false;
 function vFin(){
