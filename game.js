@@ -777,6 +777,20 @@
   }
 
   function finishComp(s, c, res, silent, koEnd) {
+    const nc0 = Object.keys(s.comps).length;
+    finishComp0(s, c, res, silent, koEnd);
+    try {
+      if (silent || !c.ids.includes(s.user)) return;
+      const fin = ["lg", "cup", "stK", "arNF", "b3f"].includes(c.after) || Object.keys(s.comps).length === nc0;
+      if (!fin || !c.done) return;
+      const hasTab = c.tab && c.ids.every((i) => c.tab[i]);
+      const rows = hasTab ? sortTab(c.ids, c.tab).map((i) => ({ n: s.teams[i].name, p: c.tab[i].p, w: c.tab[i].w, d: c.tab[i].d, l: c.tab[i].l, sg: c.tab[i].gf - c.tab[i].ga, pts: c.tab[i].pts, me: myClubs(s).includes(i) })) : null;
+      const champ = c.champion != null && s.teams[c.champion] ? s.teams[c.champion].name : rows ? rows[0].n : null;
+      const prizes = (s.ledger || []).filter((x) => x.T === s.T && x.id === s.user && /^Premia/.test(x.d) && x.d.includes(c.name)).map((x) => ({ d: x.d, v: x.v }));
+      (res.ends = res.ends || []).push({ name: c.name, rows, champ, prizes, art: topScorersComp(s, c.id, 10) });
+    } catch (e) {}
+  }
+  function finishComp0(s, c, res, silent, koEnd) {
     switch (c.after) {
       case "lg": {
         c.done = true;

@@ -68,15 +68,15 @@ tr.me{background:color-mix(in srgb,var(--ac) 30%,transparent);font-weight:800}tr
 <header><div class="hl"><span id="crest"></span><b id="hT">Meu Elifoot</b></div><div class="hr"><span id="flag"></span><span id="hS"></span></div></header>
 <main id="app"></main>
 <nav id="nav"></nav>
-<script src="clubs.js?v=231"></script>
-<script src="game.js?v=231"></script>
-<script src="campo.js?v=231"></script>
-<script src="campo3d.js?v=231"></script>
+<script src="clubs.js?v=232"></script>
+<script src="game.js?v=232"></script>
+<script src="campo.js?v=232"></script>
+<script src="campo3d.js?v=232"></script>
 <script>
 const PREFIX="elifoot:save:",SAVE1="Elifoot"; // um único save para todos os times
 let artCan=false,S=null,tab="jogo",msg="",mf={pos:"",q:"",any:true,min:1,max:null,afford:true,ord:"ovr",dir:-1},viewKey=null;
 const $=id=>document.getElementById(id);
-const VERSAO=231;
+const VERSAO=232;
 const moneyFull=n=>(n<0?"-":"")+"R$ "+Math.round(Math.abs(n)).toLocaleString("pt-BR");
 const money=moneyFull;
 const U=()=>S.teams[S.user];
@@ -268,6 +268,7 @@ function render(){
   if(S&&S.notices&&S.notices.length&&!LIVE&&!SUMM&&!window._alN){const t=S.notices.join("\n");S.notices=[];save();window._alN=1;setTimeout(()=>{alert("Fim de temporada — aposentadorias:\n\n"+t);window._alN=0},300)}
   if(!S)return start();
   if(!LIVE&&!SUMM)$("nav").style.display="";
+  if(ENDQ.length)return endRender();
   if(SUMM)return summRender();
   if(LIVE){$("nav").style.display="none";return liveRender()}
   const u=U();applyTheme(u.name);
@@ -367,11 +368,22 @@ function showSummary(r){
   if(r.skipped)t+=`<p class="mut">${r.skipped} rodada(s) sem jogo seu foram simuladas.</p>`;
   {const mine=r.reports.filter(m=>m.home===U().name||m.away===U().name);const rp=mine[mine.length-1]||r.reports[r.reports.length-1];SUMC=rp?rp.cid:null}
   {const un=U().name;SUMLOST=r.reports.some(m=>m.home===un?m.gh<m.ga:m.away===un&&m.ga<m.gh);SUMWIN=r.reports.some(m=>m.home===un?m.gh>m.ga:m.away===un&&m.ga>m.gh)}
-  save();msg="";summGo(); // sem tela de resumo: vai direto para a classificação
+  save();msg="";if(r.ends&&r.ends.length){ENDQ=r.ends.slice();endRender();return}summGo(); // sem tela de resumo: vai direto para a classificação (exceto fim de campeonato)
 }
 let SUMM=null,SUMT=null,SUMN=0,SUMC=null,SUMLOST=false,SUMWIN=false;
+let ENDQ=[],ENDK=false;
+function endRender(){if(!ENDQ.length)return;$("nav").style.display="none";const e=ENDQ[0],m=v=>"R$ "+Math.round(v).toLocaleString("pt-BR");
+  let h=`<div class="card"><h2 style="margin:0 0 4px">🏆 Fim de campeonato</h2><p style="margin:0 0 8px"><b>${e.name}</b>${e.champ?` · Campeão: <b>${e.champ}</b>`:""}</p>`;
+  if(e.rows)h+=`<div class="tw"><table class="tb"><tr><th>#</th><th style="text-align:left">Time</th><th>P</th><th>J</th><th>V</th><th>E</th><th>D</th><th>SG</th></tr>${e.rows.map((r,i)=>`<tr${r.me?' style="background:#2a3f7a;font-weight:700"':""}><td>${i+1}</td><td style="text-align:left">${r.n}</td><td><b>${r.pts}</b></td><td>${r.p}</td><td>${r.w}</td><td>${r.d}</td><td>${r.l}</td><td>${r.sg}</td></tr>`).join("")}</table></div>`;
+  h+=`</div><div class="card"><h2 style="margin:0 0 6px">💰 Premiações recebidas</h2>`;
+  h+=e.prizes.length?e.prizes.map(p=>`<div class="pl"><span>${p.d.replace(/^Premiação( da temporada)?: /,"")}</span><span class="good">+${m(p.v)}</span></div>`).join("")+`<div class="pl"><span><b>Total</b></span><span class="good"><b>+${m(e.prizes.reduce((s,p)=>s+p.v,0))}</b></span></div>`:`<p class="mut">Nenhuma premiação neste campeonato.</p>`;
+  h+=`</div><div class="card"><h2 style="margin:0 0 6px">⚽ Artilheiros do campeonato</h2>`;
+  h+=e.art.length?e.art.map((a,i)=>`<div class="pl"${a.mine?' style="font-weight:700"':""}><span>${i+1}. ${a.n} <span class="mut">(${a.c})</span></span><span>${a.g} gol${a.g>1?"s":""}</span></div>`).join(""):`<p class="mut">Sem gols registrados.</p>`;
+  h+=`</div><div class="card"><button class="p" style="width:100%" onclick="endGo()">Continuar${ENDQ.length>1?` (${ENDQ.length-1} mais)`:""}</button></div>`;
+  $("app").innerHTML=h;window.scrollTo(0,0)}
+function endGo(){ENDQ.shift();if(ENDQ.length){endRender();return}ENDK=true;summGo()}
 function summRender(){if(!SUMM)return;$("nav").style.display="none";$("app").innerHTML=`<div class="card">${SUMM}</div><div class="card"><p class="mut">Indo para a classificação em ${SUMN}s</p><button class="p" style="width:100%" onclick="summGo()">Ir agora para a classificação</button></div>`;window.scrollTo(0,0)}
-function summGo(){clearInterval(SUMT);SUMM=null;let entered=false;try{if(Game.myClubs(S).length>1){const nr=Game.nextRoundClubs(S);if(nr&&SUMWIN&&!nr.clubs.includes(S.user)){Game.switchClub(S,nr.clubs[0]);entered=true;save()}}}catch(e){}$("nav").style.display="";viewKey=SUMC&&S.comps[SUMC]?SUMC:null;try{Game.autoStadium(S);save()}catch(e){}const win=SUMWIN;SUMC=null;SUMLOST=false;SUMWIN=false;HISTV=false;FINH=false;tab=win?"tabela":"mercado";render()}
+function summGo(){clearInterval(SUMT);SUMM=null;let entered=false;try{if(Game.myClubs(S).length>1){const nr=Game.nextRoundClubs(S);if(nr&&SUMWIN&&!ENDK&&!nr.clubs.includes(S.user)){Game.switchClub(S,nr.clubs[0]);entered=true;save()}}}catch(e){}$("nav").style.display="";viewKey=SUMC&&S.comps[SUMC]?SUMC:null;try{Game.autoStadium(S);save()}catch(e){}const win=SUMWIN||ENDK;ENDK=false;SUMC=null;SUMLOST=false;SUMWIN=false;HISTV=false;FINH=false;tab=win?"tabela":"mercado";render()}
 function stadOk(){try{const t=U();return Game.getStad(t)<100000&&S.cash>=Game.stadCost(t)}catch(e){return false}}
 
 
