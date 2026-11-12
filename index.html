@@ -68,15 +68,15 @@ tr.me{background:color-mix(in srgb,var(--ac) 30%,transparent);font-weight:800}tr
 <header><div class="hl"><span id="crest"></span><b id="hT">Meu Elifoot</b></div><div class="hr"><span id="flag"></span><span id="hS"></span></div></header>
 <main id="app"></main>
 <nav id="nav"></nav>
-<script src="clubs.js?v=234"></script>
-<script src="game.js?v=234"></script>
-<script src="campo.js?v=234"></script>
-<script src="campo3d.js?v=234"></script>
+<script src="clubs.js?v=235"></script>
+<script src="game.js?v=235"></script>
+<script src="campo.js?v=235"></script>
+<script src="campo3d.js?v=235"></script>
 <script>
 const PREFIX="elifoot:save:",SAVE1="Elifoot"; // um único save para todos os times
 let artCan=false,S=null,tab="jogo",msg="",mf={pos:"",q:"",any:true,min:1,max:null,afford:true,ord:"ovr",dir:-1},viewKey=null;
 const $=id=>document.getElementById(id);
-const VERSAO=234;
+const VERSAO=235;
 const moneyFull=n=>(n<0?"-":"")+"R$ "+Math.round(Math.abs(n)).toLocaleString("pt-BR");
 const money=moneyFull;
 const U=()=>S.teams[S.user];
@@ -374,7 +374,7 @@ let SUMM=null,SUMT=null,SUMN=0,SUMC=null,SUMLOST=false,SUMWIN=false;
 let ENDQ=[],ENDK=false;
 function endRender(){if(!ENDQ.length)return;$("nav").style.display="none";const e=ENDQ[0],m=v=>"R$ "+Math.round(v).toLocaleString("pt-BR");
   let h=`<div class="card"><h2 style="margin:0 0 4px">🏆 Fim de campeonato</h2><p style="margin:0 0 8px"><b>${e.name}</b>${e.champ?` · Campeão: <b>${e.champ}</b>`:""}</p>`;
-  if(e.rows)h+=`<div class="tw"><table class="tb"><tr><th>#</th><th style="text-align:left">Time</th><th>P</th><th>J</th><th>V</th><th>E</th><th>D</th><th>SG</th></tr>${e.rows.map((r,i)=>`<tr${r.me?' style="background:#2a3f7a;font-weight:700"':""}><td>${i+1}</td><td style="text-align:left">${r.n}</td><td><b>${r.pts}</b></td><td>${r.p}</td><td>${r.w}</td><td>${r.d}</td><td>${r.l}</td><td>${r.sg}</td></tr>`).join("")}</table></div>`;
+  if(e.rows)h+=`<div class="tw"><table class="tb"><tr><th>#</th><th style="text-align:left">Time</th><th>P</th><th>J</th><th>V</th><th>E</th><th>D</th><th>GP</th><th>GC</th><th>SG</th></tr>${e.rows.map((r,i)=>`<tr${r.me?' style="background:#2a3f7a;font-weight:700"':""}><td>${i+1}</td><td style="text-align:left">${r.n}</td><td><b>${r.pts}</b></td><td>${r.p}</td><td>${r.w}</td><td>${r.d}</td><td>${r.l}</td><td>${r.gp}</td><td>${r.gc}</td><td>${r.sg}</td></tr>`).join("")}</table></div>`;
   h+=`</div><div class="card"><h2 style="margin:0 0 6px">💰 Premiações recebidas</h2>`;
   h+=e.prizes.length?e.prizes.map(p=>`<div class="pl"><span>${p.d.replace(/^Premiação( da temporada)?: /,"")}</span><span class="good">+${m(p.v)}</span></div>`).join("")+`<div class="pl"><span><b>Total</b></span><span class="good"><b>+${m(e.prizes.reduce((s,p)=>s+p.v,0))}</b></span></div>`:`<p class="mut">Nenhuma premiação neste campeonato.</p>`;
   h+=`</div><div class="card"><h2 style="margin:0 0 6px">⚽ Artilheiros do campeonato</h2>`;
@@ -443,8 +443,8 @@ function liveTable(){
     const old=Game.sortTab(ids,c.tab),now=Game.sortTab(ids,tab);
     const rows=now.map((id,i)=>{const r=tab[id],d=old.indexOf(id)-i,zc=zn&&zn.z[i+1];
       const ar=d>0?`<span class="good">▲${d}</span>`:d<0?`<span class="bad">▼${-d}</span>`:"";
-      return `<tr class="${mi.includes(id)?"me":""}"><td class="l"${zc?` style="border-left:4px solid ${zc}"`:""}>${i+1}. ${mi.includes(id)?"★ ":""}${play.has(id)?"<b>":""}${S.teams[id].name}${play.has(id)?` <span class="mut" style="font-size:11px">(${sc[id]})</span></b>`:""}</td><td>${ar}</td><td>${r.pts}</td><td>${r.p}</td><td>${r.w}</td><td>${r.d}</td><td>${r.l}</td><td>${r.gf-r.ga}</td></tr>`}).join("");
-    return `<table><tr><th class="l">Time</th><th></th><th>P</th><th>J</th><th>V</th><th>E</th><th>D</th><th>SG</th></tr>${rows}</table>`};
+      return `<tr class="${mi.includes(id)?"me":""}"><td class="l"${zc?` style="border-left:4px solid ${zc}"`:""}>${i+1}. ${mi.includes(id)?"★ ":""}${play.has(id)?"<b>":""}${S.teams[id].name}${play.has(id)?` <span class="mut" style="font-size:11px">(${sc[id]})</span></b>`:""}</td><td>${ar}</td><td>${r.pts}</td><td>${r.p}</td><td>${r.w}</td><td>${r.d}</td><td>${r.l}</td><td>${r.gf}</td><td>${r.ga}</td><td>${r.gf-r.ga}</td></tr>`}).join("");
+    return `<table><tr><th class="l">Time</th><th></th><th>P</th><th>J</th><th>V</th><th>E</th><th>D</th><th>GP</th><th>GC</th><th>SG</th></tr>${rows}</table>`};
   const body=lists.map((g,i)=>(c.groups?`<p style="margin:${i?10:0}px 0 4px"><b>Grupo ${String.fromCharCode(65+c.groups.indexOf(g))}</b></p>`:"")+one(g)).join("");
   return `<div class="card"><h2>${c.name}${(l.rodada||"").match(/Rodada\s+\d+\/\d+/)?" — "+(l.rodada.match(/Rodada\s+\d+\/\d+/)[0]):""} — tabela ao vivo</h2>${body}<p class="mut" style="font-size:12px;margin:6px 0 0">Considera os placares atuais desta rodada. Em negrito, quem está jogando agora.</p></div>`;
 }
@@ -600,8 +600,8 @@ function zonas(c){
 }
 function tbl(c,ids,hl){
   const t=Game.sortTab(ids,c.tab),zn=zonas(c);
-  return `<table><tr><th class="l">Time</th><th>P</th><th>J</th><th>V</th><th>E</th><th>D</th><th>SG</th></tr>`+
-  t.map((id,i)=>{const r=c.tab[id],zc=zn&&zn.z[i+1];return `<tr class="${mineIds().includes(id)?"me":""}"><td class="l"${zc?` style="border-left:4px solid ${zc}"`:""}>${i+1}. ${mineIds().includes(id)?"★ ":""}${S.teams[id].name}</td><td>${r.pts}</td><td>${r.p}</td><td>${r.w}</td><td>${r.d}</td><td>${r.l}</td><td>${r.gf-r.ga}</td></tr>`}).join("")+`</table>`
+  return `<table><tr><th class="l">Time</th><th>P</th><th>J</th><th>V</th><th>E</th><th>D</th><th>GP</th><th>GC</th><th>SG</th></tr>`+
+  t.map((id,i)=>{const r=c.tab[id],zc=zn&&zn.z[i+1];return `<tr class="${mineIds().includes(id)?"me":""}"><td class="l"${zc?` style="border-left:4px solid ${zc}"`:""}>${i+1}. ${mineIds().includes(id)?"★ ":""}${S.teams[id].name}</td><td>${r.pts}</td><td>${r.p}</td><td>${r.w}</td><td>${r.d}</td><td>${r.l}</td><td>${r.gf}</td><td>${r.ga}</td><td>${r.gf-r.ga}</td></tr>`}).join("")+`</table>`
   +(zn?`<div style="display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12px;margin-top:6px">${zn.leg.map(([col,pos,lab])=>`<span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${col};margin-right:4px"></span>${pos}: ${lab}</span>`).join("")}</div>`:"");
 }
 function vTabela(){
