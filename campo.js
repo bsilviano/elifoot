@@ -133,11 +133,14 @@ const Campo = (() => {
     } catch (e) { SND.ctx = null; }
   }
   try { document.addEventListener("pointerdown", sndInit); } catch (e) {}
-  function sndNoise(dur, freq, vol, type) { const c = SND.ctx; if (!c || !SND.on) return; const src = c.createBufferSource(); src.buffer = SND.noise; const f = c.createBiquadFilter(); f.type = type || "lowpass"; f.frequency.value = freq; const g = c.createGain(); const t = c.currentTime; g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur); src.connect(f); f.connect(g); g.connect(c.destination); src.start(t, Math.random()); src.stop(t + dur + 0.05); }
-  function sndWhistle(n) { const c = SND.ctx; if (!c || !SND.on) return; const t = c.currentTime; for (let i = 0; i < (n || 1); i++) { const o = c.createOscillator(), o2 = c.createOscillator(), g = c.createGain(); o.type = "square"; o2.type = "square"; const t0 = t + i * 0.42; o.frequency.setValueAtTime(2900, t0); o2.frequency.setValueAtTime(3050, t0); o2.frequency.linearRampToValueAtTime(2980, t0 + 0.3); g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(0.07, t0 + 0.02); g.gain.setValueAtTime(0.07, t0 + 0.28); g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.34); o.connect(g); o2.connect(g); g.connect(c.destination); o.start(t0); o2.start(t0); o.stop(t0 + 0.36); o2.stop(t0 + 0.36); } }
+  function sndNoise(dur, freq, vol, type) { const c = SND.ctx; if (!c || !SND.on || !sndLive) return; const src = c.createBufferSource(); src.buffer = SND.noise; const f = c.createBiquadFilter(); f.type = type || "lowpass"; f.frequency.value = freq; const g = c.createGain(); const t = c.currentTime; g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur); src.connect(f); f.connect(g); g.connect(c.destination); src.start(t, Math.random()); src.stop(t + dur + 0.05); }
+  function sndWhistle(n) { const c = SND.ctx; if (!c || !SND.on || !sndLive) return; const t = c.currentTime; for (let i = 0; i < (n || 1); i++) { const o = c.createOscillator(), o2 = c.createOscillator(), g = c.createGain(); o.type = "square"; o2.type = "square"; const t0 = t + i * 0.42; o.frequency.setValueAtTime(2900, t0); o2.frequency.setValueAtTime(3050, t0); o2.frequency.linearRampToValueAtTime(2980, t0 + 0.3); g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(0.07, t0 + 0.02); g.gain.setValueAtTime(0.07, t0 + 0.28); g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.34); o.connect(g); o2.connect(g); g.connect(c.destination); o.start(t0); o2.start(t0); o.stop(t0 + 0.36); o2.stop(t0 + 0.36); } }
   function sndKick(v) { sndNoise(0.12, 380, 0.22 * (v || 1), "lowpass"); }
-  function sndGoal() { const c = SND.ctx; if (!c || !SND.on) return; const t = c.currentTime; for (const [fr, q, v] of [[500, 0.7, 0.30], [1100, 0.9, 0.22]]) { const src = c.createBufferSource(); src.buffer = SND.noise; src.loop = true; const f = c.createBiquadFilter(); f.type = "bandpass"; f.frequency.value = fr; f.Q.value = q; const g = c.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(v, t + 0.7); g.gain.setValueAtTime(v, t + 2.2); g.gain.exponentialRampToValueAtTime(0.0001, t + 4.8); src.connect(f); f.connect(g); g.connect(c.destination); src.start(t, Math.random()); src.stop(t + 5); } }
-  function sndTick() { if (!SND.ctx || !SND.crowd) return; const base = 0.05 + (shotT > 0 ? 0.08 : 0) + (flash > 0 ? 0.2 : 0); if (!(flash > 0)) SND.crowd.gain.setTargetAtTime(SND.on ? base : 0, SND.ctx.currentTime, 0.4); }
+  function sndGoal() { const c = SND.ctx; if (!c || !SND.on || !sndLive) return; const t = c.currentTime; for (const [fr, q, v] of [[500, 0.7, 0.30], [1100, 0.9, 0.22]]) { const src = c.createBufferSource(); src.buffer = SND.noise; src.loop = true; const f = c.createBiquadFilter(); f.type = "bandpass"; f.frequency.value = fr; f.Q.value = q; const g = c.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(v, t + 0.7); g.gain.setValueAtTime(v, t + 2.2); g.gain.exponentialRampToValueAtTime(0.0001, t + 4.8); src.connect(f); f.connect(g); g.connect(c.destination); src.start(t, Math.random()); src.stop(t + 5); } }
+  let sndLive = false;
+  function sndOn() { sndLive = true; if (SND.ctx && SND.ctx.state === "suspended" && SND.on) SND.ctx.resume(); }
+  function sndOff() { sndLive = false; try { if (SND.ctx && SND.crowd) SND.crowd.gain.cancelScheduledValues(0), SND.crowd.gain.setTargetAtTime(0, SND.ctx.currentTime, 0.15); } catch (e) {} }
+  function sndTick() { if (!SND.ctx || !SND.crowd) return; if (!sndLive || ended) { SND.crowd.gain.setTargetAtTime(0, SND.ctx.currentTime, 0.3); return; } const base = 0.05 + (shotT > 0 ? 0.08 : 0) + (flash > 0 ? 0.2 : 0); if (!(flash > 0)) SND.crowd.gain.setTargetAtTime(SND.on ? base : 0, SND.ctx.currentTime, 0.4); }
   function say(t, big, ms) { if (big && SND.ctx) { if (/Gol|GOO/i.test(t)) {} else sndWhistle(/p[êe]nalti|Fim|Come/i.test(t) ? 2 : 1); } cap = t; capBig = !!big; capT = ms || 2.6; }
   function addFeed(txt) { narr = String(txt).replace(/<[^>]*>/g, "").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">"); narrT = 4.5; feed.unshift({ m: M.min || 0, t: txt }); if (feed.length > 14) feed.pop(); }
   const NEAR = (o, side, d) => ({ dur: 7, start() {}, until: () => { const gx = side === "h" ? W : 0; over.run = { o, x: gx + (side === "h" ? -(d - 6) : d - 6), y: 34 + (o.y - 34) * 0.4 }; return Math.hypot(o.x - gx, o.y - 34) <= d; } });
@@ -725,6 +728,7 @@ const Campo = (() => {
 
   return {
     start(live) {
+      sndOn();
       stopLoop();
       L = live; M = live.matches.find((m) => (m.mine.h || m.mine.a) && !m.hold && !m.fin) || live.matches.find((m) => m.mine.h || m.mine.a) || live.matches[0];
       stat = { h: { poss: 0, shots: 0, onT: 0 }, a: { poss: 0, shots: 0, onT: 0 } }; lastAdded = null; P = {}; NUM = {}; USED = { h: {}, a: {} }; q = []; cur = null; feed = []; marks = []; over = {}; freeze = false; halt = false; ended = false; halfDone = false; flip = false; endWait = 0; penCam = null; ended = false; cap = ""; capT = 0; narr = ""; narrT = 0; flash = 0; lastMin = -1; poss = "h"; share = 0.5;
@@ -754,7 +758,7 @@ const Campo = (() => {
     toggle() { v3 = !v3; if (v3 && typeof Campo3D !== "undefined") Campo3D.load(); try { localStorage.setItem('campo3d', v3 ? '1' : '0'); } catch (e) {} const b = document.getElementById('c3b'); if (b) b.textContent = v3 ? '🎥 Voltar ao 2D' : '🎥 Ver em 3D'; },
     kitsFor,
     dbg() { return { ball: { x: ball.x, y: ball.y, f: !!ball.flight }, pl: Object.values(P).filter((o) => o.live).map((o) => [o.x, o.y]) }; },
-    stop() { stopLoop(); M = null; q = []; cur = null; },
+    stop() { stopLoop(); M = null; q = []; cur = null; sndOff(); },
     busy, decisionOK,
     fmtMin,
     sync,
