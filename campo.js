@@ -363,13 +363,14 @@ const Campo = (() => {
         // o infrator é sempre do time sem a bola: se o time dele tem a posse, o marcador mais próximo desarma antes (a posse muda) e só então vem a falta
         st.push({ dur: 9, start() {}, until() { if (holder() !== e.side) return true; if (ball.flight) return false; const opp = team(other(e.side)).filter((x) => x.p.pos !== "GK"), v = nearest(opp, ball.x, ball.y); if (!v) return true; over.run = { o: v, x: ball.x, y: ball.y }; if (Math.hypot(v.x - ball.x, v.y - ball.y) < 1.8) { over.run = null; ball.flight = null; setCarrier(v); return true; } return false; } });
         // se o lance está dentro da área, quem tem a bola sai driblando para fora dela (nada de falta na área nem bola teletransportada)
-        st.push({ dur: 16, start() {}, until() { if (!inB()) return true; if (ball.flight) return false; const c = ball.carrier != null && P[ball.carrier]; if (!c || !c.live) return true; if (c.p.pos === "GK") { const r = nearest(team(c.side).filter((o) => o.p.pos !== "GK"), W / 2, 34); if (!r) return true; flight(ball.x, ball.y, r.x, r.y, Math.max(0.6, Math.hypot(r.x - ball.x, r.y - ball.y) / 16), () => setCarrier(r), 2, r); return false; } const gx0 = ball.x < W / 2 ? 0 : W; over.run = { o: c, x: gx0 + (gx0 === 0 ? 27 : -27), y: c.y + (c.y < 34 ? -3 : 3) }; return false; } });
+        st.push({ dur: 16, start() {}, until() { if (!inB()) { const c0 = ball.carrier != null && P[ball.carrier]; if (c0 && c0.live) { over.run = null; over.pos = over.pos || {}; over.pos[c0.p.id] = [c0.x, c0.y]; } return true; } if (ball.flight) return false; const c = ball.carrier != null && P[ball.carrier]; if (!c || !c.live) return true; if (c.p.pos === "GK") { const r = nearest(team(c.side).filter((o) => o.p.pos !== "GK"), W / 2, 34); if (!r) return true; flight(ball.x, ball.y, r.x, r.y, Math.max(0.6, Math.hypot(r.x - ball.x, r.y - ball.y) / 16), () => setCarrier(r), 2, r); return false; } const gx0 = ball.x < W / 2 ? 0 : W; over.run = { o: c, x: gx0 + (gx0 === 0 ? 27 : -27), y: c.y + (c.y < 34 ? -3 : 3) }; return false; } });
       }
       // 1) o marcador corre até quem está com a bola (nada de falta surgindo do nada)
       st.push({ dur: e ? 10 : 5, start() {
         fo = (e && findP(e.name, e.side)) || null;
         const cr = ball.carrier != null && P[ball.carrier];
         if (!fo) { const sd = other(cr && cr.live ? cr.side : poss), c = team(sd).filter((x) => x.p.pos !== "GK"); fo = nearest(c, ball.x, ball.y); }
+        if (cr && cr.live) { cr.twx = 0; cr.wt = 0; over.pos = over.pos || {}; over.pos[cr.p.id] = [cr.x, cr.y]; } // o jogador com a bola para (senão continua conduzindo para dentro da área enquanto o marcador corre)
         if (fo && cr && cr.live && fo.side === cr.side) { const v = nearest(team(other(fo.side)).filter((x) => x.p.pos !== "GK"), ball.x, ball.y); if (v) { ball.flight = null; setCarrier(v); } } // garantia: quem comete a falta nunca é do time com a bola
         if (fo) over.run = { o: fo, x: ball.x, y: ball.y };
       }, until() {
