@@ -68,15 +68,15 @@ tr.me{background:color-mix(in srgb,var(--ac) 30%,transparent);font-weight:800}tr
 <header><div class="hl"><span id="crest"></span><b id="hT">Meu Elifoot</b></div><div class="hr"><span id="flag"></span><span id="hS"></span></div></header>
 <main id="app"></main>
 <nav id="nav"></nav>
-<script src="clubs.js?v=245"></script>
-<script src="game.js?v=245"></script>
-<script src="campo.js?v=245"></script>
-<script src="campo3d.js?v=245"></script>
+<script src="clubs.js?v=246"></script>
+<script src="game.js?v=246"></script>
+<script src="campo.js?v=246"></script>
+<script src="campo3d.js?v=246"></script>
 <script>
 const PREFIX="elifoot:save:",SAVE1="Elifoot"; // um único save para todos os times
 let artCan=false,S=null,tab="jogo",msg="",mf={pos:"",q:"",any:true,min:1,max:null,afford:true,ord:"ovr",dir:-1},viewKey=null;
 const $=id=>document.getElementById(id);
-const VERSAO=245;
+const VERSAO=246;
 const moneyFull=n=>(n<0?"-":"")+"R$ "+Math.round(Math.abs(n)).toLocaleString("pt-BR");
 const money=moneyFull;
 const U=()=>S.teams[S.user];
@@ -731,7 +731,7 @@ function vArtD(){
   <div class="card"><h2>Campeonato</h2>${sel}${(()=>{let l=Game.topScorersComp(S,artComp,pool),ap=false;
     if(!l.length){const cc=S.comps[artComp],set=new Set((cc.ids||[]).map(i=>S.teams[i].name));l=Game.topScorers(S,"season",100000).filter(e=>set.has(e.c));ap=l.length>0}
     return lst(l)+`<p class="mut" style="margin-top:6px;font-size:12px">${ap?"Aproximado: gols da temporada dos jogadores dos clubes deste campeonato (em todas as competições), porque os gols por campeonato só são contados a partir da versão 129. Os próximos jogos passam a contar certinho.":"Gols marcados neste campeonato."}</p>`})()}</div></div>`}
-const MGRP={"Goleiro":["GOL"],"LD":["LD"],"Zagueiro":["ZAG"],"LE":["LE"],"Meia":["VOL","ME","MD","MC","MEI"],"Atacante":["PD","PE","SA","CA"]};
+const MGRP={"Goleiro":["GOL"],"Defesa":["LD","ZAG","LE"],"Meio":["VOL","ME","MD","MC","MEI"],"Ataque":["PD","PE","SA","CA"]};
 function vMercado(){
   const all=Game.market(S),maxOvr=all.reduce((m,p)=>Math.max(m,p.ov),1),mx=mf.max==null?maxOvr:mf.max;
   let l=all.filter(p=>Game.avail(p)&&(!mf.pos||SPN(p)===mf.pos)&&(!mf.grp||MGRP[mf.grp].includes(SPN(p)))&&(mf.any||(p.ov>=mf.min&&p.ov<=mx))&&(!mf.afford||Math.round(p.value*1.15)<=S.cash)&&(!mf.q||(p.name+p.team).toLowerCase().includes(mf.q.toLowerCase())));
