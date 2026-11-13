@@ -159,7 +159,7 @@ const Campo = (() => {
     }
     st.push({ fl: 1, start() { shotT = 2.4; shotGx = gx; if (kind === "goal") slow = 1.7; over.run = null; if (gk) over.gk = { side: oside, y: ty }; flight(ball.x, ball.y, gx, ty, 0.38, () => {}, 1); } });
     if (kind === "goal") {
-      st.push(FN(() => { flash = 1.6; sndGoal(); shownGoalSide = side; shown[side]++; say("⚽ GOOOL! " + name, true, 3.2); addFeed(`⚽ <b>GOL!</b> ${esc(name)}`); }, 2));
+      st.push(FN(() => { flash = 1.6; sndGoal(); shownGoalSide = side; shown[side]++; say("⚽ GOOOL! " + name, true, 3.2); addFeed(`⚽ <b>GOL!</b> ${esc(name)} (${esc(side === "h" ? M.H.name : M.A.name)})`); }, 2));
       st.push(FN(() => {
         const sc = shooter, m = {}; if (sc && sc.p) {
           const fx = side === "h" ? W - 7 : 7, fy = sc.y < 34 ? 5 : H - 5; m[sc.p.id] = [fx, fy];
