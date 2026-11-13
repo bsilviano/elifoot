@@ -703,7 +703,7 @@ const Campo = (() => {
       cx.fillStyle = lt ? "#111" : "#fff"; cx.textAlign = "center"; cx.fillText(t0, bx0 + w0 / 2, cy1);
     }
     cx.textAlign = "center"; cx.fillStyle = "#ffd166"; cx.fillText(scr, mid, cy1);
-    cx.font = "700 " + f2s + "px sans-serif"; cx.textAlign = "center"; cx.fillStyle = "#cfd8e0"; cx.fillText(sub, mid, bandPx * 0.78);
+    cx.font = "700 " + f2s + "px sans-serif"; cx.textAlign = "center"; cx.fillStyle = "#cfd8e0"; { const ida = M.ida ? (() => { const [ra, rb] = M.ida.r; return "Ida: " + M.A.name + " " + (M.ida.home === 0 ? rb : ra) + " x " + (M.ida.home === 0 ? ra : rb) + " " + M.H.name; })() : ""; if (ida) { cx.fillStyle = "#ffd166"; cx.fillText(ida, mid, bandPx * 0.70); cx.fillStyle = "#cfd8e0"; cx.fillText(sub, mid, bandPx * 0.90); } else cx.fillText(sub, mid, bandPx * 0.78); }
     { const fc = Math.max(16, Math.round(3.3 * s)); cx.font = "800 " + fc + "px sans-serif"; const wc = cx.measureText(clk).width + 18, hc = fc * 1.5, xc = cv.width - wc - 10, yc = cy1 - hc / 2; cx.fillStyle = "rgba(0,0,0,.72)"; cx.fillRect(xc, yc, wc, hc); cx.strokeStyle = "#ffd166"; cx.lineWidth = 2; cx.strokeRect(xc, yc, wc, hc); cx.fillStyle = "#fff"; cx.textAlign = "center"; cx.textBaseline = "middle"; cx.fillText(clk, xc + wc / 2, yc + hc / 2); }
     // narração e avisos de lance: sempre na mesma faixa, no topo do campo, em letra grande
     const evTxt = capT > 0 && cap && !capBig ? cap : narrT > 0 && narr ? narr : "";
