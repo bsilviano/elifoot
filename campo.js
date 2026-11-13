@@ -151,8 +151,10 @@ const Campo = (() => {
     stat[side].shots++; if (kind === "goal" || kind === "save" || kind === "savec") stat[side].onT++;
     if (kind === "block") {
       const d = nearest(opp, shooter.x + (side === "h" ? 6 : -6), shooter.y);
-      st.push({ fl: 1, start() { flight(ball.x, ball.y, d.x, d.y, 0.25, () => setCarrier(d), 1, d); } });
-      st.push(FN(() => { say("🧱 Bloqueio da zaga!"); addFeed(`🧱 Chute de ${name} é bloqueado`); }, 0.6));
+      const br = R(), mate = nearest(team(side).filter((o) => o !== shooter && o.p.pos !== "GK" && Math.hypot(o.x - d.x, o.y - d.y) > 3), d.x - (side === "h" ? 6 : -6), d.y);
+      // bloqueio: a bola bate na zaga e sobra perto; 30% escanteio, 50% o ataque recupera a sobra, 20% a zaga fica com ela
+      st.push({ fl: 1, start() { flight(ball.x, ball.y, d.x, d.y, 0.25, () => { if (br < 0.3) { ball.flight = null; ball.carrier = null; } else if (br < 0.8 && mate) flight(d.x, d.y, mate.x, mate.y, 0.45, () => setCarrier(mate), 1, mate); else setCarrier(d); }, 1, d); } });
+      st.push(FN(() => { say("🧱 Bloqueio da zaga!"); addFeed(`🧱 Chute de ${name} é bloqueado`); if (br < 0.3) { const f = corner(side); if (f) { f.ill = true; q.unshift(f); } } }, 0.6));
       return;
     }
     st.push({ fl: 1, start() { shotT = 2.4; shotGx = gx; if (kind === "goal") slow = 1.7; over.run = null; if (gk) over.gk = { side: oside, y: ty }; flight(ball.x, ball.y, gx, ty, 0.38, () => {}, 1); } });
