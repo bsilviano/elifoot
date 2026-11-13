@@ -68,15 +68,15 @@ tr.me{background:color-mix(in srgb,var(--ac) 30%,transparent);font-weight:800}tr
 <header><div class="hl"><span id="crest"></span><b id="hT">Meu Elifoot</b></div><div class="hr"><span id="flag"></span><span id="hS"></span></div></header>
 <main id="app"></main>
 <nav id="nav"></nav>
-<script src="clubs.js?v=240"></script>
-<script src="game.js?v=240"></script>
-<script src="campo.js?v=240"></script>
-<script src="campo3d.js?v=240"></script>
+<script src="clubs.js?v=241"></script>
+<script src="game.js?v=241"></script>
+<script src="campo.js?v=241"></script>
+<script src="campo3d.js?v=241"></script>
 <script>
 const PREFIX="elifoot:save:",SAVE1="Elifoot"; // um único save para todos os times
 let artCan=false,S=null,tab="jogo",msg="",mf={pos:"",q:"",any:true,min:1,max:null,afford:true,ord:"ovr",dir:-1},viewKey=null;
 const $=id=>document.getElementById(id);
-const VERSAO=240;
+const VERSAO=241;
 const moneyFull=n=>(n<0?"-":"")+"R$ "+Math.round(Math.abs(n)).toLocaleString("pt-BR");
 const money=moneyFull;
 const U=()=>S.teams[S.user];
@@ -344,7 +344,21 @@ function bestF(){const u=U(),b=Game.bestFormation(u);u.formation=b.f;u.lineup=b.
 function setF(f){const u=U();u.fAuto=false;u.formation=f;u.lineup=Game.autoLineup(u,f);save();render()}
 const sc=a=>a.length?a.join(", "):"–";
 let CONF=null;
+let LPEND=null;
+function liveStageEnd(){ // fim de um dos meus jogos do dia: vai para a tabela (vitória) ou mercado (empate/derrota); o Jogar seguinte abre o próximo jogo do mesmo dia
+  const L=LIVE,l=L.live,m=l.matches[l.stages[l.stage][0]];
+  const myId=m.mine.h?m.hid:m.aid,gf=m.mine.h?m.gh:m.ga,gc=m.mine.h?m.ga:m.gh;
+  clearInterval(LTM);LPEND=L;LIVE=null;_lp=null;LREADY=false;Campo.stop();
+  try{if(S.user!==myId)Game.switchClub(S,myId)}catch(e){}
+  const win=gf>gc;viewKey=S.comps[l.rd.c]?l.rd.c:null;HISTV=false;FINH=false;
+  $("nav").style.display="";tab=win?"tabela":"mercado";save();render();window.scrollTo(0,0)}
+function livePendResume(){
+  const L=LPEND,l=L.live,nx=l.stages[l.stage+1].map(i=>l.matches[i]).find(m=>m.mine.h||m.mine.a);
+  LPEND=null;
+  try{if(nx){const id=nx.mine.h?nx.hid:nx.aid;if(S.user!==id)Game.switchClub(S,id)}}catch(e){}
+  LIVE=L;LREADY=false;LV=0;Game.liveNext(l);Campo.start(l);$("nav").style.display="none";liveRender();liveRun();window.scrollTo(0,0)}
 function play(){
+  if(LPEND){livePendResume();return}
   if(S.fired){alert("Você está sem clube. Aceite uma oferta de emprego na aba Jogo.");return}
   const nr=Game.myClubs(S).length>1?Game.nextRoundClubs(S):null;
   if(nr&&(nr.clubs.length>1||nr.clubs[0]!==S.user)){CONF={q:nr.clubs,i:0};confShow();return}
@@ -456,7 +470,7 @@ function liveBench(){
 function liveHtml(){const t=liveTable(),bn=liveBench(),r=liveBody();return `<div class="lv${r.wide?" lvw":""}"><div class="lvb">${r.b}</div><div class="lva">${r.a}</div><div class="lvr">${t}</div></div>`}
 function liveBody(){
   const l=LIVE.live,p=Campo.decisionOK()?l.pending[0]:null;
-  let h=l.done&&LREADY?`<div class="card" style="border-color:var(--ac)"><button class="p" style="width:100%;font-size:19px;padding:14px" onclick="liveEnd()">Continuar</button></div>`:l.wait&&LREADY?(()=>{const nx=l.matches[l.stages[l.stage+1][0]];return `<div class="card" style="border-color:var(--ac)"><p class="mut" style="margin:0 0 8px">Fim do jogo. O próximo começa em outro horário.</p><button class="p" style="width:100%;font-size:19px;padding:14px" onclick="liveNextUI()">Próximo jogo: ${nx.H.name} x ${nx.A.name}</button></div>`})():"";
+  let h=l.done&&LREADY?`<div class="card" style="border-color:var(--ac)"><button class="p" style="width:100%;font-size:19px;padding:14px" onclick="liveEnd()">Continuar</button></div>`:l.wait&&LREADY?(()=>{const nx=l.matches[l.stages[l.stage+1][0]];return `<div class="card" style="border-color:var(--ac)"><p class="mut" style="margin:0 0 8px">Fim do jogo. O próximo (${nx.H.name} x ${nx.A.name}) começa em outro horário, depois de você ver a tabela ou o mercado.</p><button class="p" style="width:100%;font-size:19px;padding:14px" onclick="liveStageEnd()">Continuar</button></div>`})():"";
   if(p&&p.kind==="inj"){
     const m=l.matches[p.mi],can=m.bench[p.side].length&&m.subs[p.side]<5,ip=m.on[p.side].find(x=>x.id===p.outId),bn=m.bench[p.side].slice().sort((x,y)=>SPR[SPN(x)]-SPR[SPN(y)]||y.ov-x.ov);
     h+=`<div class="card" style="border-color:#d33"><h2>🚑 ${p.name} (${ip?SPN(ip)+" "+ip.ov:"?"}) se lesionou!</h2><p class="mut">${p.club} · ${p.n} jogo${p.n>1?"s":""} fora. Substituições: ${m.subs[p.side]}/5. Escolha quem entra no lugar dele.</p>
