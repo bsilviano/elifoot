@@ -68,15 +68,15 @@ tr.me{background:color-mix(in srgb,var(--ac) 30%,transparent);font-weight:800}tr
 <header><div class="hl"><span id="crest"></span><b id="hT">Meu Elifoot</b></div><div class="hr"><span id="flag"></span><span id="hS"></span></div></header>
 <main id="app"></main>
 <nav id="nav"></nav>
-<script src="clubs.js?v=242"></script>
-<script src="game.js?v=242"></script>
-<script src="campo.js?v=242"></script>
-<script src="campo3d.js?v=242"></script>
+<script src="clubs.js?v=243"></script>
+<script src="game.js?v=243"></script>
+<script src="campo.js?v=243"></script>
+<script src="campo3d.js?v=243"></script>
 <script>
 const PREFIX="elifoot:save:",SAVE1="Elifoot"; // um único save para todos os times
 let artCan=false,S=null,tab="jogo",msg="",mf={pos:"",q:"",any:true,min:1,max:null,afford:true,ord:"ovr",dir:-1},viewKey=null;
 const $=id=>document.getElementById(id);
-const VERSAO=242;
+const VERSAO=243;
 const moneyFull=n=>(n<0?"-":"")+"R$ "+Math.round(Math.abs(n)).toLocaleString("pt-BR");
 const money=moneyFull;
 const U=()=>S.teams[S.user];
@@ -731,16 +731,18 @@ function vArtD(){
   <div class="card"><h2>Campeonato</h2>${sel}${(()=>{let l=Game.topScorersComp(S,artComp,pool),ap=false;
     if(!l.length){const cc=S.comps[artComp],set=new Set((cc.ids||[]).map(i=>S.teams[i].name));l=Game.topScorers(S,"season",100000).filter(e=>set.has(e.c));ap=l.length>0}
     return lst(l)+`<p class="mut" style="margin-top:6px;font-size:12px">${ap?"Aproximado: gols da temporada dos jogadores dos clubes deste campeonato (em todas as competições), porque os gols por campeonato só são contados a partir da versão 129. Os próximos jogos passam a contar certinho.":"Gols marcados neste campeonato."}</p>`})()}</div></div>`}
+const MGRP={"Goleiro":["GOL"],"LD":["LD"],"Zagueiro":["ZAG"],"LE":["LE"],"Meia":["VOL","ME","MD","MC","MEI"],"Atacante":["PD","PE","SA","CA"]};
 function vMercado(){
   const all=Game.market(S),maxOvr=all.reduce((m,p)=>Math.max(m,p.ov),1),mx=mf.max==null?maxOvr:mf.max;
-  let l=all.filter(p=>Game.avail(p)&&(!mf.pos||SPN(p)===mf.pos)&&(mf.any||(p.ov>=mf.min&&p.ov<=mx))&&(!mf.afford||Math.round(p.value*1.15)<=S.cash)&&(!mf.q||(p.name+p.team).toLowerCase().includes(mf.q.toLowerCase())));
+  let l=all.filter(p=>Game.avail(p)&&(!mf.pos||SPN(p)===mf.pos)&&(!mf.grp||MGRP[mf.grp].includes(SPN(p)))&&(mf.any||(p.ov>=mf.min&&p.ov<=mx))&&(!mf.afford||Math.round(p.value*1.15)<=S.cash)&&(!mf.q||(p.name+p.team).toLowerCase().includes(mf.q.toLowerCase())));
   l.sort((a,b)=>mf.ord==="valor"?(mf.dir*(a.value-b.value)||mf.dir*(a.ov-b.ov)||a.age-b.age||a.name.localeCompare(b.name)):(mf.dir*(a.ov-b.ov)||a.value-b.value||a.age-b.age||a.name.localeCompare(b.name)));const n=l.length;l=l.slice(0,40);
   const wp=U().players.length?U().players.reduce((a,p)=>p.ov<a.ov?p:a):null;
   const piorCard=wp?`<div class="card" style="padding:8px 10px;display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:13px"><span><span class="mut">📉 Meu pior jogador</span><br><b>${wp.name}</b> · ${SPN(wp)} · OVR ${wp.ov}</span><button class="s d" onclick="sell(${wp.id})">Vender</button></div>`:"";
-  const sc=Game.topScorers(S,"all",100000).map(e=>({e,f:Game.lookup(S,e.n,e.c)})).filter(x=>x.f&&Game.avail(x.f)&&(!mf.pos||SPN(x.f)===mf.pos)&&(mf.any||(x.f.ov>=mf.min&&x.f.ov<=mx))&&(!mf.afford||x.f.price<=S.cash)&&(!mf.q||(x.f.name+x.f.team).toLowerCase().includes(mf.q.toLowerCase()))).slice(0,40);
+  const sc=Game.topScorers(S,"all",100000).map(e=>({e,f:Game.lookup(S,e.n,e.c)})).filter(x=>x.f&&Game.avail(x.f)&&(!mf.pos||SPN(x.f)===mf.pos)&&(!mf.grp||MGRP[mf.grp].includes(SPN(x.f)))&&(mf.any||(x.f.ov>=mf.min&&x.f.ov<=mx))&&(!mf.afford||x.f.price<=S.cash)&&(!mf.q||(x.f.name+x.f.team).toLowerCase().includes(mf.q.toLowerCase()))).slice(0,40);
   const art=`<div class="card el3"><h2>Artilheiros de sempre</h2><p class="mut" style="margin:0 0 6px">Jogadores de outros times, com os mesmos filtros ao lado. Gols da carreira real somados aos do jogo.</p>${sc.length?sc.map(({e,f},i)=>`<div class="pl"><span><b>${i+1}º</b> <span class="pos">${SPN(f)}</span>${f.name} <span class="mut">${f.age}a · ${f.team} · ${e.g} gol${e.g>1?"s":""}</span></span><span><b>${f.ov}</b> <button class="s p" onclick="buy(${f.id})">${money(f.price)}</button></span></div>`).join(""):'<p class="mut">Nenhum artilheiro com esses filtros.</p>'}</div>`;
   return `<div class="elg"><div class="el1">`+posResumo(U())+piorCard+`<div class="card"><h2>Mercado</h2><div class="row">
-  <select onchange="mf.pos=this.value;render()"><option value="">Todas</option>${["GOL","LD","LE","ZAG","VOL","ME","MD","MC","MEI","PD","PE","SA","CA"].map(p=>`<option ${mf.pos===p?"selected":""}>${p}</option>`).join("")}</select>
+  <select onchange="mf.grp=this.value;mf.pos='';render()"><option value="">Todos os grupos</option>${Object.keys(MGRP).map(g=>`<option ${mf.grp===g?"selected":""}>${g}</option>`).join("")}</select>
+  <select onchange="mf.pos=this.value;render()"><option value="">Todas as posições</option>${["GOL","LD","LE","ZAG","VOL","ME","MD","MC","MEI","PD","PE","SA","CA"].filter(p=>!mf.grp||MGRP[mf.grp].includes(p)).map(p=>`<option ${mf.pos===p?"selected":""}>${p}</option>`).join("")}</select>
   <label class="mut" style="display:flex;align-items:center;gap:4px"><input type="checkbox" ${mf.any?"checked":""} onchange="mf.any=this.checked;render()"> OVR qualquer</label>
   <label class="mut" style="display:flex;align-items:center;gap:4px;${mf.any?"opacity:.45":""}">OVR <input type="number" ${mf.any?"disabled":""} min="1" max="${maxOvr}" value="${mf.min}" onchange="mf.min=Math.max(1,+this.value||1);render()" style="width:58px"> a <input type="number" min="1" max="${maxOvr}" value="${mx}" onchange="mf.max=this.value===""?null:+this.value;render()" style="width:58px" ${mf.any?"disabled":""}></label>
   <label class="mut" style="display:flex;align-items:center;gap:6px;flex-basis:100%"><input type="checkbox" ${mf.afford?"checked":""} onchange="mf.afford=this.checked;render()"> Só jogadores que cabem no meu caixa (${money(S.cash)})</label>
