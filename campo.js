@@ -2,7 +2,7 @@
 // então o campo é uma animação guiada pelos lances REAIS da partida (gols, pênaltis, cartões, lesões, substituições).
 // As chances sem gol (defesa, trave, chute pra fora) são ilustrativas: não alteram o placar nem as estatísticas.
 const Campo = (() => {
-  const W = 105, H = 68, R = Math.random, M_ = 2, BAND = 10; // M_ = margem (m) ao redor do gramado
+  const W = 105, H = 68, R = Math.random, M_ = 2, BAND = (window.innerWidth < 700 ? 15 : 10); // M_ = margem (m) ao redor do gramado
   const cv = document.createElement("canvas");
   cv.id = "campoCv";
   cv.style.cssText = "width:100%;display:block;border-radius:10px;aspect-ratio:" + (W + 2 * M_) + "/" + (H + 2 * M_ + BAND);
@@ -142,7 +142,7 @@ const Campo = (() => {
   function sndOff() { sndLive = false; try { if (SND.ctx && SND.crowd) SND.crowd.gain.cancelScheduledValues(0), SND.crowd.gain.setTargetAtTime(0, SND.ctx.currentTime, 0.15); } catch (e) {} }
   function sndTick() { if (!SND.ctx || !SND.crowd) return; if (!sndLive || ended) { SND.crowd.gain.setTargetAtTime(0, SND.ctx.currentTime, 0.3); return; } const base = 0.05 + (shotT > 0 ? 0.08 : 0) + (flash > 0 ? 0.2 : 0); if (!(flash > 0)) SND.crowd.gain.setTargetAtTime(SND.on ? base : 0, SND.ctx.currentTime, 0.4); }
   function say(t, big, ms) { if (big && SND.ctx) { if (/Gol|GOO/i.test(t)) {} else if (/p[êe]nalti|Fim|Come|Falta|Cart|Interv|Substit|Les/i.test(t)) sndWhistle(/p[êe]nalti|Fim|Come/i.test(t) ? 2 : 1); } cap = t; capBig = !!big; capT = ms || 2.6; }
-  function addFeed(txt) { narr = String(txt).replace(/<[^>]*>/g, "").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">"); narrT = 4.5; feed.unshift({ m: M.min || 0, t: txt }); if (feed.length > 14) feed.pop(); }
+  function addFeed(txt) { narr = String(txt).replace(/<[^>]*>/g, "").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">"); narrT = 4.5; if (!/GOL!|Expulso/.test(narr)) return; feed.unshift({ m: M.min || 0, t: txt }); if (feed.length > 14) feed.pop(); }
   const NEAR = (o, side, d) => ({ dur: 7, start() {}, until: () => { const gx = side === "h" ? W : 0; over.run = { o, x: gx + (side === "h" ? -(d - 6) : d - 6), y: 34 + (o.y - 34) * 0.4 }; return Math.hypot(o.x - gx, o.y - 34) <= d; } });
   const SNAP = (o, side, d) => FN(() => { const gx = side === "h" ? W : 0, dx = Math.abs(o.x - gx); if (dx > d + 14) { o.x = gx + (side === "h" ? -d : d); } if (ball.carrier === o.p.id) { ball.x = o.x; } }, 0);
   function shotSteps(st, side, kind, shooter, name) {
@@ -693,7 +693,8 @@ const Campo = (() => {
     cx.fillStyle = "#fff"; cx.strokeStyle = "#111"; cx.lineWidth = Math.max(1, 0.15 * s); cx.beginPath(); cx.arc(bx, by - z, br, 0, 7); cx.fill(); cx.stroke();
     }
     // placar fora do campo, em uma faixa acima dele
-    const f1 = Math.max(17, Math.round(3.8 * s)), f2s = Math.max(11, Math.round(2.0 * s));
+    let f1 = Math.max(17, Math.round(3.8 * s)); { const n1 = M.H.name, n2 = M.A.name; if (cv.width < 700) f1 = Math.max(f1, 28); while (f1 > 15) { cx.font = "800 " + f1 + "px sans-serif"; if (cx.measureText(n1).width + cx.measureText(n2).width + cx.measureText(" 0 x 0 ").width + f1 * 1.9 + 24 <= cv.width * 0.97) break; f1--; } }
+    const f2s = Math.max(11, Math.round(2.0 * s));
     const nm1 = M.H.name, nm2 = M.A.name, scr = ` ${shown.h} x ${shown.a} `;
     cx.font = "800 " + f1 + "px sans-serif"; const wN1 = cx.measureText(nm1).width, wN2 = cx.measureText(nm2).width, wS = cx.measureText(scr).width + 10, rr = f1 * 0.42;
     const sub = [L && L.rodada, L && L.date].filter(Boolean).join("  ·  "), clk = L && L.done && !busy() ? "Fim de jogo" : "⏱ " + fmtMin(M.min || 0) + "'";
@@ -706,7 +707,7 @@ const Campo = (() => {
     }
     cx.textAlign = "center"; cx.fillStyle = "#ffd166"; cx.fillText(scr, mid, cy1);
     cx.font = "700 " + f2s + "px sans-serif"; cx.textAlign = "center"; cx.fillStyle = "#cfd8e0"; { const ida = M.ida ? (() => { const [ra, rb] = M.ida.r; return "Ida: " + M.A.name + " " + (M.ida.home === 0 ? rb : ra) + " x " + (M.ida.home === 0 ? ra : rb) + " " + M.H.name; })() : ""; if (ida) { cx.fillStyle = "#ffd166"; cx.fillText(ida, mid, bandPx * 0.70); cx.fillStyle = "#cfd8e0"; cx.fillText(sub, mid, bandPx * 0.90); } else cx.fillText(sub, mid, bandPx * 0.78); }
-    { const fc = Math.max(16, Math.round(3.3 * s)); cx.font = "800 " + fc + "px sans-serif"; const wc = cx.measureText(clk).width + 18, hc = fc * 1.5, xc = cv.width - wc - 10, yc = cy1 - hc / 2; cx.fillStyle = "rgba(0,0,0,.72)"; cx.fillRect(xc, yc, wc, hc); cx.strokeStyle = "#ffd166"; cx.lineWidth = 2; cx.strokeRect(xc, yc, wc, hc); cx.fillStyle = "#fff"; cx.textAlign = "center"; cx.textBaseline = "middle"; cx.fillText(clk, xc + wc / 2, yc + hc / 2); }
+    { const fc = Math.max(16, Math.round(3.3 * s)); cx.font = "800 " + fc + "px sans-serif"; const wc = cx.measureText(clk).width + 18, hc = fc * 1.5, xc = cv.width - wc - 10, yc = (cv.width < 700 ? bandPx * 0.80 : cy1) - hc / 2; cx.fillStyle = "rgba(0,0,0,.72)"; cx.fillRect(xc, yc, wc, hc); cx.strokeStyle = "#ffd166"; cx.lineWidth = 2; cx.strokeRect(xc, yc, wc, hc); cx.fillStyle = "#fff"; cx.textAlign = "center"; cx.textBaseline = "middle"; cx.fillText(clk, xc + wc / 2, yc + hc / 2); }
     // narração e avisos de lance: sempre na mesma faixa, no topo do campo, em letra grande
     const evTxt = capT > 0 && cap && !capBig ? cap : narrT > 0 && narr ? narr : "";
     if (evTxt && !(capT > 0 && cap && capBig)) {
