@@ -498,7 +498,7 @@ const Campo = (() => {
     if (shotT > 0) shotT -= dt; if (slow > 0) { slow -= dt; dt *= 0.35; }
     dt *= 0.85 * (1 + clamp(lag / 8000, 0, 1.3)); clock += dt;
     sync(); layout();
-    if (L && L.done && !cur && !q.length && !ended && endWait < 14 && !(Math.abs(ball.x - W / 2) < 18 && !ball.flight)) { endWait += lastDt; if (endWait > 3 && !ball.flight && !freeze) { const nt = nearest(team(other(poss)).filter((o) => o.p.pos !== "GK"), W / 2, H / 2); flight(ball.x, ball.y, W / 2, H / 2 + (R() - 0.5) * 8, Math.max(0.9, Math.hypot(ball.x - W / 2, ball.y - H / 2) / 22), () => { if (nt) setCarrier(nt); }, 5); } }
+    if (L && L.done && !cur && !q.length && !ended && endWait < 14 && !(Math.abs(ball.x - W / 2) < 18 && !ball.flight)) { endWait += lastDt; if (endWait > 0.5 && !ball.flight && !freeze) { const nt = nearest(team(other(poss)).filter((o) => o.p.pos !== "GK"), W / 2, H / 2); flight(ball.x, ball.y, W / 2, H / 2 + (R() - 0.5) * 8, Math.max(0.9, Math.hypot(ball.x - W / 2, ball.y - H / 2) / 22), () => { if (nt) setCarrier(nt); }, 5); } }
     else if (L && L.done && !cur && !q.length) { if (!ended) { ended = true; say("🏁 Fim de jogo", true, 4); narrate("Apita o árbitro: fim de jogo"); addFeed("🏁 Fim de jogo"); ball.flight = null; over.run = null; over.pos = null; } halt = true; freeze = true; }
     for (const sd of ["h", "a"]) press[sd] = team(sd).filter((o) => o.p.pos !== "GK" && o.p.id !== ball.carrier).sort((a, b) => Math.hypot(a.x - ball.x, a.y - ball.y) - Math.hypot(b.x - ball.x, b.y - ball.y)).slice(0, 3);
     for (const id in P) {
