@@ -447,7 +447,7 @@ const Campo = (() => {
     };
   }
   function release(name) { const o = leaving.find((x) => x.p.name === name); if (o && o.leave) o.leave.go = true; const n = Object.values(P).find((x) => x.p.name === name && x.wait); if (n) n.wait = false; }
-  function subScript(e) { return (cur) => { cur.steps.push(FN(() => { release(e.out); release(e.name); say(`🔁 Entra ${e.name}, sai ${e.out}`); addFeed(`🔁 Entra ${esc(e.name)}, sai ${esc(e.out)} (${esc(e.club)})`); }, 1)); }; }
+  function subScript(e) { return (cur) => { cur.steps.push(FN(() => { halt = true; release(e.out); release(e.name); say(`🔁 Entra ${e.name}, sai ${e.out}`); addFeed(`🔁 Entra ${esc(e.name)}, sai ${esc(e.out)} (${esc(e.club)})`); }, 0.8)); cur.steps.push({ dur: 9, start() {}, until: () => !leaving.some((x) => x.p.name === e.out) }); cur.steps.push(FN(() => { halt = false; }, 0.4)); }; }
 
   function handle(e) {
     const s = e.side; q = q.filter((f) => !f.ill);
