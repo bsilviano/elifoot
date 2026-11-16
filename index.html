@@ -68,15 +68,15 @@ tr.me{background:color-mix(in srgb,var(--ac) 30%,transparent);font-weight:800}tr
 <header><div class="hl"><span id="crest"></span><b id="hT">Meu Elifoot</b></div><div class="hr"><span id="flag"></span><span id="hS"></span></div></header>
 <main id="app"></main>
 <nav id="nav"></nav>
-<script src="clubs.js?v=250"></script>
-<script src="game.js?v=250"></script>
-<script src="campo.js?v=250"></script>
-<script src="campo3d.js?v=250"></script>
+<script src="clubs.js?v=251"></script>
+<script src="game.js?v=251"></script>
+<script src="campo.js?v=251"></script>
+<script src="campo3d.js?v=251"></script>
 <script>
 const PREFIX="elifoot:save:",SAVE1="Elifoot"; // um único save para todos os times
 let artCan=false,S=null,tab="jogo",msg="",mf={pos:"",q:"",any:true,min:1,max:null,afford:true,ord:"ovr",dir:-1},viewKey=null;
 const $=id=>document.getElementById(id);
-const VERSAO=250;
+const VERSAO=251;
 const moneyFull=n=>(n<0?"-":"")+"R$ "+Math.round(Math.abs(n)).toLocaleString("pt-BR");
 const money=moneyFull;
 const U=()=>S.teams[S.user];
@@ -403,6 +403,11 @@ function stadOk(){try{const t=U();return Game.getStad(t)<100000&&S.cash>=Game.st
 
 let LV=0;const liveDue=m=>m<=45?m*1333:45*1333+6000+(m-45)*1333;
 let LIVE=null,LTM=null,LSPD=900,LEND=null,LREADY=false;
+let TXT=false;try{TXT=localStorage.getItem("soTexto")==="1"}catch(e){}
+(()=>{const cs=Campo.start,cc=Campo.card;
+  Campo.start=l=>{if(TXT){Campo.stop();return}cs(l)};
+  Campo.card=()=>TXT?`<div style="display:flex;justify-content:space-between;align-items:center;margin:0 0 8px"><b style="font-size:20px">⏱ ${LIVE?Math.min(90,LIVE.live.minute):0}'</b><button onclick="txtToggle()" style="font-size:13px;padding:6px 12px;border-radius:8px">🎬 Ver animação</button></div>`:`<div style="text-align:right;margin:0 0 8px"><button onclick="txtToggle()" style="font-size:13px;padding:6px 12px;border-radius:8px">📝 Só texto</button></div>`+cc()})();
+function txtToggle(){TXT=!TXT;try{localStorage.setItem("soTexto",TXT?"1":"0")}catch(e){}if(LIVE){if(TXT)Campo.stop();else Campo.start(LIVE.live);liveRender()}}
 let PTM=null;
 function penRun(){const sh=LIVE&&LIVE.live.shoot;if(!sh||PTM||sh.shown>=sh.kicks.length)return;
   if(LSPD===-1){sh.shown=sh.kicks.length;liveRender();return}
@@ -740,7 +745,12 @@ function vMercado(){
   const piorCard=wp?`<div class="card" style="padding:8px 10px;display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:13px"><span><span class="mut">📉 Meu pior jogador</span><br><b>${wp.name}</b> · ${SPN(wp)} · OVR ${wp.ov}</span><button class="s d" onclick="sell(${wp.id})">Vender</button></div>`:"";
   const sc=Game.topScorers(S,"all",100000).map(e=>({e,f:Game.lookup(S,e.n,e.c)})).filter(x=>x.f&&Game.avail(x.f)&&(!mf.pos||SPN(x.f)===mf.pos)&&(!mf.grp||MGRP[mf.grp].includes(SPN(x.f)))&&(mf.any||(x.f.ov>=mf.min&&x.f.ov<=mx))&&(!mf.afford||x.f.price<=S.cash)&&(!mf.q||(x.f.name+x.f.team).toLowerCase().includes(mf.q.toLowerCase()))).slice(0,40);
   const art=`<div class="card el3"><h2>Artilheiros de sempre</h2><p class="mut" style="margin:0 0 6px">Jogadores de outros times, com os mesmos filtros ao lado. Gols da carreira real somados aos do jogo.</p>${sc.length?sc.map(({e,f},i)=>`<div class="pl"><span><b>${i+1}º</b> <span class="pos">${SPN(f)}</span>${f.name} <span class="mut">${f.age}a · ${f.team} · ${e.g} gol${e.g>1?"s":""}</span></span><span><b>${f.ov}</b> <button class="s p" onclick="buy(${f.id})">${money(f.price)}</button></span></div>`).join(""):'<p class="mut">Nenhum artilheiro com esses filtros.</p>'}</div>`;
-  return `<div class="elg"><div class="el1">`+posResumo(U())+piorCard+`<div class="card"><h2>Mercado</h2><div class="row">
+  const fracoCard=(()=>{const u=U(),ls=new Set(u.lineup||[]),st=u.players.filter(p=>ls.has(p.id));if(!st.length)return "";
+    const gs=[["Goleiro",["GOL"]],["Defesa",["LD","ZAG","LE"]],["Meio",["VOL","ME","MC","MEI","MD"]],["Ataque",["PD","PE","SA","CA"]]];
+    const rows=gs.map(([t,ks])=>{const g=st.filter(p=>ks.includes(SPL(p))).sort((a,b)=>a.ov-b.ov);return [t,g[0]]}).filter(r=>r[1]);if(!rows.length)return "";
+    const mn=Math.min(...rows.map(r=>r[1].ov));
+    return `<div class="card" style="padding:8px 10px"><div class="mut" style="font-size:12px;margin-bottom:2px">Titular mais fraco por setor</div>${rows.map(([t,q])=>`<div style="display:grid;grid-template-columns:70px 1fr auto;gap:6px;font-size:13px;padding:2px 0;align-items:center"><span class="mut">${t}</span><span>${q.name} <span class="mut">${SPL(q)}</span></span><b style="${q.ov===mn?"color:#ff6b6b":""}">OVR ${q.ov}${q.ov===mn?" ⬇":""}</b></div>`).join("")}</div>`})();
+  return `<div class="elg"><div class="el1">`+posResumo(U())+fracoCard+piorCard+`<div class="card"><h2>Mercado</h2><div class="row">
   <select onchange="mf.grp=this.value;mf.pos='';render()"><option value="">Todos os grupos</option>${Object.keys(MGRP).map(g=>`<option ${mf.grp===g?"selected":""}>${g}</option>`).join("")}</select>
   <select onchange="mf.pos=this.value;render()"><option value="">Todas as posições</option>${["GOL","LD","LE","ZAG","VOL","ME","MD","MC","MEI","PD","PE","SA","CA"].filter(p=>!mf.grp||MGRP[mf.grp].includes(p)).map(p=>`<option ${mf.pos===p?"selected":""}>${p}</option>`).join("")}</select>
   <label class="mut" style="display:flex;align-items:center;gap:4px"><input type="checkbox" ${mf.any?"checked":""} onchange="mf.any=this.checked;render()"> OVR qualquer</label>
