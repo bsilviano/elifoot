@@ -68,15 +68,15 @@ tr.me{background:color-mix(in srgb,var(--ac) 30%,transparent);font-weight:800}tr
 <header><div class="hl"><span id="crest"></span><b id="hT">Meu Elifoot</b></div><div class="hr"><span id="flag"></span><span id="hS"></span></div></header>
 <main id="app"></main>
 <nav id="nav"></nav>
-<script src="clubs.js?v=251"></script>
-<script src="game.js?v=251"></script>
-<script src="campo.js?v=251"></script>
-<script src="campo3d.js?v=251"></script>
+<script src="clubs.js?v=252"></script>
+<script src="game.js?v=252"></script>
+<script src="campo.js?v=252"></script>
+<script src="campo3d.js?v=252"></script>
 <script>
 const PREFIX="elifoot:save:",SAVE1="Elifoot"; // um único save para todos os times
 let artCan=false,S=null,tab="jogo",msg="",mf={pos:"",q:"",any:true,min:1,max:null,afford:true,ord:"ovr",dir:-1},viewKey=null;
 const $=id=>document.getElementById(id);
-const VERSAO=251;
+const VERSAO=252;
 const moneyFull=n=>(n<0?"-":"")+"R$ "+Math.round(Math.abs(n)).toLocaleString("pt-BR");
 const money=moneyFull;
 const U=()=>S.teams[S.user];
@@ -401,13 +401,13 @@ function summGo(){clearInterval(SUMT);SUMM=null;let entered=false;try{if(Game.my
 function stadOk(){try{const t=U();return Game.getStad(t)<100000&&S.cash>=Game.stadCost(t)}catch(e){return false}}
 
 
-let LV=0;const liveDue=m=>m<=45?m*1333:45*1333+6000+(m-45)*1333;
+let LV=0;const liveDue=m=>{const k=TXT?640:1333,h=TXT?2400:6000;return m<=45?m*k:45*k+h+(m-45)*k};
 let LIVE=null,LTM=null,LSPD=900,LEND=null,LREADY=false;
 let TXT=false;try{TXT=localStorage.getItem("soTexto")==="1"}catch(e){}
 (()=>{const cs=Campo.start,cc=Campo.card;
   Campo.start=l=>{if(TXT){Campo.stop();return}cs(l)};
   Campo.card=()=>TXT?`<div style="display:flex;justify-content:space-between;align-items:center;margin:0 0 8px"><b style="font-size:20px">⏱ ${LIVE?Math.min(90,LIVE.live.minute):0}'</b><button onclick="txtToggle()" style="font-size:13px;padding:6px 12px;border-radius:8px">🎬 Ver animação</button></div>`:`<div style="text-align:right;margin:0 0 8px"><button onclick="txtToggle()" style="font-size:13px;padding:6px 12px;border-radius:8px">📝 Só texto</button></div>`+cc()})();
-function txtToggle(){TXT=!TXT;try{localStorage.setItem("soTexto",TXT?"1":"0")}catch(e){}if(LIVE){if(TXT)Campo.stop();else Campo.start(LIVE.live);liveRender()}}
+function txtToggle(){TXT=!TXT;try{localStorage.setItem("soTexto",TXT?"1":"0")}catch(e){}if(LIVE){LV=liveDue(LIVE.live.minute);if(TXT)Campo.stop();else Campo.start(LIVE.live);liveRender()}}
 let PTM=null;
 function penRun(){const sh=LIVE&&LIVE.live.shoot;if(!sh||PTM||sh.shown>=sh.kicks.length)return;
   if(LSPD===-1){sh.shown=sh.kicks.length;liveRender();return}
