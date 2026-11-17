@@ -742,6 +742,7 @@
     if (!silent) dupOffers(s, res);
     if (Array.isArray(s.offDue) && s.offDue.length && !silent) { const due = s.offDue; s.offDue = []; due.forEach((id) => periodicOffers(s, res, id)); }
     if (rd.k === "tab") {
+      if (rd.part) return; // parte de uma rodada dividida: a rodada só fecha com a última parte
       c.rDone++;
       if (c.rDone >= c.R) finishComp(s, c, res, silent);
     } else koCheck(s, c, res, silent);
@@ -1153,7 +1154,7 @@
   function nextRoundClubs(s) {
     for (const rd of s.q) {
       const ids = [];
-      for (const m of rd.fx) for (const id of [m[0], m[1]]) if (isMine(s, id) && !ids.includes(id)) ids.push(id);
+      for (const m of rd.fx) { for (const id of [m[0], m[1]]) if (isMine(s, id) && !ids.includes(id)) ids.push(id); if (ids.length) break; } // só o primeiro jogo meu: cada jogo meu é jogado separado
       if (ids.length) return { T: rd.T, date: dateOf(rd.T), clubs: myClubs(s).filter((id) => ids.includes(id)) };
     }
     return null;
@@ -1188,7 +1189,7 @@
   // Fecha uma rodada: tabela/copas (processRound) + finanças dos meus clubes.
   function settleRd(s, rd, res, pre) {
     processRound(s, rd, res, false, pre);
-    paySalaries(s, rd.T);
+    if (!rd.part) paySalaries(s, rd.T);
     const credit = (id, x, wage) => {
       if (id === s.user) { res.gate += x; res.wages += wage; return; }
       s.cashes = s.cashes || {};
@@ -1275,7 +1276,18 @@
     const nOffers = s.offers.length;
     while (s.q.length) {
       const rd = s.q[0];
-      if (rd.fx.some((m) => isMine(s, m[0]) || isMine(s, m[1]))) { s.T = rd.T; ageCheck(s); return { res, live: createLive(s, rd) }; }
+      if (rd.fx.some((m) => isMine(s, m[0]) || isMine(s, m[1]))) {
+        // Mais de um jogo meu na mesma rodada: cada um vira uma rodada própria (como se fosse em outro dia);
+        // os jogos dos outros times acontecem junto do meu último jogo.
+        const mi = rd.fx.map((m, i) => (isMine(s, m[0]) || isMine(s, m[1]) ? i : -1)).filter((i) => i >= 0);
+        if (mi.length > 1) {
+          const first = Object.assign({}, rd, { fx: [rd.fx[mi[0]]], part: true });
+          rd.fx = rd.fx.filter((m, i) => i !== mi[0]);
+          s.q.unshift(first);
+          s.T = first.T; ageCheck(s); return { res, live: createLive(s, first) };
+        }
+        s.T = rd.T; ageCheck(s); return { res, live: createLive(s, rd) };
+      }
       s.q.shift(); s.T = rd.T; ageCheck(s);
       processRound(s, rd, res, false); res.skipped++;
       if (s.offers.length > nOffers) break;
