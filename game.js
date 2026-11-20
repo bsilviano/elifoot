@@ -1182,6 +1182,7 @@
         const net = tv + com - ops - amt;
         if (id === s.user) s.cash += net; else { s.cashes = s.cashes || {}; s.cashes[id] = (s.cashes[id] || 0) + net; }
         s.ledger = s.ledger || [];
+        (s.payNote = s.payNote || []).push({ mes, id, amt, tv, com, ops }); // aviso único na tela: salários do mês pagos
         s.ledger.push({ T, id, d: `Direitos de TV de ${mes}`, v: tv }, { T, id, d: `Patrocínio e comercial de ${mes}`, v: com }, { T, id, d: `Custos operacionais de ${mes}`, v: -ops }, { T, id, d: `Salários de ${mes}`, v: -amt });
       }
     }
