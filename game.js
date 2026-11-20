@@ -1751,7 +1751,17 @@
           const pv = new Set(prev);
           for (const q of dt.players || []) {
             const k = key(q.name);
-            if (pv.has(k) || mine.has(k) || soldN.has(k)) continue;
+            if (pv.has(k) || soldN.has(k)) continue;
+            if (mine.has(k)) { // já é de um clube meu: se a venda real foi de um clube meu para este, ele fica só neste
+              if (t.players.some((p) => key(p.name) === k)) continue;
+              const o = myClubs(s).map((id) => s.teams[id]).find((x) => x !== t && x.players.some((p) => key(p.name) === k));
+              if (!o) continue;
+              const pl = o.players.find((p) => key(p.name) === k);
+              o.players.splice(o.players.indexOf(pl), 1);
+              const li = (o.lineup || []).indexOf(pl.id); if (li >= 0) { o.lineup.splice(li, 1); o.lineup = autoLineup(o); }
+              t.players.push(pl); joined.push(q.name + " → " + t.name + " (saiu do " + o.name + ")");
+              continue;
+            }
             const age = q.age || 25;
             const ov = q.ov || (q.value ? Math.max(1, ovFromValue(q.value, age, q.sp, t.lkey) + nbo(dt.name, q.name)) : 55);
             const value = q.value || valueOf(ov, age, q.sp, t.lkey);
