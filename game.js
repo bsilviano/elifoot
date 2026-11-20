@@ -1729,6 +1729,7 @@
     s.sold = s.sold || [];
     const mine = initial ? new Set() : new Set((s.clubs || [s.user]).concat(s.user).flatMap((id) => s.teams[id].players.map((p) => key(p.name))));
     const bought = mine; // meu elenco nunca é atualizado
+    const joined = [];
     const realTeam = {}; // nome do jogador -> time real (no elencos.json), exceto o time do usuário
     for (const dt of data.teams || []) {
       const t = Object.values(s.teams).find((x) => x.name === dt.name);
@@ -1741,6 +1742,25 @@
       if (!t || !isMine(s, t.id)) continue;
       if (dt.stad) { if (t.stadUp) t.stad0 = dt.stad; else t.stad = dt.stad; }
       const cgs = {}; for (const q of dt.players || []) if (q.cg) cgs[key(q.name)] = q.cg;
+      // contratação real: quem chegou ao meu clube na vida real desde a última atualização entra no meu elenco
+      // (quem saiu na vida real continua comigo; quem eu vendi não volta)
+      if (!initial) {
+        s.realSeen = s.realSeen || {};
+        const prev = s.realSeen[t.id], soldN = new Set(s.sold.map((x) => key(x.p.name)));
+        if (prev) {
+          const pv = new Set(prev);
+          for (const q of dt.players || []) {
+            const k = key(q.name);
+            if (pv.has(k) || mine.has(k) || soldN.has(k)) continue;
+            const age = q.age || 25;
+            const ov = q.ov || (q.value ? Math.max(1, ovFromValue(q.value, age, q.sp, t.lkey) + nbo(dt.name, q.name)) : 55);
+            const value = q.value || valueOf(ov, age, q.sp, t.lkey);
+            t.players.push({ id: PID++, name: q.name, pos: q.pos, sp: q.sp, cg: q.cg || 0, ov, of: ov, age, value, wage: Math.round(value / 900), long: age > 40 ? 1 : 0, real: 1 });
+            mine.add(k); joined.push(q.name + " → " + t.name);
+          }
+        }
+        s.realSeen[t.id] = (dt.players || []).map((q) => key(q.name));
+      }
       for (const p of t.players) if (cgs[key(p.name)]) p.cg = cgs[key(p.name)];
     }
     // ovr, valor, idade e salário de TODOS os meus jogadores acompanham o desempenho/valor real (Transfermarkt), mesmo sem mexer no elenco
@@ -1816,7 +1836,7 @@
       }
     }
     syncStad(s);
-    return { teams: n, removed, kept, left };
+    return { teams: n, removed, kept, left, joined };
   }
 
 
