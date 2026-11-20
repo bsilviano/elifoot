@@ -68,15 +68,15 @@ tr.me{background:color-mix(in srgb,var(--ac) 30%,transparent);font-weight:800}tr
 <header><div class="hl"><span id="crest"></span><b id="hT">Meu Elifoot</b></div><div class="hr"><span id="flag"></span><span id="hS"></span></div></header>
 <main id="app"></main>
 <nav id="nav"></nav>
-<script src="clubs.js?v=253"></script>
-<script src="game.js?v=253"></script>
-<script src="campo.js?v=253"></script>
-<script src="campo3d.js?v=253"></script>
+<script src="clubs.js?v=254"></script>
+<script src="game.js?v=254"></script>
+<script src="campo.js?v=254"></script>
+<script src="campo3d.js?v=254"></script>
 <script>
 const PREFIX="elifoot:save:",SAVE1="Elifoot"; // um único save para todos os times
 let artCan=false,S=null,tab="jogo",msg="",mf={pos:"",q:"",any:true,min:1,max:null,afford:true,ord:"ovr",dir:-1},viewKey=null;
 const $=id=>document.getElementById(id);
-const VERSAO=253;
+const VERSAO=254;
 const moneyFull=n=>(n<0?"-":"")+"R$ "+Math.round(Math.abs(n)).toLocaleString("pt-BR");
 const money=moneyFull;
 const U=()=>S.teams[S.user];
@@ -484,7 +484,7 @@ function liveBody(){
   }else if(p&&p.kind==="pen"){
     const m=l.matches[p.mi];
     h+=`<div class="card" style="border-color:var(--ac)"><h2>🎯 Pênalti para o ${p.club}!</h2><p class="mut">${p.min}' · Escolha quem vai bater. A chance considera o OVR do batedor e do goleiro adversário.</p>
-    ${m.on[p.side].slice().sort((x,y)=>SPR[SPN(x)]-SPR[SPN(y)]||y.ov-x.ov).map(q=>`<div class="pl"><span class="pc"><span class="pos">${SPN(q)}</span></span><span class="nm">${q.name}</span><span class="rt"><b class="ovc">${q.ov}</b> <span class="mut">${Math.round(Game.penProb(m,p.side,q)*100)}%</span><button class="s p" onclick="livePen(${p.mi},'${p.side}',${q.id})">Bater</button></span></div>`).join("")}
+    ${m.on[p.side].slice().sort((x,y)=>SPR[SPN(x)]-SPR[SPN(y)]||y.ov-x.ov).map(q=>`<div class="pl"><span class="pc"><span class="pos">${SPN(q)}</span></span><span class="nm">${q.name}</span><span class="rt"><b class="ovc">${q.ov}</b><button class="s p" onclick="livePen(${p.mi},'${p.side}',${q.id})">Bater</button></span></div>`).join("")}
     <div class="row" style="margin-top:8px"><button class="p" onclick="liveCont()">Deixar o auxiliar escolher</button></div></div>`;
   }else if(p){
     const m=l.matches[p.mi]
