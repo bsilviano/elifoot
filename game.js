@@ -1665,6 +1665,15 @@
     const p = u.players.find((q) => q.id === pid);
     if (!p) return { err: "Jogador não encontrado." };
     if (u.players.length <= 18) return { err: "Elenco mínimo de 18 jogadores." };
+    // Jogador de outro clube na vida real volta para o clube real dele; se na vida real é do meu time, qualquer clube pode comprar.
+    const rc = (typeof globalThis !== "undefined" && globalThis.REALCLUB && globalThis.REALCLUB[String(p.name).toLowerCase()]) || null;
+    if (rc && !rc.includes(u.name)) {
+      const t = Object.values(s.teams).find((x) => rc.includes(x.name) && !isMine(s, x.id) && !x.local);
+      if (t) {
+        const bid = Math.max(10000, Math.round(p.value * (1 + Math.random() * 0.15) / 10000) * 10000);
+        return { pid, name: p.name, pos: p.pos, sp: p.sp, ov: p.ov, value: p.value, real: t.name, bids: [{ tid: t.id, name: t.name, league: LG[t.lkey].name, country: COUNTRIES[t.country].name, bid }] };
+      }
+    }
     const ids = Object.keys(s.teams).filter((k) => !isMine(s, +k) && !s.teams[k].local);
     for (let i = ids.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [ids[i], ids[j]] = [ids[j], ids[i]]; }
     const bids = [];
