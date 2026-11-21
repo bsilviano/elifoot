@@ -69,15 +69,15 @@ tr.me{background:color-mix(in srgb,var(--ac) 30%,transparent);font-weight:800}tr
 <header><div class="hl"><span id="crest"></span><b id="hT">Meu Elifoot</b></div><div class="hr"><span id="flag"></span><span id="hS"></span></div></header>
 <main id="app"></main>
 <nav id="nav"></nav>
-<script src="clubs.js?v=260"></script>
-<script src="game.js?v=260"></script>
-<script src="campo.js?v=260"></script>
-<script src="campo3d.js?v=260"></script>
+<script src="clubs.js?v=261"></script>
+<script src="game.js?v=261"></script>
+<script src="campo.js?v=261"></script>
+<script src="campo3d.js?v=261"></script>
 <script>
 const PREFIX="elifoot:save:",SAVE1="Elifoot"; // um único save para todos os times
 let artCan=false,S=null,tab="jogo",msg="",mf={pos:"",q:"",any:true,min:1,max:null,afford:true,ord:"ovr",dir:-1},viewKey=null;
 const $=id=>document.getElementById(id);
-const VERSAO=260;
+const VERSAO=261;
 const moneyFull=n=>(n<0?"-":"")+"R$ "+Math.round(Math.abs(n)).toLocaleString("pt-BR");
 const money=moneyFull;
 const U=()=>S.teams[S.user];
@@ -560,6 +560,7 @@ function liveCont(){Game.liveResolve(LIVE.live);liveRender();liveAutoEnd();liveR
 function liveEnd(){
   clearInterval(LTM);const L=LIVE;LIVE=null;_lp=null;LREADY=false;Campo.stop();
   Game.liveFinish(S,L.live,L.res);
+  try{const rc=L.live.rd&&L.live.rd.c;viewKey=rc&&S.comps[rc]?rc:null}catch(e){} // a tabela abre na competição do jogo que acabou de ser jogado
   const hm=LHIRE.map(id=>{const f=Game.market(S).find(p=>p.id===id);if(!f)return null;const e=Game.buy(S,id);return e?`${f.name}: ${e}`:`✅ ${f.name} contratado por ${moneyFull(Math.round(f.value*1.15))}.`}).filter(Boolean);LHIRE=[];
   if(hm.length){save();setTimeout(()=>alert(hm.join("\n")),600)}
   showSummary(L.res)
@@ -669,7 +670,7 @@ function vTabela(){
   {const cids=[c.id,kc&&kc.id].filter(Boolean),byT={};
     (S.q||[]).filter(rd=>cids.includes(rd.c)&&rd.fx&&rd.fx.length).forEach(rd=>{const k=rd.T+"|"+(rd.n||"");const g=byT[k]=byT[k]||{T:rd.T,n:rd.n||"",fx:[]};g.fx.push(...rd.fx)});
     const rds=Object.values(byT).sort((x,y)=>x.T-y.T).slice(0,3);
-    if(rds.length)h+=`<div class="card wide"><h2>📅 Calendário — Próximos Jogos</h2><div class="calg">${rds.map(r=>`<div style="margin-top:10px;break-inside:avoid"><div class="mut" style="font-size:13px;font-weight:700;margin-bottom:2px">${Game.dateOf(r.T)}${r.n?" · "+r.n:""}</div>${r.fx.slice().sort((x,y)=>(mi.includes(y[0])||mi.includes(y[1])?1:0)-(mi.includes(x[0])||mi.includes(x[1])?1:0)).map(m=>{const my=mi.includes(m[0])||mi.includes(m[1]);return `<div style="display:grid;grid-template-columns:1fr 18px 1fr;gap:6px;align-items:center;padding:3px 0;border-bottom:1px solid var(--line);font-size:14px;${my?"font-weight:800;background:rgba(255,209,102,.12)":""}"><span style="text-align:right">${my?"★ ":""}${S.teams[m[0]].name}</span><span class="mut" style="text-align:center">x</span><span style="text-align:left">${S.teams[m[1]].name}</span></div>`}).join("")}</div>`).join("")}</div></div>`}
+    if(rds.length)h+=`<div class="card wide"><h2>📅 Calendário — Próximos Jogos</h2><div class="calg">${rds.map(r=>`<div style="margin-top:10px;break-inside:avoid"><div class="mut" style="font-size:13px;font-weight:700;margin-bottom:2px">${Game.dateOf(r.T)}${r.n?" · "+r.n:""}</div>${r.fx.slice().sort((x,y)=>(mi.includes(y[0])||mi.includes(y[1])?1:0)-(mi.includes(x[0])||mi.includes(x[1])?1:0)).map(m=>{const my=mi.includes(m[0])||mi.includes(m[1]);return `<div style="display:grid;grid-template-columns:1fr 18px 1fr;gap:6px;align-items:center;padding:3px 0;border-bottom:1px solid var(--line);font-size:14px;${my?"font-weight:800;background:rgba(255,209,102,.12)":""}"><span style="text-align:right">${mi.includes(m[0])?`<span style="color:var(--acc,#2f6fd6)">★ ${S.teams[m[0]].name}</span>`:S.teams[m[0]].name}</span><span class="mut" style="text-align:center">x</span><span style="text-align:left">${mi.includes(m[1])?`<span style="color:var(--acc,#2f6fd6)">${S.teams[m[1]].name} ★</span>`:S.teams[m[1]].name}</span></div>`}).join("")}</div>`).join("")}</div></div>`}
   return h+`<div class="card wide"><button class="p" style="width:100%" onclick="HISTV=true;HY=null;render()">📅 Histórico e próximos jogos</button></div>`;
 }
 
