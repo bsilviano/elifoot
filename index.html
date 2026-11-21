@@ -62,21 +62,22 @@ tr.me{background:color-mix(in srgb,var(--ac) 30%,transparent);font-weight:800}tr
 @media(min-width:1000px){.el1>.card.pr{flex:1;padding:20px 18px!important}.el1>.card.pr [style*="font-size:13px"]{font-size:18px!important;padding:6px 0!important}.el1>.card.pr [style*="font-size:11px"]{font-size:15px!important;margin-top:8px!important}.el1>.card.esc{flex:none;padding:8px 12px}.el1>.card.esc h2{font-size:14px;margin:0 0 4px}}
 @media(max-width:999px){.el3{display:none}}
 .ur{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--line)}.urk{font-weight:800;width:20px;flex:none}.urm{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;flex-wrap:wrap;font-size:16px;text-align:center}.urd{font-size:12px;flex:none;text-align:right}@media(max-width:700px){.ur{flex-wrap:wrap;gap:2px 8px}.urm{order:3;flex-basis:100%}.urd{margin-left:auto}}
+.calg{display:grid;gap:0 24px}@media(min-width:900px){.calg{grid-template-columns:repeat(3,1fr)}}
 </style>
 </head>
 <body>
 <header><div class="hl"><span id="crest"></span><b id="hT">Meu Elifoot</b></div><div class="hr"><span id="flag"></span><span id="hS"></span></div></header>
 <main id="app"></main>
 <nav id="nav"></nav>
-<script src="clubs.js?v=259"></script>
-<script src="game.js?v=259"></script>
-<script src="campo.js?v=259"></script>
-<script src="campo3d.js?v=259"></script>
+<script src="clubs.js?v=260"></script>
+<script src="game.js?v=260"></script>
+<script src="campo.js?v=260"></script>
+<script src="campo3d.js?v=260"></script>
 <script>
 const PREFIX="elifoot:save:",SAVE1="Elifoot"; // um único save para todos os times
 let artCan=false,S=null,tab="jogo",msg="",mf={pos:"",q:"",any:true,min:1,max:null,afford:true,ord:"ovr",dir:-1},viewKey=null;
 const $=id=>document.getElementById(id);
-const VERSAO=259;
+const VERSAO=260;
 const moneyFull=n=>(n<0?"-":"")+"R$ "+Math.round(Math.abs(n)).toLocaleString("pt-BR");
 const money=moneyFull;
 const U=()=>S.teams[S.user];
@@ -665,6 +666,10 @@ function vTabela(){
   }else if(c.R&&!(c.after==="cup")){
     h+=`<div class="card wide tbw"><h2>${c.name}${kc?" — Fase de liga":""}</h2>${tbl(c,c.ids)}${c.after==="euS"&&c.final?'<p class="mut">Top 8 direto nas oitavas; 9º a 24º no playoff.</p>':""}</div>`;
   }
+  {const cids=[c.id,kc&&kc.id].filter(Boolean),byT={};
+    (S.q||[]).filter(rd=>cids.includes(rd.c)&&rd.fx&&rd.fx.length).forEach(rd=>{const k=rd.T+"|"+(rd.n||"");const g=byT[k]=byT[k]||{T:rd.T,n:rd.n||"",fx:[]};g.fx.push(...rd.fx)});
+    const rds=Object.values(byT).sort((x,y)=>x.T-y.T).slice(0,3);
+    if(rds.length)h+=`<div class="card wide"><h2>📅 Calendário — Próximos Jogos</h2><div class="calg">${rds.map(r=>`<div style="margin-top:10px;break-inside:avoid"><div class="mut" style="font-size:13px;font-weight:700;margin-bottom:2px">${Game.dateOf(r.T)}${r.n?" · "+r.n:""}</div>${r.fx.slice().sort((x,y)=>(mi.includes(y[0])||mi.includes(y[1])?1:0)-(mi.includes(x[0])||mi.includes(x[1])?1:0)).map(m=>{const my=mi.includes(m[0])||mi.includes(m[1]);return `<div style="display:grid;grid-template-columns:1fr 18px 1fr;gap:6px;align-items:center;padding:3px 0;border-bottom:1px solid var(--line);font-size:14px;${my?"font-weight:800;background:rgba(255,209,102,.12)":""}"><span style="text-align:right">${my?"★ ":""}${S.teams[m[0]].name}</span><span class="mut" style="text-align:center">x</span><span style="text-align:left">${S.teams[m[1]].name}</span></div>`}).join("")}</div>`).join("")}</div></div>`}
   return h+`<div class="card wide"><button class="p" style="width:100%" onclick="HISTV=true;HY=null;render()">📅 Histórico e próximos jogos</button></div>`;
 }
 
