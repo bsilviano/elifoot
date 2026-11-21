@@ -993,14 +993,19 @@
     // Quanto melhor minha campanha em relação ao esperado, mais alto o porte que pode me convidar.
     const P = dup ? null : prestige(s), mp = P && P[cid] ? P[cid] : { score: 0 };
     const perf = Math.max(0, me.esp - me.atu), capUp = 0.25 + 1.0 * perf;
+    const top = !dup && me.tier === 1 && me.rk <= 3;
     const elig = Object.values(s.teams).filter((t) => {
       if (t.id === cid || t.local || isMine(s, t.id) || !LG[t.lkey] || held.has(t.lkey)) return false;
       const L = (lv[t.id] = level(s, t.id));
       if (dup) return L.tier <= myTier && ratings(t).ovr >= myOvr - 4;
+      // Clube top do país (3 maiores elencos da 1ª divisão): só recebe convite de clube com OVR maior ou do mesmo nível
+      // (também top 3 da 1ª divisão do país dele, com OVR parecido). Ex.: Real Madrid → Barcelona, Atlético, Bayern, City.
+      if (top) { const o = ratings(t).ovr; return L.tier === 1 && (o > myOvr || (L.rk <= 3 && o >= myOvr - 4)); }
       const d = P[t.id].score - mp.score;
       return L.tier <= myTier && d > 0.03 && d <= capUp && P[t.id].ovr >= myOvr - 2;
     });
     if (dup) elig.sort((a, b) => Math.abs(ratings(a).ovr - myOvr) - Math.abs(ratings(b).ovr - myOvr));
+    else if (top) elig.sort((a, b) => Math.abs(ratings(a).ovr - myOvr) - Math.abs(ratings(b).ovr - myOvr));
     else elig.sort((a, b) => Math.abs(P[a.id].score - mp.score - 0.1) - Math.abs(P[b.id].score - mp.score - 0.1));
     // Um convite por país (sorteando os países), para não concentrar tudo no país com mais clubes elegíveis.
     const byC = {};
