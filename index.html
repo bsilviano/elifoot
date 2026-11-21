@@ -69,15 +69,15 @@ tr.me{background:color-mix(in srgb,var(--ac) 30%,transparent);font-weight:800}tr
 <header><div class="hl"><span id="crest"></span><b id="hT">Meu Elifoot</b></div><div class="hr"><span id="flag"></span><span id="hS"></span></div></header>
 <main id="app"></main>
 <nav id="nav"></nav>
-<script src="clubs.js?v=261"></script>
-<script src="game.js?v=261"></script>
-<script src="campo.js?v=261"></script>
-<script src="campo3d.js?v=261"></script>
+<script src="clubs.js?v=262"></script>
+<script src="game.js?v=262"></script>
+<script src="campo.js?v=262"></script>
+<script src="campo3d.js?v=262"></script>
 <script>
 const PREFIX="elifoot:save:",SAVE1="Elifoot"; // um único save para todos os times
 let artCan=false,S=null,tab="jogo",msg="",mf={pos:"",q:"",any:true,min:1,max:null,afford:true,ord:"ovr",dir:-1},viewKey=null;
 const $=id=>document.getElementById(id);
-const VERSAO=261;
+const VERSAO=262;
 const moneyFull=n=>(n<0?"-":"")+"R$ "+Math.round(Math.abs(n)).toLocaleString("pt-BR");
 const money=moneyFull;
 const U=()=>S.teams[S.user];
@@ -225,7 +225,7 @@ POR:'<rect width="30" height="20" fill="#ff0000"/><rect width="12" height="20" f
 ITA:'<rect width="10" height="20" fill="#009246"/><rect x="10" width="10" height="20" fill="#fff"/><rect x="20" width="10" height="20" fill="#ce2b37"/>',
 FRA:'<rect width="10" height="20" fill="#002395"/><rect x="10" width="10" height="20" fill="#fff"/><rect x="20" width="10" height="20" fill="#ed2939"/>'};
 function flagSvg(c){return FLAGS[c]?`<svg width="30" height="20" viewBox="0 0 30 20">${FLAGS[c]}</svg>`:""}
-let TMID={},SPMAP=null;fetch("elencos.json?"+Date.now()).then(r=>r.json()).then(d=>{SPMAP={};window.REALCLUB={};d.teams.forEach(t=>{if(t.tm)TMID[t.name]=t.tm;t.players.forEach(p=>{const k=String(p.name).toLowerCase();(REALCLUB[k]=REALCLUB[k]||[]).push(t.name);if(p.sp)SPMAP[t.name+"|"+p.name]=p.sp})});if(window.S&&typeof render==="function")render()}).catch(()=>{});
+let TMID={},SPMAP=null;fetch("elencos.json?"+Date.now()).then(r=>r.json()).then(d=>{SPMAP={};window.REALCLUB={};d.teams.forEach(t=>{if(t.tm)TMID[t.name]=t.tm;t.players.forEach(p=>{const k=String(p.name).toLowerCase();(REALCLUB[k]=REALCLUB[k]||[]).push(t.name);if(p.sp)SPMAP[t.name+"|"+p.name]=p.sp})});if(S&&typeof render==="function")render()}).catch(()=>{});
 function crestFallback(im){const n=im.getAttribute("data-n");if(im.parentNode)im.parentNode.innerHTML=crestSvg0(n)}
 function crestSvg(name){if(TMID[name])return `<img src="escudos/${TMID[name]}.png" alt="" data-n="${name.replace(/"/g,"")}" style="display:block;height:40px;width:auto;max-width:44px;object-fit:contain" onerror="crestFallback(this)">`;return crestSvg0(name)}
 function crestSvg0(name){const t=themeFor(name),h=TEAM_COLORS[name]||t.ac;const w=name.replace(/[^A-Za-zÀ-ÿ ]/g,"").split(" ").filter(x=>x.length>1);const ini=((w[0]||name)[0]+((w[1]||"")[0]||(w[0]||name)[1]||"")).toUpperCase();
@@ -264,7 +264,7 @@ function freeScreen(){
   <div class="row" style="margin-top:8px"><select id="addCty" style="flex:1;min-width:0"><option value="">Qualquer país</option>${cNames().map(n=>`<option>${n}</option>`).join("")}</select><button onclick="addRandomUI()">🎲 Time aleatório</button></div>${msg?`<p>${msg}</p>`:""}</div>
   <div class="card"><button onclick="start()">Trocar de save / novo jogo</button></div>`}
 function payPop(){
-  if(LIVE||!window.S||!S.payNote||!S.payNote.length||document.getElementById("paypop"))return;
+  if(LIVE||!S||!S.payNote||!S.payNote.length||document.getElementById("paypop"))return;
   const ns=S.payNote;S.payNote=[];try{save()}catch(e){}
   const ms=[...new Set(ns.map(n=>n.mes))],by={};ns.forEach(n=>{const b=by[n.id]=by[n.id]||{amt:0,tv:0,com:0,ops:0};b.amt+=n.amt;b.tv+=n.tv||0;b.com+=n.com||0;b.ops+=n.ops||0});
   const el=document.createElement("div");el.id="paypop";el.style.cssText="position:fixed;inset:0;z-index:10000;background:#000a;display:flex;align-items:center;justify-content:center;padding:16px";
