@@ -493,13 +493,53 @@
   // Demais clubes (ESTIMATIVA): [valor médio do elenco da liga em R$ mi, receita ÷ valor do elenco do clube médio]. Série A do Brasil calibrada nos R$ 14,9 bi de 2025 (EY).
   const REV_LG = { BRA1: [660, 1.13], BRA2: [57, 1.3], BRA3: [5, 3], ARG1: [214, 1.1], ARG2: [19, 1], GER1: [1732, 0.9], GER2: [213, 1.6], ENG1: [4222, 0.6], ENG2: [701, 0.47], ESP1: [1831, 0.65], ESP2: [194, 0.8], POR1: [665, 0.6], POR2: [56, 0.45], ITA1: [1809, 0.63], ITA2: [230, 0.53], FRA1: [1449, 0.68], FRA2: [136, 0.9] };
   const squadValue = (t) => t.players.reduce((x, p) => x + (p.value || 0), 0);
+  let REVK_BR = 0.45;
   function clubRev(t) { // receita anual estimada, em R$
     if (REV_REAL[t.name]) return REV_REAL[t.name] * 1e6 * EURBRL;
+    if (t.country === "BRA" && REV_BR[t.name]) return REV_BR[t.name] * 1e6;
+    if (t.country === "BRA") return Math.max(2e6, clubRev0(t) * REVK_BR);
+    return clubRev0(t);
+  }
+  function clubRev0(t) {
     const L = REV_LG[t.lkey] || [100, 0.8], ref = L[0] * 1e6;
     return Math.max(2e6, L[1] * ref * Math.pow(Math.max(squadValue(t), 1) / ref, 0.85));
   }
+  // Salário por jogador (anual, R$): salário real quando conhecido (Capology/imprensa, 2026);
+  // senão, a média de quem tem o mesmo OVR na liga: WA[liga] × e^(0,15 × OVR), calibrada pelas folhas reais.
+  const REAL_WAGE = {"bukayo saka":[110760000,"arsenal"],"boubacar kamara":[55380000,"aston villa"],"evanilson":[31382000,"bournemouth"],"mikkel damsgaard":[27690000,"brentford"],"igor thiago":[27690000,"brentford"],"pascal gross":[33228000,"brighton"],"reece james":[73840000,"chelsea"],"jorgen strand larsen":[44304000,"crystal palace"],"jordan pickford":[55380000,"everton"],"bernd leno":[47996000,"fulham"],"dominic calvert-lewin":[36920000,"leeds"],"virgil van dijk":[129220000,"liverpool"],"erling haaland":[193830000,"manchester city"],"marcus rashford":[110760000,"manchester united"],"bruno fernandes":[110760000,"manchester united"],"joelinton":[55380000,"newcastle"],"morgan gibbs-white":[40612000,"nottingham"],"granit xhaka":[40612000,"sunderland"],"sandro tonali":[73840000,"tottenham"],"omar marmoush":[137802400,"manchester city"],"ryan gravenberch":[130814200,"liverpool"],"jack grealish":[128975200,"manchester city"],"gabriel jesus":[123764700,"arsenal"],"kai havertz":[123335600,"arsenal"],"gianluigi donnarumma":[122416100,"manchester city"],"cody gakpo":[116837800,"liverpool"],"ruben dias":[116837800,"manchester city"],"alexander isak":[112179000,"liverpool"],"elliot anderson":[112179000,"manchester city"],"marc guehi":[112179000,"manchester city"],"declan rice":[112179000,"arsenal"],"martin odegaard":[112179000,"arsenal"],"william saliba":[107458900,"arsenal"],"marco palestra":[78464000,"chelsea"],"federico chiesa":[67307400,"liverpool"],"riccardo calafiori":[56089500,"arsenal"],"guglielmo vicario":[35063600,"tottenham"],"destiny udogie":[35063600,"tottenham"],"giovanni leoni":[25684700,"liverpool"],"michael kayode":[23355300,"brentford"],"nicolò savona":[22435800,"nottingham"],"wilfried gnonto":[18696500,"leeds"],"diego coppola":[11708300,"brighton"],"neymar":[49200000,"santos"],"memphis depay":[32400000,"corinthians"],"gabigol":[30000000,"santos"],"jhon arias":[30000000,"palmeiras"],"matheus pereira":[28800000,"cruzeiro"],"jorginho":[27600000,"flamengo"],"andreas pereira":[26400000,"palmeiras"],"lucas paquetá":[24000000,"flamengo"],"gerson":[24000000,"cruzeiro"],"paulinho":[24000000,"palmeiras"]}; // nome → [salário anual, clube]
+  const REAL_WAGE_CLUB = { "Vasco": {"cuiabano":14987960,"carlos cuesta":12557480,"léo jardim":12152400,"thiago mendes":8911760,"gabriel pereira":7291440,"facundo colidio":6886360,"robert renan":6886360,"marino hinestroza":6481280,"lucas piton":6481280,"carlos andrés gómez":3807752,"andrés gómez":3807752,"tchê tchê":3483688,"adson":3443180,"santiago sosa":3240640,"nuno moreira":3038100,"brenner":3038100,"david":2997592,"paulo henrique":2997592,"johan rojas":2876068,"josé luis rodríguez":2876068,"lucas freitas":2835560,"jair":2714036,"mateus carvalho":2389972,"alan lescano":2227940,"claudio spinelli":2187432,"cauan barros":2187432} };
+  const WB = 0.15;
+  let WA = {};
+  const wkey = (x) => String(x).toLowerCase();
+  function wageOf(p, t) {
+    const k = wkey(p.name), rc = t && REAL_WAGE_CLUB[t.name];
+    if (rc && rc[k]) return rc[k];
+    const rw = REAL_WAGE[k];
+    if (rw && t && wkey(t.name).includes(rw[1])) return rw[0]; // só vale no clube real (evita xarás)
+    const A = WA[(t && t.lkey) || "null"] || WA.BRA1 || 19.5;
+    return Math.round(A * Math.exp(WB * (p.ov || 50)));
+  }
+  // Receita anual real (R$ milhões, 2025). Vasco: receita + aportes do investidor da SAF (Lamacchia: ~R$ 100 mi/ano no futebol + ~R$ 300 mi/ano de cobertura do déficit).
+  const REV_BR = { "Flamengo": 1973, "Palmeiras": 1605, "Botafogo": 1370, "Fluminense": 1022, "Corinthians": 987, "São Paulo": 968, "Cruzeiro": 716, "Internacional": 686, "Atlético-MG": 611, "Bragantino": 610, "Vasco": 979, "Santos": 522, "Bahia": 511, "Grêmio": 509, "Fortaleza": 309, "Ceará": 235, "Vitória": 233, "Sport": 165, "Mirassol": 163, "Juventude": 137 };
+  const BR_KEYS = ["BRA1", "BRA2", "BRA3", "null"];
+  const oldPayroll = (t) => Math.round(squadValue(t) * 0.55 * (REV_LG[t.lkey] ? REV_LG[t.lkey][1] : 0.7));
+  // Calibra uma vez por save: Brasil pelas folhas reais da Série A (ge, out/2026); demais ligas mantêm o total antigo.
+  function calibrateWages(s) {
+    if (s.wageA && s.wageV === 1) { WA = s.wageA; if (s.revBrK) REVK_BR = s.revBrK; return; }
+    const by = {};
+    for (const t of Object.values(s.teams)) { const k = t.lkey || "null"; (by[k] = by[k] || []).push(t); }
+    const S = (ts) => ts.reduce((a, t) => a + t.players.reduce((b, p) => b + Math.exp(WB * (p.ov || 50)), 0), 0);
+    const O = (ts) => ts.reduce((a, t) => a + oldPayroll(t), 0);
+    const A = {}, A1 = Math.exp(2.9702);
+    const corr = by.BRA1 ? (A1 * S(by.BRA1)) / Math.max(1, O(by.BRA1)) : 0.45;
+    for (const k of Object.keys(by)) A[k] = k === "BRA1" ? A1 : (O(by[k]) * (BR_KEYS.includes(k) ? corr : 1)) / Math.max(1, S(by[k]));
+    const br1 = (by.BRA1 || []).filter((t) => REV_BR[t.name] && t.name !== "Vasco");
+    const rk = br1.length ? br1.reduce((x, t) => x + REV_BR[t.name] * 1e6, 0) / br1.reduce((x, t) => x + clubRev0(t), 0) : 0.45;
+    s.wageA = WA = A; s.wageV = 1; s.revBrK = REVK_BR = rk;
+    for (const t of Object.values(s.teams)) t.players.forEach((p) => (p.wage = wageOf(p, t)));
+  }
   const wageRate = (t) => 0.55 * (REV_LG[t.lkey] ? REV_LG[t.lkey][1] : 0.7); // folha anual = valor do elenco × taxa (≈ 55–65% da receita)
-  const payroll = (t) => Math.round(squadValue(t) * wageRate(t)); // folha anual em R$
+  const payroll = (t) => t.players.reduce((x, p) => x + wageOf(p, t), 0); // folha anual em R$ = soma dos salários dos jogadores
   // Poder de compra: 40% da receita anual do clube.
   function clubCash(t) {
     if (t.local) return 1000000;
@@ -523,6 +563,7 @@
   }
   // Migração única (saves antigos): caixa dos meus clubes sobe até o poder de compra realista.
   function migrateFin(s) {
+    calibrateWages(s);
     if (s.finV) return;
     s.finV = 1;
     if (s.teams[s.user]) s.cash = Math.max(s.cash, clubCash(s.teams[s.user]));
@@ -616,7 +657,7 @@
         if (p.of == null || Math.round(p.of) !== p.ov) p.of = p.ov;
         p.of = Math.max(1, p.of + evoDelta(p));
         const n = Math.round(p.of);
-        if (n !== p.ov) { p.ov = n; p.value = valueOf(p.ov, p.age, p.sp, t.lkey); p.wage = Math.round(p.value / 900); }
+        if (n !== p.ov) { p.ov = n; p.value = valueOf(p.ov, p.age, p.sp, t.lkey); p.wage = wageOf(p, t); }
       });
       fixLineup(t);
     }
@@ -647,7 +688,7 @@
         t.players.forEach((p) => {
           if (p.long == null) p.long = p.age > 40 ? 1 : 0; // já passava dos 40 na vida real: aposenta aos 45
           p.age++;
-          p.value = valueOf(p.ov, p.age, p.sp, t.lkey); p.wage = Math.round(p.value / 900);
+          p.value = valueOf(p.ov, p.age, p.sp, t.lkey); p.wage = wageOf(p, t);
         });
         // aposentadoria em todos os times: 40 anos (45 para quem já jogava depois dos 40 na vida real)
         const keep = t.players.filter((p) => p.age < (p.long ? 45 : 40)), retired = t.players.filter((p) => !keep.includes(p));
@@ -1177,6 +1218,7 @@
   const MESES = ["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
   // salários são pagos uma vez por mês (soma dos salários por rodada × 52/12)
   function paySalaries(s, T) {
+    calibrateWages(s);
     const mi = monthIdx(T);
     if (s.payM == null) s.payM = mi - 1;
     while (s.payM < mi) {
@@ -1791,7 +1833,7 @@
           const age = q.age || p.age;
           p.ov = q.ov || Math.max(1, ovFromValue(q.value, age, q.sp || p.sp, t.lkey) + nbo(t.name, q.name));
           if (q.sp) p.sp = q.sp;
-          p.of = p.ov; p.age = age; p.value = q.value || valueOf(p.ov, age, q.sp || p.sp, t.lkey); p.wage = Math.round(p.value / 900);
+          p.of = p.ov; p.age = age; p.value = q.value || valueOf(p.ov, age, q.sp || p.sp, t.lkey); p.wage = wageOf(p, t);
           p.long = age > 40 ? 1 : 0; p.real = 1; // jogador com dado real: o Transfermarkt manda no OVR dele
         }
         if (isMineG(s, t.id) && t.id === s.user) fixLineup(t);
@@ -1851,6 +1893,8 @@
       }
     }
     syncStad(s);
+    if (opts && opts.initial) s.wageV = 0;
+    calibrateWages(s);
     return { teams: n, removed, kept, left, joined };
   }
 
@@ -1904,6 +1948,6 @@
     syncStad(s);
     return null;
   }
-  const api = { slotMap, liveNext, prestige, syncStad, ALTS, dupOffers, jobOffers, level, liveReposition, applyLeagues, clubCash, yearOf, startRound, liveStep, liveSub, liveTakePen, penProb, liveResolve, liveFinish, autoReorg, getStad, stadCost, upgradeStadium, autoStadium, clubRev, payroll, migrateFin, migrateOvr2, topScorers, topScorersComp, lookup, yearOf, bestFormation, avail, nextRoundClubs, myClubs, addClub, switchClub, dropClub, STATES, CONT, COUNTRIES, LEAGUES, LG, FORMATIONS, TACTICS, newGame, autoLineup, ratings, playRound, acceptOffer, market, buy, sell, auction, sellTo, applyUpdate, resetPid, migrateOvr, lineupPlayers, fixLineup, nextUserRound, sortTab, dateOf, userComps, userMatches };
+  const api = { wageOf, calibrateWages, slotMap, liveNext, prestige, syncStad, ALTS, dupOffers, jobOffers, level, liveReposition, applyLeagues, clubCash, yearOf, startRound, liveStep, liveSub, liveTakePen, penProb, liveResolve, liveFinish, autoReorg, getStad, stadCost, upgradeStadium, autoStadium, clubRev, payroll, migrateFin, migrateOvr2, topScorers, topScorersComp, lookup, yearOf, bestFormation, avail, nextRoundClubs, myClubs, addClub, switchClub, dropClub, STATES, CONT, COUNTRIES, LEAGUES, LG, FORMATIONS, TACTICS, newGame, autoLineup, ratings, playRound, acceptOffer, market, buy, sell, auction, sellTo, applyUpdate, resetPid, migrateOvr, lineupPlayers, fixLineup, nextUserRound, sortTab, dateOf, userComps, userMatches };
   if (typeof module !== "undefined") module.exports = api; else root.Game = api;
 })(typeof window !== "undefined" ? window : globalThis);

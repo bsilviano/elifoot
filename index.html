@@ -69,15 +69,15 @@ tr.me{background:color-mix(in srgb,var(--ac) 30%,transparent);font-weight:800}tr
 <header><div class="hl"><span id="crest"></span><b id="hT">Meu Elifoot</b></div><div class="hr"><span id="flag"></span><span id="hS"></span></div></header>
 <main id="app"></main>
 <nav id="nav"></nav>
-<script src="clubs.js?v=262"></script>
-<script src="game.js?v=262"></script>
-<script src="campo.js?v=262"></script>
-<script src="campo3d.js?v=262"></script>
+<script src="clubs.js?v=263"></script>
+<script src="game.js?v=263"></script>
+<script src="campo.js?v=263"></script>
+<script src="campo3d.js?v=263"></script>
 <script>
 const PREFIX="elifoot:save:",SAVE1="Elifoot"; // um único save para todos os times
 let artCan=false,S=null,tab="jogo",msg="",mf={pos:"",q:"",any:true,min:1,max:null,afford:true,ord:"ovr",dir:-1},viewKey=null;
 const $=id=>document.getElementById(id);
-const VERSAO=262;
+const VERSAO=263;
 const moneyFull=n=>(n<0?"-":"")+"R$ "+Math.round(Math.abs(n)).toLocaleString("pt-BR");
 const money=moneyFull;
 const U=()=>S.teams[S.user];
@@ -584,7 +584,7 @@ function vElenco(){
     return l.map((e,i)=>`<div class="pl"><span><b>${i+1}º</b> ${e.n}</span><span><b>${e.g}</b> gol${e.g===1?"":"s"}</span></div>`).join("")};
   const art=`<div class="card el3"><h2>Artilheiros do time</h2><p class="mut" style="margin:0 0 4px"><b>Temporada ${y}</b></p>${sl(mn("season"))}<p class="mut" style="margin:10px 0 4px"><b>De sempre</b></p>${sl(mn("all"))}</div>`;
   return `<div class="elg"><div class="el1">`+aucCard()+resumo+`<div class="card esc"><h2>Escalação (${u.lineup.length}/11)</h2>
-  <div class="row"><button class="s" onclick="U().lineup=Game.autoLineup(U());save();render()">Auto</button><span class="mut">Toque para titular/reserva</span></div></div></div><div class="el2"><div class="card">${ps.map(p=>`<div class="pl ${set.has(p.id)?"in":""}" onclick="tog(${p.id})"><span class="pc"><span class="pos" style="width:auto;white-space:nowrap">${SPX(p)}</span><span class="mut">${p.age}a</span></span><span class="nm">${p.name}${p.inj>0?` <span class="bad">🚑 ${p.inj} jogo${p.inj>1?"s":""}</span>`:""}${p.sus>0?` <span class="bad">🟥 susp. ${p.sus}</span>`:""}${p.yc?` <span class="mut">🟨${p.yc}</span>`:""}</span><span class="rt"><b class="ovc">${p.ov}</b><button class="s d" onclick="event.stopPropagation();sell(${p.id})">Vender</button><span class="mut vl" title="Valor mínimo de venda">${money(p.value)}</span></span></div>`).join("")}</div></div>${art}</div>`;
+  <div class="row"><button class="s" onclick="U().lineup=Game.autoLineup(U());save();render()">Auto</button><span class="mut">Toque para titular/reserva</span></div></div></div><div class="el2"><div class="card">${ps.map(p=>`<div class="pl ${set.has(p.id)?"in":""}" onclick="tog(${p.id})"><span class="pc"><span class="pos" style="width:auto;white-space:nowrap">${SPX(p)}</span><span class="mut">${p.age}a</span></span><span class="nm">${p.name}${p.inj>0?` <span class="bad">🚑 ${p.inj} jogo${p.inj>1?"s":""}</span>`:""}${p.sus>0?` <span class="bad">🟥 susp. ${p.sus}</span>`:""}${p.yc?` <span class="mut">🟨${p.yc}</span>`:""}</span><span class="rt"><b class="ovc">${p.ov}</b><button class="s d" onclick="event.stopPropagation();sell(${p.id})">Vender</button><span class="mut vl" title="Valor mínimo de venda">${money(p.value)}<br><span style="font-size:11px" title="Salário mensal">💵 ${(w=>w>=1e6?(w/1e6).toFixed(1).replace(".",",")+" mi":Math.round(w/1e3)+" mil")(Game.wageOf(p,U())/12)}/mês</span></span></span></div>`).join("")}</div></div>${art}</div>`;
 }
 function destaques(u){
   if(!u.players.length)return"";
