@@ -213,7 +213,7 @@
     return ev;
   }
   // Campo neutro: final continental em jogo único e todo o Mundial de Clubes (sede única)
-  const isNeutral = (rd) => !!(rd && (rd.neutral || /^MUN/.test(rd.c || "") || (rd.k === "ko" && rd.n === "Final" && /^(UCL|UEL|UECL|LIB|SUL)/.test(rd.c || ""))));
+  const isNeutral = (rd) => !!(rd && (rd.neutral || /^MUN/.test(rd.c || "") || (rd.k === "ko" && rd.n === "Final" && /^(UCL|UEL|UECL|LIB|SUL|CDB)/.test(rd.c || ""))));
   function simMatch(h, a, neutral) {
     const HA = neutral ? 0 : HOME_ADV; // campo neutro: sem vantagem de mando
     const evh = matchEvents(h), eva = matchEvents(a);
@@ -324,7 +324,7 @@
     c.ties = pairs.map(([a, b]) => ({ a, b, res: [], w: null, pens: false, legs: st.legs }));
     for (let leg = 0; leg < st.legs; leg++) {
       const fx = c.ties.map((t, k) => (leg % 2 === 0 ? [t.a, t.b, k] : [t.b, t.a, k]));
-      const neutral = st.legs === 1 && st.name === "Final" && /^(UCL|UEL|UECL|LIB|SUL)/.test(c.id); // final continental em jogo único: campo neutro
+      const neutral = st.legs === 1 && st.name === "Final" && /^(UCL|UEL|UECL|LIB|SUL|CDB)/.test(c.id); // final continental ou da Copa do Brasil em jogo único: campo neutro
       s.q.push({ T: st.T[leg], c: c.id, k: "ko", n: st.name + (st.legs === 2 ? (leg ? " (volta)" : " (ida)") : ""), fx, neutral });
     }
     s.q.sort((a, b) => a.T - b.T);
@@ -427,7 +427,7 @@
     const locals = byStrength(s, bra.filter((t) => t.local).map((t) => t.id)).slice(0, 4);
     const ids = byStrength(s, main.concat(locals));
     const c = newComp(s, "CDB", "Copa do Brasil " + Y, ids, "cup", { order: ids, prize: 500000, cont: true });
-    c.plan = plan([["1ª fase", 1, [5]], ["2ª fase", 1, [9]], ["Oitavas", 2, [22, 24]], ["Quartas", 2, [29.5, 31.5]], ["Semifinal", 2, [36, 38]], ["Final", 2, [44, 45]]], B);
+    c.plan = plan([["1ª fase", 1, [5]], ["2ª fase", 1, [9]], ["Oitavas", 2, [22, 24]], ["Quartas", 2, [29.5, 31.5]], ["Semifinal", 2, [36, 38]], ["Final", 1, [45]]], B); // desde 2026 a final é em jogo único, em campo neutro (Brasília)
     c.mode = "draw";
     { // 1ª fase: metade mais forte (cabeças) contra a metade mais fraca, sorteio entre elas; o menos cotado joga em casa
       const half = Math.floor(ids.length / 2), top = shuffle(ids.slice(0, half)), bot = shuffle(ids.slice(ids.length - half));
@@ -568,6 +568,8 @@
   // Migração única (saves antigos): caixa dos meus clubes sobe até o poder de compra realista.
   function migrateFin(s) {
     calibrateWages(s);
+    { const c = s.comps && s.comps.CDB, f = c && c.plan && c.plan.find((x) => x.name === "Final"); // saves antigos: final da Copa do Brasil vira jogo único
+      if (f && f.legs === 2 && c.stage !== "Final") { f.legs = 1; f.T = [f.T[f.T.length - 1]]; } }
     if (s.finV) return;
     s.finV = 1;
     if (s.teams[s.user]) s.cash = Math.max(s.cash, clubCash(s.teams[s.user]));
