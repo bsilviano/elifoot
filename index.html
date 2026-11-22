@@ -69,15 +69,15 @@ tr.me{background:color-mix(in srgb,var(--ac) 30%,transparent);font-weight:800}tr
 <header><div class="hl"><span id="crest"></span><b id="hT">Meu Elifoot</b></div><div class="hr"><span id="flag"></span><span id="hS"></span></div></header>
 <main id="app"></main>
 <nav id="nav"></nav>
-<script src="clubs.js?v=265"></script>
-<script src="game.js?v=265"></script>
-<script src="campo.js?v=265"></script>
-<script src="campo3d.js?v=265"></script>
+<script src="clubs.js?v=266"></script>
+<script src="game.js?v=266"></script>
+<script src="campo.js?v=266"></script>
+<script src="campo3d.js?v=266"></script>
 <script>
 const PREFIX="elifoot:save:",SAVE1="Elifoot"; // um único save para todos os times
 let artCan=false,S=null,tab="jogo",msg="",mf={pos:"",q:"",any:true,min:1,max:null,afford:true,ord:"ovr",dir:-1},viewKey=null;
 const $=id=>document.getElementById(id);
-const VERSAO=265;
+const VERSAO=266;
 const moneyFull=n=>(n<0?"-":"")+"R$ "+Math.round(Math.abs(n)).toLocaleString("pt-BR");
 const money=moneyFull;
 const U=()=>S.teams[S.user];
@@ -720,7 +720,7 @@ function vHist(){
     let res="",cl="";
     if(played){const w=gf>gc?"V":gf<gc?"D":"E";cl=w==="V"?"good":w==="D"?"bad":"mut";res=`<b class="${cl}">${w}</b> ${x.gh} x ${x.ga}`}
     else res=`<span class="mut">a jogar</span>`;
-    return `<div class="pl"><span class="pc"><span class="mut">${x.date.slice(0,5)}</span></span><span class="nm"><span style="color:${tcol(x.h)}">${x.h}</span> x <span style="color:${tcol(x.a)}">${x.a}</span><br><span class="mut" style="font-size:11px">${x.comp}${x.home?" · em casa":" · fora"}</span></span><span class="rt" style="min-width:64px;justify-content:flex-end">${res}</span></div>`};
+    return `<div class="pl"><span class="pc"><span class="mut">${x.date.slice(0,5)}<br><span style="font-size:11px">${(x.date.match(/\((.+)\)/)||["",""])[1]}</span></span></span><span class="nm"><span style="color:${tcol(x.h)}">${x.h}</span> x <span style="color:${tcol(x.a)}">${x.a}</span><br><span class="mut" style="font-size:11px">${x.comp}${x.home?" · em casa":" · fora"}</span></span><span class="rt" style="min-width:64px;justify-content:flex-end">${res}</span></div>`};
   const last=past[past.length-1],next=fut[0];
   const big=(t,x,played)=>`<div class="card" style="border-color:var(--ac)"><p class="mut" style="margin:0 0 4px">${t}</p>${x?`<div class="mrow" style="font-size:18px">${tbox(x.h)} <span>${played?x.gh+" x "+x.ga:"x"}</span> ${tbox(x.a)}</div><p class="mut" style="text-align:center;margin:2px 0">${x.date} · ${x.comp}${x.home?" · em casa":" · fora"}</p>`:`<p class="mut">${played?"Nenhum jogo disputado ainda nesta temporada.":"Nenhum jogo marcado."}</p>`}</div>`;
   let h=`<div class="card"><div class="row"><button class="s" onclick="HISTV=false;render()">← Tabela</button><select onchange="HY=+this.value;render()" style="flex:1">${years.map(a=>`<option value="${a}" ${a===y?"selected":""}>Temporada ${a}</option>`).join("")}</select></div><h2 style="margin-top:8px">${u.name}</h2></div>`;

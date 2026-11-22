@@ -21,8 +21,9 @@
 
   function dateOf(T) {
     const d = new Date(Date.UTC(START_YEAR, 0, 1) + Math.round(T * 7) * 864e5);
-    return String(d.getUTCDate()).padStart(2, "0") + "/" + String(d.getUTCMonth() + 1).padStart(2, "0") + "/" + d.getUTCFullYear();
+    return String(d.getUTCDate()).padStart(2, "0") + "/" + String(d.getUTCMonth() + 1).padStart(2, "0") + "/" + d.getUTCFullYear() + " (" + DIAS[d.getUTCDay()] + ")";
   }
+  const DIAS = ["domingo", "segunda", "terça", "quarta", "quinta", "sexta", "sábado"];
   const yearOf = (T) => START_YEAR + Math.floor(T / 52);
 
   // ---- Valor de mercado <-> OVR (v153) ----
