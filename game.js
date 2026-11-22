@@ -507,13 +507,15 @@
   }
   function clubRev0(t) {
     const L = REV_LG[t.lkey] || [100, 0.8], ref = L[0] * 1e6;
-    return Math.max(2e6, L[1] * ref * Math.pow(Math.max(squadValue(t), 1) / ref, 0.85));
+    // usa o valor do elenco REAL do clube (Transfermarkt), não o que eu montei: comprar jogadores não aumenta a receita
+    return Math.max(2e6, L[1] * ref * Math.pow(Math.max(t.realSV || squadValue(t), 1) / ref, 0.85));
   }
   // Salário por jogador (anual, R$): salário real quando conhecido (Capology/imprensa, 2026);
   // senão, a média de quem tem o mesmo OVR na liga: WA[liga] × e^(0,15 × OVR), calibrada pelas folhas reais.
   const REAL_WAGE = {"bukayo saka":[110760000,"arsenal"],"boubacar kamara":[55380000,"aston villa"],"evanilson":[31382000,"bournemouth"],"mikkel damsgaard":[27690000,"brentford"],"igor thiago":[27690000,"brentford"],"pascal gross":[33228000,"brighton"],"reece james":[73840000,"chelsea"],"jorgen strand larsen":[44304000,"crystal palace"],"jordan pickford":[55380000,"everton"],"bernd leno":[47996000,"fulham"],"dominic calvert-lewin":[36920000,"leeds"],"virgil van dijk":[129220000,"liverpool"],"erling haaland":[193830000,"manchester city"],"marcus rashford":[110760000,"manchester united"],"bruno fernandes":[110760000,"manchester united"],"joelinton":[55380000,"newcastle"],"morgan gibbs-white":[40612000,"nottingham"],"granit xhaka":[40612000,"sunderland"],"sandro tonali":[73840000,"tottenham"],"omar marmoush":[137802400,"manchester city"],"ryan gravenberch":[130814200,"liverpool"],"jack grealish":[128975200,"manchester city"],"gabriel jesus":[123764700,"arsenal"],"kai havertz":[123335600,"arsenal"],"gianluigi donnarumma":[122416100,"manchester city"],"cody gakpo":[116837800,"liverpool"],"ruben dias":[116837800,"manchester city"],"alexander isak":[112179000,"liverpool"],"elliot anderson":[112179000,"manchester city"],"marc guehi":[112179000,"manchester city"],"declan rice":[112179000,"arsenal"],"martin odegaard":[112179000,"arsenal"],"william saliba":[107458900,"arsenal"],"marco palestra":[78464000,"chelsea"],"federico chiesa":[67307400,"liverpool"],"riccardo calafiori":[56089500,"arsenal"],"guglielmo vicario":[35063600,"tottenham"],"destiny udogie":[35063600,"tottenham"],"giovanni leoni":[25684700,"liverpool"],"michael kayode":[23355300,"brentford"],"nicolò savona":[22435800,"nottingham"],"wilfried gnonto":[18696500,"leeds"],"diego coppola":[11708300,"brighton"],"neymar":[49200000,"santos"],"memphis depay":[32400000,"corinthians"],"gabigol":[30000000,"santos"],"jhon arias":[30000000,"palmeiras"],"matheus pereira":[28800000,"cruzeiro"],"jorginho":[27600000,"flamengo"],"andreas pereira":[26400000,"palmeiras"],"lucas paquetá":[24000000,"flamengo"],"gerson":[24000000,"cruzeiro"],"paulinho":[24000000,"palmeiras"]}; // nome → [salário anual, clube]
   const REAL_WAGE_CLUB = { "Vasco": {"cuiabano":14987960,"carlos cuesta":12557480,"léo jardim":12152400,"thiago mendes":8911760,"gabriel pereira":7291440,"facundo colidio":6886360,"robert renan":6886360,"marino hinestroza":6481280,"lucas piton":6481280,"carlos andrés gómez":3807752,"andrés gómez":3807752,"tchê tchê":3483688,"adson":3443180,"santiago sosa":3240640,"nuno moreira":3038100,"brenner":3038100,"david":2997592,"paulo henrique":2997592,"johan rojas":2876068,"josé luis rodríguez":2876068,"lucas freitas":2835560,"jair":2714036,"mateus carvalho":2389972,"alan lescano":2227940,"claudio spinelli":2187432,"cauan barros":2187432} };
-  const WB = 0.15;
+  const WB_BR = 0.15, WB_X = 0.10; // inclinação da curva salário × OVR: Brasil ajustado pelas folhas reais; fora, curva mais suave (estrelas não ganham 40× o reserva)
+  const wbOf = (k) => (BR_KEYS.includes(k || "null") ? WB_BR : WB_X);
   let WA = {};
   const wkey = (x) => String(x).toLowerCase();
   function wageOf(p, t) {
@@ -522,25 +524,25 @@
     const rw = REAL_WAGE[k];
     if (rw && t && wkey(t.name).includes(rw[1])) return rw[0]; // só vale no clube real (evita xarás)
     const A = WA[(t && t.lkey) || "null"] || WA.BRA1 || 19.5;
-    return Math.round(A * Math.exp(WB * (p.ov || 50)));
+    return Math.round(A * Math.exp(wbOf(t && t.lkey) * (p.ov || 50)));
   }
   // Receita anual real (R$ milhões, 2025). Vasco: receita + aportes do investidor da SAF (Lamacchia: ~R$ 100 mi/ano no futebol + ~R$ 300 mi/ano de cobertura do déficit).
   const REV_BR = { "Flamengo": 1973, "Palmeiras": 1605, "Botafogo": 1370, "Fluminense": 1022, "Corinthians": 987, "São Paulo": 968, "Cruzeiro": 716, "Internacional": 686, "Atlético-MG": 611, "Bragantino": 610, "Vasco": 979, "Santos": 522, "Bahia": 511, "Grêmio": 509, "Fortaleza": 309, "Ceará": 235, "Vitória": 233, "Sport": 165, "Mirassol": 163, "Juventude": 137 };
   const BR_KEYS = ["BRA1", "BRA2", "BRA3", "null"];
-  const oldPayroll = (t) => Math.round(squadValue(t) * 0.55 * (REV_LG[t.lkey] ? REV_LG[t.lkey][1] : 0.7));
+  const oldPayroll = (t) => Math.round((t.realSV || squadValue(t)) * 0.55 * (REV_LG[t.lkey] ? REV_LG[t.lkey][1] : 0.7));
   // Calibra uma vez por save: Brasil pelas folhas reais da Série A (ge, out/2026); demais ligas mantêm o total antigo.
   function calibrateWages(s) {
-    if (s.wageA && s.wageV === 1) { WA = s.wageA; if (s.revBrK) REVK_BR = s.revBrK; return; }
+    if (s.wageA && s.wageV === 2) { WA = s.wageA; if (s.revBrK) REVK_BR = s.revBrK; return; }
     const by = {};
     for (const t of Object.values(s.teams)) { const k = t.lkey || "null"; (by[k] = by[k] || []).push(t); }
-    const S = (ts) => ts.reduce((a, t) => a + t.players.reduce((b, p) => b + Math.exp(WB * (p.ov || 50)), 0), 0);
+    const S = (ts) => ts.reduce((a, t) => a + t.players.reduce((b, p) => b + Math.exp(wbOf(t.lkey) * (p.ov || 50)), 0), 0);
     const O = (ts) => ts.reduce((a, t) => a + oldPayroll(t), 0);
     const A = {}, A1 = Math.exp(2.9702);
     const corr = by.BRA1 ? (A1 * S(by.BRA1)) / Math.max(1, O(by.BRA1)) : 0.45;
     for (const k of Object.keys(by)) A[k] = k === "BRA1" ? A1 : (O(by[k]) * (BR_KEYS.includes(k) ? corr : 1)) / Math.max(1, S(by[k]));
     const br1 = (by.BRA1 || []).filter((t) => REV_BR[t.name] && t.name !== "Vasco");
     const rk = br1.length ? br1.reduce((x, t) => x + REV_BR[t.name] * 1e6, 0) / br1.reduce((x, t) => x + clubRev0(t), 0) : 0.45;
-    s.wageA = WA = A; s.wageV = 1; s.revBrK = REVK_BR = rk;
+    s.wageA = WA = A; s.wageV = 2; s.revBrK = REVK_BR = rk;
     for (const t of Object.values(s.teams)) t.players.forEach((p) => (p.wage = wageOf(p, t)));
   }
   const wageRate = (t) => 0.55 * (REV_LG[t.lkey] ? REV_LG[t.lkey][1] : 0.7); // folha anual = valor do elenco × taxa (≈ 55–65% da receita)
@@ -1796,6 +1798,7 @@
       const t = Object.values(s.teams).find((x) => x.name === dt.name);
       if (!t || !isMine(s, t.id)) continue;
       if (dt.stad) { if (t.stadUp) t.stad0 = dt.stad; else t.stad = dt.stad; }
+      { const sv = (dt.players || []).reduce((x, q) => x + (q.value || 0), 0); if (sv > 0) t.realSV = sv; }
       const cgs = {}; for (const q of dt.players || []) if (q.cg) cgs[key(q.name)] = q.cg;
       // contratação real: quem chegou ao meu clube na vida real desde a última atualização entra no meu elenco
       // (quem saiu na vida real continua comigo; quem eu vendi não volta)
