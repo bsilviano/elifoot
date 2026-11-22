@@ -212,14 +212,17 @@
     }
     return ev;
   }
-  function simMatch(h, a) {
+  // Campo neutro: final continental em jogo único e todo o Mundial de Clubes (sede única)
+  const isNeutral = (rd) => !!(rd && (rd.neutral || /^MUN/.test(rd.c || "") || (rd.k === "ko" && rd.n === "Final" && /^(UCL|UEL|UECL|LIB|SUL)/.test(rd.c || ""))));
+  function simMatch(h, a, neutral) {
+    const HA = neutral ? 0 : HOME_ADV; // campo neutro: sem vantagem de mando
     const evh = matchEvents(h), eva = matchEvents(a);
     const rh = ratings(h), ra = ratings(a);
     const tf = (t) => (t.tactic === "Ofensiva" ? [1.06, 0.94] : t.tactic === "Defensiva" ? [0.94, 1.06] : [1, 1]);
     const [ah, dh] = tf(h), [aa, da] = tf(a);
     const redH = evh.some((e) => e.type === "red") ? 1 : 0, redA = eva.some((e) => e.type === "red") ? 1 : 0;
-    const S = simS(h, a), xh = 1.33 * Math.exp((rh.A * ah - ra.D * da + HOME_ADV) / S) * (redH ? 0.82 : 1) * (redA ? 1.12 : 1);
-    const xa = 1.125 * Math.exp((ra.A * aa - rh.D * dh - HOME_ADV) / S) * (redA ? 0.82 : 1) * (redH ? 1.12 : 1);
+    const S = simS(h, a), xh = (neutral ? 1.23 : 1.33) * Math.exp((rh.A * ah - ra.D * da + HA) / S) * (redH ? 0.82 : 1) * (redA ? 1.12 : 1);
+    const xa = (neutral ? 1.23 : 1.125) * Math.exp((ra.A * aa - rh.D * dh - HA) / S) * (redA ? 0.82 : 1) * (redH ? 1.12 : 1);
     const gh = poisson(clamp(xh, 0.15, 5)), ga = poisson(clamp(xa, 0.15, 5));
     const sh = [], sa = [];
     for (let i = 0; i < gh; i++) sh.push(scorer(h));
@@ -321,7 +324,8 @@
     c.ties = pairs.map(([a, b]) => ({ a, b, res: [], w: null, pens: false, legs: st.legs }));
     for (let leg = 0; leg < st.legs; leg++) {
       const fx = c.ties.map((t, k) => (leg % 2 === 0 ? [t.a, t.b, k] : [t.b, t.a, k]));
-      s.q.push({ T: st.T[leg], c: c.id, k: "ko", n: st.name + (st.legs === 2 ? (leg ? " (volta)" : " (ida)") : ""), fx });
+      const neutral = st.legs === 1 && st.name === "Final" && /^(UCL|UEL|UECL|LIB|SUL)/.test(c.id); // final continental em jogo único: campo neutro
+      s.q.push({ T: st.T[leg], c: c.id, k: "ko", n: st.name + (st.legs === 2 ? (leg ? " (volta)" : " (ida)") : ""), fx, neutral });
     }
     s.q.sort((a, b) => a.T - b.T);
   }
@@ -758,7 +762,7 @@
       const H = s.teams[h], A = s.teams[a];
       if (!silent && h === s.user) { /* escalação do usuário ativo */ } else if (!silent && isMine(s, h)) fixLineup(H); else H.lineup = autoLineup(H);
       if (!silent && a === s.user) { /* escalação do usuário ativo */ } else if (!silent && isMine(s, a)) fixLineup(A); else A.lineup = autoLineup(A);
-      const r = pre ? pre[fi] : simMatch(H, A);
+      const r = pre ? pre[fi] : simMatch(H, A, isNeutral(rd));
       trackGoals(s, H, r.sh, c); trackGoals(s, A, r.sa, c);
       if (rd.k === "tab") {
         const th = c.tab[h], ta = c.tab[a];
@@ -1279,8 +1283,9 @@
     const tf = (t) => (t.tactic === "Ofensiva" ? [1.06, 0.94] : t.tactic === "Defensiva" ? [0.94, 1.06] : [1, 1]);
     const [ah, dh] = tf(m.H), [aa, da] = tf(m.A);
     const S = simS(m.H, m.A);
-    let xh = clamp(1.33 * Math.exp((rh.A * ah - ra.D * da + HOME_ADV) / S), 0.15, 5);
-    let xa = clamp(1.125 * Math.exp((ra.A * aa - rh.D * dh - HOME_ADV) / S), 0.15, 5);
+    const HA = m.neutral ? 0 : HOME_ADV; // campo neutro: sem vantagem de mando
+    let xh = clamp((m.neutral ? 1.23 : 1.33) * Math.exp((rh.A * ah - ra.D * da + HA) / S), 0.15, 5);
+    let xa = clamp((m.neutral ? 1.23 : 1.125) * Math.exp((ra.A * aa - rh.D * dh - HA) / S), 0.15, 5);
     xh *= Math.pow(nh / 11, 1.3) * Math.pow(11 / Math.max(na, 1), 0.5);
     xa *= Math.pow(na / 11, 1.3) * Math.pow(11 / Math.max(nh, 1), 0.5);
     m.px = { h: xh / 90, a: xa / 90 };
@@ -1291,7 +1296,7 @@
     rd.fx.forEach(([h, a, k], i) => {
       const H = s.teams[h], A = s.teams[a];
       for (const [t, id] of [[H, h], [A, a]]) { if (isMine(s, id)) fixLineup(t); else t.lineup = autoLineup(t); }
-      const m = { i, hid: h, aid: a, H, A, gh: 0, ga: 0, sh: [], sa: [], evh: [], eva: [], ev: [], subs: { h: 0, a: 0 }, mine: { h: isMine(s, h), a: isMine(s, a) } };
+      const m = { i, hid: h, aid: a, H, A, gh: 0, ga: 0, sh: [], sa: [], evh: [], eva: [], ev: [], subs: { h: 0, a: 0 }, mine: { h: isMine(s, h), a: isMine(s, a) }, neutral: isNeutral(rd) };
       const tie = rd.k === "ko" && c && c.ties && c.ties[k];
       if (tie && tie.res.length) m.ida = { r: tie.res[0], home: tie.a === h ? 0 : 1 }; // jogo de volta: resultado da ida ([gols do time A, gols do time B]; home=0 se o mandante da volta era o A)
       m.on = { h: lineupPlayers(H).slice(), a: lineupPlayers(A).slice() };
@@ -1948,6 +1953,6 @@
     syncStad(s);
     return null;
   }
-  const api = { wageOf, calibrateWages, slotMap, liveNext, prestige, syncStad, ALTS, dupOffers, jobOffers, level, liveReposition, applyLeagues, clubCash, yearOf, startRound, liveStep, liveSub, liveTakePen, penProb, liveResolve, liveFinish, autoReorg, getStad, stadCost, upgradeStadium, autoStadium, clubRev, payroll, migrateFin, migrateOvr2, topScorers, topScorersComp, lookup, yearOf, bestFormation, avail, nextRoundClubs, myClubs, addClub, switchClub, dropClub, STATES, CONT, COUNTRIES, LEAGUES, LG, FORMATIONS, TACTICS, newGame, autoLineup, ratings, playRound, acceptOffer, market, buy, sell, auction, sellTo, applyUpdate, resetPid, migrateOvr, lineupPlayers, fixLineup, nextUserRound, sortTab, dateOf, userComps, userMatches };
+  const api = { simMatch, wageOf, calibrateWages, slotMap, liveNext, prestige, syncStad, ALTS, dupOffers, jobOffers, level, liveReposition, applyLeagues, clubCash, yearOf, startRound, liveStep, liveSub, liveTakePen, penProb, liveResolve, liveFinish, autoReorg, getStad, stadCost, upgradeStadium, autoStadium, clubRev, payroll, migrateFin, migrateOvr2, topScorers, topScorersComp, lookup, yearOf, bestFormation, avail, nextRoundClubs, myClubs, addClub, switchClub, dropClub, STATES, CONT, COUNTRIES, LEAGUES, LG, FORMATIONS, TACTICS, newGame, autoLineup, ratings, playRound, acceptOffer, market, buy, sell, auction, sellTo, applyUpdate, resetPid, migrateOvr, lineupPlayers, fixLineup, nextUserRound, sortTab, dateOf, userComps, userMatches };
   if (typeof module !== "undefined") module.exports = api; else root.Game = api;
 })(typeof window !== "undefined" ? window : globalThis);
