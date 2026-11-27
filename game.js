@@ -830,6 +830,7 @@
   function finishComp(s, c, res, silent, koEnd) {
     const nc0 = Object.keys(s.comps).length;
     finishComp0(s, c, res, silent, koEnd);
+    try { if (!silent && (["lg", "cup", "stK", "arNF", "b3f"].includes(c.after) || Object.keys(s.comps).length === nc0)) championOffers(s, c, res); } catch (e) {}
     try {
       if (silent || !c.ids.includes(s.user)) return;
       const fin = ["lg", "cup", "stK", "arNF", "b3f"].includes(c.after) || Object.keys(s.comps).length === nc0;
@@ -1090,8 +1091,15 @@
       const tab = sortTab(c.ids, c.tab), pos = tab.indexOf(cid) + 1;
       if (diff <= -7 || (pos >= c.ids.length - 1 && diff <= -4)) { fireUser(s, res, `Após 10 jogos, o time está em ${pos}º, muito abaixo do esperado (${pos + diff}º).`); return; }
     }
-    if (jobMode(s, cid) === "refuse") return; // este clube não quer ofertas de emprego
-    jobOffers(s, why, res, cid);
+    // convites de outros clubes só chegam quando sou campeão (ver championOffers)
+  }
+  // Convite só para campeão: ao ganhar qualquer campeonato, um clube maior convida o técnico daquele clube.
+  function championOffers(s, c, res) {
+    if (s.free || !c.done) return;
+    let ch = c.champion;
+    if (ch == null && c.tab && c.ids.every((i) => c.tab[i])) ch = sortTab(c.ids, c.tab)[0];
+    if (ch == null || !isMine(s, ch) || jobMode(s, ch) === "refuse") return;
+    jobOffers(s, `Campeão: ${c.name}!`, res, ch);
   }
   function checkRollover(s, country, res, silent) {
     const tiers = LEAGUES.filter((l) => l.country === country).sort((a, b) => a.tier - b.tier);
@@ -1959,6 +1967,6 @@
     syncStad(s);
     return null;
   }
-  const api = { simMatch, wageOf, calibrateWages, slotMap, liveNext, prestige, syncStad, ALTS, dupOffers, jobOffers, level, liveReposition, applyLeagues, clubCash, yearOf, startRound, liveStep, liveSub, liveTakePen, penProb, liveResolve, liveFinish, autoReorg, getStad, stadCost, upgradeStadium, autoStadium, clubRev, payroll, migrateFin, migrateOvr2, topScorers, topScorersComp, lookup, yearOf, bestFormation, avail, nextRoundClubs, myClubs, addClub, switchClub, dropClub, STATES, CONT, COUNTRIES, LEAGUES, LG, FORMATIONS, TACTICS, newGame, autoLineup, ratings, playRound, acceptOffer, market, buy, sell, auction, sellTo, applyUpdate, resetPid, migrateOvr, lineupPlayers, fixLineup, nextUserRound, sortTab, dateOf, userComps, userMatches };
+  const api = { championOffers, simMatch, wageOf, calibrateWages, slotMap, liveNext, prestige, syncStad, ALTS, dupOffers, jobOffers, level, liveReposition, applyLeagues, clubCash, yearOf, startRound, liveStep, liveSub, liveTakePen, penProb, liveResolve, liveFinish, autoReorg, getStad, stadCost, upgradeStadium, autoStadium, clubRev, payroll, migrateFin, migrateOvr2, topScorers, topScorersComp, lookup, yearOf, bestFormation, avail, nextRoundClubs, myClubs, addClub, switchClub, dropClub, STATES, CONT, COUNTRIES, LEAGUES, LG, FORMATIONS, TACTICS, newGame, autoLineup, ratings, playRound, acceptOffer, market, buy, sell, auction, sellTo, applyUpdate, resetPid, migrateOvr, lineupPlayers, fixLineup, nextUserRound, sortTab, dateOf, userComps, userMatches };
   if (typeof module !== "undefined") module.exports = api; else root.Game = api;
 })(typeof window !== "undefined" ? window : globalThis);
