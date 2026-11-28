@@ -77,7 +77,7 @@ tr.me{background:color-mix(in srgb,var(--ac) 30%,transparent);font-weight:800}tr
 const PREFIX="elifoot:save:",SAVE1="Elifoot"; // um único save para todos os times
 let artCan=false,S=null,tab="jogo",msg="",mf={pos:"",q:"",any:true,min:1,max:null,afford:true,ord:"ovr",dir:-1},viewKey=null;
 const $=id=>document.getElementById(id);
-const VERSAO=268;
+const VERSAO=269;
 const moneyFull=n=>(n<0?"-":"")+"R$ "+Math.round(Math.abs(n)).toLocaleString("pt-BR");
 const money=moneyFull;
 const U=()=>S.teams[S.user];
@@ -789,15 +789,15 @@ function linkTeams(root){const re=teamRe();if(!re||!root)return;const w=document
 function teamPageHtml(){
   const name=TEAMV,t=Object.values(S.teams).find(x=>x.name===name),mine=!!t&&Game.myClubs(S).some(i=>S.teams[i].name===name);
   const money2=v=>moneyFull?moneyFull(v):"R$ "+v;
-  let ps=mine?t.players.map(p=>({...p,team:name})):Game.market(S).filter(p=>p.team===name&&Game.avail(p));
+  let ps=mine?t.players.map(p=>({...p,team:name})):Game.market(S).filter(p=>p.team===name);
   const price=p=>Math.round(p.value*1.15),can=ps.filter(p=>price(p)<=S.cash).length;
   ps=ps.filter(p=>!TF||price(p)<=S.cash).sort((a,b)=>(SPR[SPN(a)]-SPR[SPN(b)])||b.ov-a.ov);
   const ovr=t?Math.round(Game.ratings(t).ovr):"";
   let h=`<div style="max-width:900px;margin:0 auto;padding:12px"><div class="row" style="align-items:center;gap:8px;margin-bottom:8px"><button class="s" onclick="closeTeam()">← Fechar</button><span style="flex:1;text-align:center">${tbox(name)}</span><span class="mut" style="font-size:13px">Caixa: <b>${money(S.cash)}</b></span></div>`;
   h+=`<div class="card"><h2 style="margin:0 0 4px">Elenco do ${name}${ovr?` <span class="mut" style="font-size:13px;font-weight:600">· OVR ${ovr}</span>`:""}</h2>`;
   if(mine)h+=`<p class="mut" style="margin:0">Este é o seu time. Veja e gerencie o elenco na aba Elenco.</p>`;
-  else h+=`<p class="mut" style="margin:0 0 6px">Preço = valor +15%. Você pode comprar <b>${can}</b> de ${Game.market(S).filter(p=>p.team===name&&Game.avail(p)).length} jogadores com o caixa atual.</p><label class="mut" style="display:flex;align-items:center;gap:6px"><input type="checkbox" ${TF?"checked":""} onchange="TF=this.checked;refreshTeam()"> Só os que cabem no meu caixa</label>`;
-  h+=`</div><div class="card">`+(ps.length?ps.map(p=>{const pr=price(p),ok=pr<=S.cash;return `<div class="pl"><span><span class="pos" style="white-space:nowrap;margin-right:8px">${SPX(p)}</span>${p.name}${p.inj>0?" 🚑":""} <span class="mut">${p.age}a</span></span><span><b>${p.ov}</b> ${mine?"":`<button class="s ${ok?"p":""}" ${ok?"":"disabled style=\"opacity:.45\""} onclick="teamBuy(${p.id})">${money(pr)}</button>`}</span></div>`}).join(""):`<p class="mut">Nenhum jogador disponível.</p>`)+`</div></div>`;
+  else h+=`<p class="mut" style="margin:0 0 6px">Preço = valor +15%. Você pode comprar <b>${can}</b> de ${Game.market(S).filter(p=>p.team===name).length} jogadores com o caixa atual.</p><label class="mut" style="display:flex;align-items:center;gap:6px"><input type="checkbox" ${TF?"checked":""} onchange="TF=this.checked;refreshTeam()"> Só os que cabem no meu caixa</label>`;
+  h+=`</div><div class="card">`+(ps.length?ps.map(p=>{const pr=price(p),ok=pr<=S.cash;return `<div class="pl"><span><span class="pos" style="white-space:nowrap;margin-right:8px">${SPX(p)}</span>${p.name}${p.inj>0?` 🚑 <span class="mut">(${p.inj} ${p.inj>1?"rodadas":"rodada"})</span>`:""}${p.sus>0?` 🟥 <span class="mut">(suspenso)</span>`:""} <span class="mut">${p.age}a</span></span><span><b>${p.ov}</b> ${mine?"":`<button class="s ${ok?"p":""}" ${ok?"":"disabled style=\"opacity:.45\""} onclick="teamBuy(${p.id})">${money(pr)}</button>`}</span></div>`}).join(""):`<p class="mut">Nenhum jogador disponível.</p>`)+`</div></div>`;
   return h}
 function showTeam(){let el=document.getElementById("tpage");if(!el){el=document.createElement("div");el.id="tpage";el.style.cssText="position:fixed;inset:0;z-index:9999;overflow:auto;background:"+(getComputedStyle(document.body).backgroundColor||"#0f1a14");document.body.appendChild(el)}el.innerHTML=teamPageHtml();el.scrollTop=0}
 function refreshTeam(){const el=document.getElementById("tpage");if(!el||!TEAMV)return;const y=el.scrollTop;el.innerHTML=teamPageHtml();el.scrollTop=y}
