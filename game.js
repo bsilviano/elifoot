@@ -374,12 +374,29 @@
       c.plan = plan([["Playoff", 2, [26, 27]], ["Oitavas", 2, [31, 32]], ["Quartas", 2, [35, 36]], ["Semifinal", 2, [39, 40]], ["Final", 1, [44]]].map(([n, l, T]) => [n, l, T.map((x) => x + off)]), B);
     });
   }
+  // Pré-Libertadores (fase 3, ida e volta): Brasileirão 6º–7º, Argentino 5º–6º e 4 clubes de outros países.
+  // Os 4 vencedores entram na fase de grupos da Libertadores; os 4 perdedores vão para a Sul-Americana.
   function createSouthCups(s, Y) {
     const B = 52 * (Y - START_YEAR);
     s.season.SACUPS = Y;
+    const L = CONT.LIB, Sx = CONT.SUL;
+    if (L.pre) {
+      const ext = byStrength(s, Sx.extras.map((n) => teamByName(s, n))).slice(0, 4);
+      const pre = byStrength(s, qualifiers(s, { slots: L.pre }).concat(ext));
+      if (pre.length === 8) {
+        const c = newComp(s, "LIBP", "Pré-Libertadores " + Y, pre, "preL", { order: pre, cont: true, Y, ext });
+        c.plan = plan([["Fase 3", 2, [10.5, 12.5]]], B);
+        startStage(s, c, [0, 1, 2, 3].map((i) => [pre[7 - i], pre[i]]));
+        return; // fase de grupos da Libertadores e da Sul-Americana é sorteada quando a pré terminar
+      }
+    }
+    createSouthGroups(s, Y, [], [], []);
+  }
+  function createSouthGroups(s, Y, winners, losers, used) {
+    const B = 52 * (Y - START_YEAR);
     ["LIB", "SUL"].forEach((k, ci) => {
       const def = CONT[k], off = ci * 0.25;
-      let ids = qualifiers(s, def).concat(def.extras.map((n) => teamByName(s, n)));
+      let ids = qualifiers(s, def).concat(def.extras.map((n) => teamByName(s, n)).filter((id) => !used.includes(id))).concat(k === "LIB" ? winners : losers);
       ids = byStrength(s, ids);
       const groups = drawGroups(s, ids, 8);
       const c = newComp(s, k, def.name + " " + Y, ids, "gr", { order: ids, prize: def.prize, cont: true, groups });
@@ -818,7 +835,11 @@
       let alive = wins.slice().sort((x, y) => c.order.indexOf(x) - c.order.indexOf(y));
       if (c.fixedTop && c.si === 0) { alive = c.fixedTop.concat(alive); c.fixedTop = null; }
       c.si++;
-      if (c.si >= c.plan.length) {
+      if (c.si >= c.plan.length && c.after === "preL") {
+        c.winners = wins; c.losers = c.ties.map((t) => (t.w === t.a ? t.b : t.a));
+        if (!silent) res.notes.push(`<b>${c.name}</b>: classificados para a fase de grupos: ${wins.map((id) => s.teams[id].name).join(", ")}.`);
+        finishComp(s, c, res, silent, true);
+      } else if (c.si >= c.plan.length) {
         c.champion = alive[0];
         s.honors.push({ year: yearOf(s.T), cup: c.name, club: s.teams[alive[0]].name });
         if (!silent) { const ft = c.ties.find((t) => t.w === alive[0]); res.notes.push(`<b>${c.name}</b>: campeão ${s.teams[alive[0]].name}` + (ft && ft.pens ? ` — final empatada em ${ft.agg[0]} x ${ft.agg[1]} no agregado; decidida nos pênaltis${ft.pk ? ` (${ft.pk[0]} x ${ft.pk[1]})` : ""}` : "")); }
@@ -902,6 +923,7 @@
         break;
       }
       case "cup": case "stK": c.done = true; break;
+      case "preL": c.done = true; createSouthGroups(s, c.Y, c.winners || [], c.losers || [], c.ext || []); break;
       case "arG": {
         c.done = true;
         c.ids.forEach((id) => { s.annual[id].pts += c.tab[id].pts; s.annual[id].g += c.tab[id].p; });
