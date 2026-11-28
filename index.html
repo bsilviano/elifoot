@@ -77,7 +77,7 @@ tr.me{background:color-mix(in srgb,var(--ac) 30%,transparent);font-weight:800}tr
 const PREFIX="elifoot:save:",SAVE1="Elifoot"; // um único save para todos os times
 let artCan=false,S=null,tab="jogo",msg="",mf={pos:"",q:"",any:true,min:1,max:null,afford:true,ord:"ovr",dir:-1},viewKey=null;
 const $=id=>document.getElementById(id);
-const VERSAO=270;
+const VERSAO=271;
 const moneyFull=n=>(n<0?"-":"")+"R$ "+Math.round(Math.abs(n)).toLocaleString("pt-BR");
 const money=moneyFull;
 const U=()=>S.teams[S.user];
@@ -647,9 +647,14 @@ function vTabela(){
   const c=S.comps[id],kc=S.comps[id+"_K"],T=kc||c; // copas com fase de grupos/liga + mata-mata aparecem como uma competição só
   let h=`<div class="card wide"><select onchange="viewKey=this.value;render()" style="width:100%">${compOpts(id)}</select></div>`;
   const mi=mineIds();
-  {const names=[c.name,kc&&kc.name].filter(Boolean),rows=[];
-    Game.myClubs(S).forEach(cid=>{const tm=S.teams[cid],hl=(S.hist&&S.hist[cid])||[];let e=null;for(let i=hl.length-1;i>=0;i--){if(names.some(n=>hl[i].comp.startsWith(n))){e=hl[i];break}}
-      if(e){const my=e.home?e.gh:e.ga,op=e.home?e.ga:e.gh,k=my>op?"good":my<op?"bad":"mut",lt=my>op?"V":my<op?"D":"E";rows.push(`<div class="ur"><span class="${k} urk">${lt}</span><span class="urm">${tbox(e.h)} <b>${e.gh} x ${e.ga}</b> ${tbox(e.a)}</span><span class="mut urd">${e.date}${/ · /.test(e.comp)?" · "+e.comp.split(" · ").pop():""}</span></div>`)}});
+  {const names=[c.name,kc&&kc.name].filter(Boolean),rows=[],ult=[];
+    // só os times que jogaram a última rodada/fase desta competição (eliminados em fases anteriores somem)
+    const dnum=d=>{const m=String(d||"").match(/(\d{2})\/(\d{2})\/(\d{4})/);return m?Date.UTC(+m[3],m[2]-1,+m[1]):0},fase=e=>/ · /.test(e.comp)?e.comp.split(" · ").pop():"";
+    Game.myClubs(S).forEach(cid=>{const hl=(S.hist&&S.hist[cid])||[];for(let i=hl.length-1;i>=0;i--){if(names.some(n=>hl[i].comp.startsWith(n))){ult.push(hl[i]);break}}});
+    const top=ult.reduce((a,e)=>dnum(e.date)>dnum(a.date)?e:a,ult[0]||{}),tf=fase(top),td=dnum(top.date);
+    const vale=e=>tf?fase(e)===tf:Math.abs(dnum(e.date)-td)<=3*864e5;
+    ult.filter(vale).forEach(e=>{
+      {const my=e.home?e.gh:e.ga,op=e.home?e.ga:e.gh,k=my>op?"good":my<op?"bad":"mut",lt=my>op?"V":my<op?"D":"E";rows.push(`<div class="ur"><span class="${k} urk">${lt}</span><span class="urm">${tbox(e.h)} <b>${e.gh} x ${e.ga}</b> ${tbox(e.a)}</span><span class="mut urd">${e.date}${/ · /.test(e.comp)?" · "+e.comp.split(" · ").pop():""}</span></div>`)}});
     if(rows.length)h+=`<div class="card wide"><h2>Último resultado dos meus times</h2>${rows.join("")}</div>`}
   const tieCard=(nm,ties)=>`<div class="card"><h2>${c.name} — ${nm}</h2>`+ties.map(t=>{
     const A=S.teams[t.a].name,B=S.teams[t.b].name,m=mi.includes(t.a)||mi.includes(t.b);
