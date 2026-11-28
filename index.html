@@ -77,7 +77,7 @@ tr.me{background:color-mix(in srgb,var(--ac) 30%,transparent);font-weight:800}tr
 const PREFIX="elifoot:save:",SAVE1="Elifoot"; // um único save para todos os times
 let artCan=false,S=null,tab="jogo",msg="",mf={pos:"",q:"",any:true,min:1,max:null,afford:true,ord:"ovr",dir:-1},viewKey=null;
 const $=id=>document.getElementById(id);
-const VERSAO=271;
+const VERSAO=272;
 const moneyFull=n=>(n<0?"-":"")+"R$ "+Math.round(Math.abs(n)).toLocaleString("pt-BR");
 const money=moneyFull;
 const U=()=>S.teams[S.user];
@@ -521,7 +521,7 @@ function liveBody(){
   if(!ms)ms=`<div class="card"><h2>${l.rodada&&l.rodada.includes(" - ")?l.rodada:l.comp}</h2><p class="mut">${l.date}</p><div class="big">⏱ ${l.minute}'${l.done?" · Fim de jogo":""}</div></div>`;
   h="";
   if(l.done&&l.shoot){const sh=l.shoot,sc=[0,0];sh.kicks.slice(0,sh.shown).forEach(k=>{if(k.ok)sc[k.team===sh.ids[0]?0:1]++});const fin=sh.shown>=sh.kicks.length;
-    h+=`<div class="card" style="border-color:var(--ac)"><h2>🥅 Disputa de pênaltis</h2><div class="mrow">${tbox(sh.a)} <span>${sc[0]} x ${sc[1]}</span> ${tbox(sh.b)}</div>${sh.kicks.slice(0,sh.shown).map((k,i)=>tline(k.club,`${Math.floor(i/2)+1}ª · ${k.ok?"⚽ converteu":"❌ perdeu"} ${k.name}`)).join("")}${fin?`<p><b>${S.teams[sh.w].name}</b> vence nos pênaltis (${sh.pk[0]} x ${sh.pk[1]}).</p>`:`<p class="mut">Cobrando...</p>`}</div>`}
+    h+=`<div class="card" style="border-color:var(--ac)"><h2>🥅 Disputa de pênaltis</h2><div class="mrow">${tbox(sh.a)} <span>${sc[0]} x ${sc[1]}</span> ${tbox(sh.b)}</div>${(()=>{const ks=sh.kicks.slice(0,sh.shown),col=t=>ks.map((k,i)=>({k,n:ks.slice(0,i+1).filter(x=>x.team===k.team).length})).filter(o=>o.k.team===t).map(o=>tline(o.k.club,`${o.n}ª ${o.k.ok?"⚽":"❌"} ${o.k.name}`)).join("");return `<div class="evg" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:13px"><div style="min-width:0">${col(sh.ids[0])}</div><div style="min-width:0">${col(sh.ids[1])}</div></div>`})()}${fin?`<p><b>${S.teams[sh.w].name}</b> vence nos pênaltis (${sh.pk[0]} x ${sh.pk[1]}).</p>`:`<p class="mut">Cobrando...</p>`}</div>`}
   if(l.done&&!LREADY)h+=`<div class="card"><p class="mut">Fim de jogo.</p></div>`;
   const stc=Campo.statsCard();return {b:hd+ms+h,a:(stc&&matchMedia('(min-width:1000px)').matches)?'':(stc||os),wide:!!stc};
 }
