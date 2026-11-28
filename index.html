@@ -69,15 +69,15 @@ tr.me{background:color-mix(in srgb,var(--ac) 30%,transparent);font-weight:800}tr
 <header><div class="hl"><span id="crest"></span><b id="hT">Meu Elifoot</b></div><div class="hr"><span id="flag"></span><span id="hS"></span></div></header>
 <main id="app"></main>
 <nav id="nav"></nav>
-<script src="clubs.js?v=273"></script>
-<script src="game.js?v=273"></script>
-<script src="campo.js?v=273"></script>
-<script src="campo3d.js?v=273"></script>
+<script src="clubs.js?v=274"></script>
+<script src="game.js?v=274"></script>
+<script src="campo.js?v=274"></script>
+<script src="campo3d.js?v=274"></script>
 <script>
 const PREFIX="elifoot:save:",SAVE1="Elifoot"; // um único save para todos os times
 let artCan=false,S=null,tab="jogo",msg="",mf={pos:"",q:"",any:true,min:1,max:null,afford:true,ord:"ovr",dir:-1},viewKey=null;
 const $=id=>document.getElementById(id);
-const VERSAO=273;
+const VERSAO=274;
 const moneyFull=n=>(n<0?"-":"")+"R$ "+Math.round(Math.abs(n)).toLocaleString("pt-BR");
 const money=moneyFull;
 const U=()=>S.teams[S.user];
@@ -630,13 +630,14 @@ function zonas(c){
   const pr=Game.COUNTRIES[lg.country].promo||0;
   if(lg.tier>1&&pr)add(1,pr,"ACE","Acesso");
   if(pr&&Game.LEAGUES.some(l=>l.country===lg.country&&l.tier===lg.tier+1))add(n-pr+1,n,"REB","Rebaixamento");
-  return leg.length?{z,leg}:null;
+  const note=c.key==="BRA1"?"Se os campeões da Libertadores, da Sul-Americana ou da Copa do Brasil (ou o vice da Copa) já estiverem classificados pelo Brasileirão, a vaga desce para o próximo da tabela.":"";
+  return leg.length?{z,leg,note}:null;
 }
 function tbl(c,ids,hl){
   const t=Game.sortTab(ids,c.tab),zn=zonas(c);
   return `<table><tr><th class="l">Time</th><th>P</th><th>J</th><th>V</th><th>E</th><th>D</th><th>GP</th><th>GC</th><th>SG</th></tr>`+
   t.map((id,i)=>{const r=c.tab[id],zc=zn&&zn.z[i+1];return `<tr class="${mineIds().includes(id)?"me":""}"><td class="l"${zc?` style="border-left:4px solid ${zc}"`:""}>${i+1}. ${mineIds().includes(id)?"★ ":""}${S.teams[id].name}</td><td>${r.pts}</td><td>${r.p}</td><td>${r.w}</td><td>${r.d}</td><td>${r.l}</td><td>${r.gf}</td><td>${r.ga}</td><td>${r.gf-r.ga}</td></tr>`}).join("")+`</table>`
-  +(zn?`<div style="display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12px;margin-top:6px">${zn.leg.map(([col,pos,lab])=>`<span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${col};margin-right:4px"></span>${pos}: ${lab}</span>`).join("")}</div>`:"");
+  +(zn?`<div style="display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12px;margin-top:6px">${zn.leg.map(([col,pos,lab])=>`<span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${col};margin-right:4px"></span>${pos}: ${lab}</span>`).join("")}</div>${zn.note?`<div class="mut" style="font-size:11px;margin-top:4px">${zn.note}</div>`:""}`:"");
 }
 function vTabela(){
   if(HISTV)return vHist();

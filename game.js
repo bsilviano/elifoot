@@ -374,30 +374,58 @@
       c.plan = plan([["Playoff", 2, [26, 27]], ["Oitavas", 2, [31, 32]], ["Quartas", 2, [35, 36]], ["Semifinal", 2, [39, 40]], ["Final", 1, [44]]].map(([n, l, T]) => [n, l, T.map((x) => x + off)]), B);
     });
   }
-  // Pré-Libertadores (fase 3, ida e volta): Brasileirão 6º–7º, Argentino 5º–6º e 4 clubes de outros países.
-  // Os 4 vencedores entram na fase de grupos da Libertadores; os 4 perdedores vão para a Sul-Americana.
+  // Vagas sul-americanas (regra CBF 2026): Brasileirão 1º–4º na fase de grupos e 5º na pré; campeão da Copa do Brasil
+  // nos grupos e vice na pré; campeões da Libertadores e da Sul-Americana nos grupos. Quem já tem vaga abre espaço:
+  // a vaga desce para o próximo do Brasileirão (por isso o G-4/G-5 pode virar G-6, G-7... até G-9).
+  // Argentina: 1º–4º grupos, 5º–6º pré. Pré-Libertadores: 8 clubes em ida e volta; vencedores aos grupos, perdedores à Sul-Americana.
+  function southCountry(s, lk, titlesG, titleP) {
+    const cnt = (sl) => sl.filter((x) => x[0] === lk).reduce((a, x) => a + x[2] - x[1] + 1, 0);
+    const nG = cnt(CONT.LIB.slots), nP = cnt(CONT.LIB.pre || []), nS = cnt(CONT.SUL.slots);
+    const rk = s.rank[lk] || [], grp = [], pre = [], sul = [];
+    titlesG.forEach((id) => { if (id != null && !grp.includes(id)) grp.push(id); });
+    let g = 0; for (const id of rk) { if (g >= nG) break; if (grp.includes(id)) continue; grp.push(id); g++; }
+    if (titleP != null && !grp.includes(titleP)) pre.push(titleP);
+    let q = 0; for (const id of rk) { if (q >= nP) break; if (grp.includes(id) || pre.includes(id)) continue; pre.push(id); q++; }
+    for (const id of rk) { if (sul.length >= nS) break; if (grp.includes(id) || pre.includes(id)) continue; sul.push(id); }
+    return { grp, pre, sul };
+  }
+  function southPlan(s) {
+    const p = s.prevCup || {}, ctry = (id) => (id != null && s.teams[id] ? s.teams[id].country : null);
+    const champs = [p.libW, p.sulW];
+    const br = southCountry(s, "BRA1", champs.filter((id) => ctry(id) === "BRA").concat(p.cdbW != null ? [p.cdbW] : []), p.cdbV);
+    const ar = southCountry(s, "ARG1", champs.filter((id) => ctry(id) === "ARG"), null);
+    return { libD: br.grp.concat(ar.grp), pre: br.pre.concat(ar.pre), sulD: br.sul.concat(ar.sul) };
+  }
   function createSouthCups(s, Y) {
     const B = 52 * (Y - START_YEAR);
     s.season.SACUPS = Y;
-    const L = CONT.LIB, Sx = CONT.SUL;
-    if (L.pre) {
-      const ext = byStrength(s, Sx.extras.map((n) => teamByName(s, n))).slice(0, 4);
-      const pre = byStrength(s, qualifiers(s, { slots: L.pre }).concat(ext));
-      if (pre.length === 8) {
-        const c = newComp(s, "LIBP", "Pré-Libertadores " + Y, pre, "preL", { order: pre, cont: true, Y, ext });
-        c.plan = plan([["Fase 3", 2, [10.5, 12.5]]], B);
-        startStage(s, c, [0, 1, 2, 3].map((i) => [pre[7 - i], pre[i]]));
-        return; // fase de grupos da Libertadores e da Sul-Americana é sorteada quando a pré terminar
-      }
+    const sp = southPlan(s), Sx = CONT.SUL;
+    const exPool = byStrength(s, Sx.extras.map((n) => teamByName(s, n))).filter((id) => !sp.libD.includes(id) && !sp.sulD.includes(id) && !sp.pre.includes(id));
+    const ext = exPool.slice(0, Math.max(0, 8 - sp.pre.length));
+    const pre = byStrength(s, sp.pre.concat(ext));
+    if (CONT.LIB.pre && pre.length === 8) {
+      const c = newComp(s, "LIBP", "Pré-Libertadores " + Y, pre, "preL", { order: pre, cont: true, Y, ext, libD: sp.libD, sulD: sp.sulD });
+      c.plan = plan([["Fase 3", 2, [10.5, 12.5]]], B);
+      startStage(s, c, [0, 1, 2, 3].map((i) => [pre[7 - i], pre[i]]));
+      return; // fase de grupos da Libertadores e da Sul-Americana é sorteada quando a pré terminar
     }
-    createSouthGroups(s, Y, [], [], []);
+    createSouthGroups(s, Y, [], [], [], sp.libD.concat(sp.pre), sp.sulD);
   }
-  function createSouthGroups(s, Y, winners, losers, used) {
+  function createSouthGroups(s, Y, winners, losers, used, libD, sulD) {
     const B = 52 * (Y - START_YEAR);
+    if (!libD) { libD = qualifiers(s, CONT.LIB); sulD = qualifiers(s, CONT.SUL); }
+    let libIds = [];
     ["LIB", "SUL"].forEach((k, ci) => {
-      const def = CONT[k], off = ci * 0.25;
-      let ids = qualifiers(s, def).concat(def.extras.map((n) => teamByName(s, n)).filter((id) => !used.includes(id))).concat(k === "LIB" ? winners : losers);
-      ids = byStrength(s, ids);
+      const def = CONT[k], off = ci * 0.25, other = CONT[k === "LIB" ? "SUL" : "LIB"];
+      let ids = (k === "LIB" ? libD.concat(winners) : sulD.concat(losers));
+      const taken = new Set(ids.concat(k === "LIB" ? used.concat(sulD, losers) : libIds));
+      // completa até 32 com os convidados da própria copa e, se faltar, com os da outra
+      const pick = (arr) => byStrength(s, arr.map((n) => teamByName(s, n)).filter((id) => !taken.has(id)));
+      const nxt = ["BRA1", "ARG1"].flatMap((lk) => s.rank[lk] || []).filter((id) => !taken.has(id) && !libD.includes(id) && !winners.includes(id)); // se ainda faltar: próximos do Brasileirão e do Argentino
+      const fill = pick(def.extras).concat(pick(other.extras).filter((id) => !(k === "LIB" && used.includes(id))), k === "SUL" ? nxt : []);
+      ids = ids.concat(fill.slice(0, Math.max(0, 32 - ids.length))).slice(0, 32);
+      ids = byStrength(s, Array.from(new Set(ids)));
+      if (k === "LIB") libIds = ids;
       const groups = drawGroups(s, ids, 8);
       const c = newComp(s, k, def.name + " " + Y, ids, "gr", { order: ids, prize: def.prize, cont: true, groups });
       addRounds(s, c, groupRounds(groups), [15.5, 16.5, 17.5, 18.5, 19.5, 20.5].map((x) => B + x + off));
@@ -407,6 +435,13 @@
   function createBrazil(s, Y) {
     const B = 52 * (Y - START_YEAR);
     s.season.BRA = Y;
+    { // títulos da temporada anterior que dão vaga sul-americana (guardados antes de a nova Copa do Brasil ser criada)
+      const cdb = s.comps.CDB, lk = s.comps.LIB_K, sk = s.comps.SUL_K, p = {};
+      if (cdb && cdb.done && cdb.champion != null) { p.cdbW = cdb.champion; const t = (cdb.ties || []).find((x) => x.w === cdb.champion); if (t) p.cdbV = t.a === cdb.champion ? t.b : t.a; }
+      if (lk && lk.done && lk.champion != null) p.libW = lk.champion;
+      if (sk && sk.done && sk.champion != null) p.sulW = sk.champion;
+      s.prevCup = p;
+    }
     // estaduais
     const byName = {};
     Object.values(s.teams).forEach((t) => (byName[t.name] = t.id));
@@ -753,6 +788,7 @@
     }
   }
   function topScorersComp(s, cid, n) {
+    cid = String(cid).replace(/_K$/, ""); // gols do mata-mata ficam junto com os da fase de grupos/liga
     const bc = s.comps[cid]; if (!bc) return [];
     const mine = (id) => (s.clubs || [s.user]).concat(s.user).some((m) => s.teams[m] && s.teams[m].id === id);
     return Object.values(s.scorers || {}).filter((e) => e.cs && e.cs[cid] && e.cs[cid].k === bc.name && e.cs[cid].g > 0)
@@ -923,7 +959,7 @@
         break;
       }
       case "cup": case "stK": c.done = true; break;
-      case "preL": c.done = true; createSouthGroups(s, c.Y, c.winners || [], c.losers || [], c.ext || []); break;
+      case "preL": c.done = true; createSouthGroups(s, c.Y, c.winners || [], c.losers || [], c.ext || [], c.libD, c.sulD); break;
       case "arG": {
         c.done = true;
         c.ids.forEach((id) => { s.annual[id].pts += c.tab[id].pts; s.annual[id].g += c.tab[id].p; });

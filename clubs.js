@@ -61,9 +61,9 @@
       extras: ["Fenerbahçe","Besiktas","Rangers","Anderlecht","Genk","Shakhtar Donetsk","Dínamo de Kiev","Red Bull Salzburg","Sturm Graz","Young Boys","Basel","FC Zurique","Viktoria Plzen","Sparta Praga","Ludogorets","FCSB","Maccabi Tel Aviv","PAOK","AEK Atenas","Panathinaikos","Dinamo Zagreb","Hajduk Split","Estrela Vermelha","Malmö"] },
     UECL: { name: "Conference League", kind: "swiss", ovr: 56, prize: 400000, slots: [["ENG1",7,8],["ESP1",7,8],["ITA1",7,8],["GER1",7,8],["FRA1",6,7],["POR1",6,7]],
       extras: ["Jagiellonia","Legia Varsóvia","Rakow","Lech Poznan","AZ Alkmaar","Twente","Utrecht","Hacken","Brann","Molde","Rosenborg","Midtjylland","Brøndby","Hearts","Aberdeen","Shamrock Rovers","Omonia","Aris Limassol","Lugano","Servette","Rapid Viena","LASK","Austria Viena","Trabzonspor"] },
-    LIB: { name: "Libertadores", kind: "groups", ovr: 56, prize: 1000000, slots: [["BRA1",1,5],["ARG1",1,4]], pre: [["BRA1",6,7],["ARG1",5,6]],
+    LIB: { name: "Libertadores", kind: "groups", ovr: 56, prize: 1000000, slots: [["BRA1",1,4],["ARG1",1,4]], pre: [["BRA1",5,5],["ARG1",5,6]],
       extras: ["Peñarol","Nacional-URU","Colo-Colo","Universidad Católica","Atlético Nacional","Junior","Independiente Santa Fe","LDU Quito","Barcelona SC","Independiente del Valle","Olimpia","Cerro Porteño","Libertad","Bolívar","The Strongest","Alianza Lima","Universitario","Sporting Cristal","Deportivo Táchira"] },
-    SUL: { name: "Sul-Americana", kind: "groups", ovr: 52, prize: 400000, slots: [["BRA1",8,13],["ARG1",7,12]],
+    SUL: { name: "Sul-Americana", kind: "groups", ovr: 52, prize: 400000, slots: [["BRA1",6,11],["ARG1",7,12]],
       extras: ["Defensor Sporting","Liverpool-URU","Danubio","Universidad de Chile","Palestino","Huachipato","Cobresal","Millonarios","América de Cali","Deportes Tolima","Once Caldas","Emelec","Deportivo Cuenca","Aucas","Guaraní","Nacional-PAR","Sportivo Luqueño","Blooming","Melgar","Cienciano"] }
     ,
     // Mundial de Clubes (a cada 4 anos, formato FIFA 2025: 32 clubes, 8 grupos de 4, mata-mata de jogo único).
